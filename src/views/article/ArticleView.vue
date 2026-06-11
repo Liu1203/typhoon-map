@@ -1,4 +1,5 @@
 <template>
+  <AppHeader />
   <div class="article-page">
     <!-- 返回按钮 -->
     <div class="article-nav">
@@ -62,6 +63,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NCard, NTag, NSpin, NButton } from 'naive-ui'
 import MarkdownIt from 'markdown-it'
 import { getArticleById } from '@/api/article'
+import AppHeader from '@/components/AppHeader.vue'
 import CommentSection from '@/components/CommentSection.vue'
 
 const route = useRoute()

@@ -1,34 +1,6 @@
 <template>
   <div class="blog-page">
-    <!-- 顶部导航 -->
-    <header class="blog-header">
-      <div class="header-inner">
-        <div class="logo">
-          <span class="logo-icon">📝</span>
-          <span class="logo-text">My Blog</span>
-        </div>
-        <nav class="nav-links">
-          <a href="#" class="nav-link active">首页</a>
-          <a href="#" class="nav-link">归档</a>
-          <a href="#" class="nav-link">分类</a>
-          <a href="#" class="nav-link">关于</a>
-        </nav>
-        <div class="header-actions">
-          <n-button text @click="toggleTheme">
-            {{ isDark ? '☀️' : '🌙' }}
-          </n-button>
-          <n-avatar
-            round
-            size="small"
-            :src="userStore.userInfo?.avatar || undefined"
-            class="user-avatar"
-          />
-          <n-button text type="info" @click="handleLogout">
-            退出
-          </n-button>
-        </div>
-      </div>
-    </header>
+    <AppHeader />
 
     <!-- 主内容区 -->
     <main class="blog-main">
@@ -160,26 +132,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import AppHeader from '@/components/AppHeader.vue'
 import {
   NCard,
-  NAvatar,
   NButton,
   NTag,
   NSpace,
 } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { message } from '@/utils/message'
 
 const router = useRouter()
 const userStore = useUserStore()
-
-// 暗黑模式切换（简易版，只切换一个变量）
-const isDark = ref(false)
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.style.filter = isDark.value ? 'invert(0.9) hue-rotate(180deg)' : ''
-}
 
 // 左侧分类数据
 const categories = ref([
@@ -316,13 +280,6 @@ const recentComments = ref([
   { id: 3, author: '大佬', text: 'MSW 确实好用，感谢分享。' },
 ])
 
-// 退出登录
-function handleLogout() {
-  userStore.logout()
-  message.success('已退出登录')
-  router.push('/login')
-}
-
 // 实时时钟
 const now = ref(new Date())
 let timer: number
@@ -379,60 +336,6 @@ $sidebar-right-width: 300px;
   // Firefox
   scrollbar-width: none;      // 隐藏滚动条
   -ms-overflow-style: none;   // IE & Edge 旧版
-}
-
-// ===== 顶部导航 =====
-.blog-header {
-  background: $bg-card;
-  border-bottom: 1px solid $border-color;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-
-  .header-inner {
-    width: 100%;
-    @include flex-center;
-    justify-content: space-between;
-    padding: 0 $gap;
-    height: $header-height;
-  }
-}
-
-.logo {
-  @include flex-center;
-  gap: 8px;
-  font-weight: 700;
-  font-size: 18px;
-
-  &-icon {
-    font-size: 24px;
-  }
-}
-
-.nav-links {
-  display: flex;
-  gap: $gap;
-
-  .nav-link {
-    text-decoration: none;
-    color: #555;
-    font-size: 14px;
-    transition: color 0.2s;
-
-    &:hover,
-    &.active {
-      color: $primary;
-    }
-  }
-}
-
-.header-actions {
-  @include flex-center;
-  gap: 8px;
-
-  .user-avatar {
-    margin: 0 4px;
-  }
 }
 
 // ===== 主容器 =====
@@ -689,10 +592,6 @@ $sidebar-right-width: 300px;
 
   .blog-sidebar {
     position: static;
-  }
-
-  .nav-links {
-    display: none;
   }
 
   .welcome-inner {
