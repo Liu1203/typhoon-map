@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <!-- 背景圆角方形 -->
+  <rect width="100" height="100" rx="20" fill="url(#grad)"/>
+  <!-- 尖括号 </> -->
+  <text x="50" y="68" text-anchor="middle" fill="white" font-size="55" font-weight="bold" font-family="monospace">&lt;/&gt;</text>
+</svg>

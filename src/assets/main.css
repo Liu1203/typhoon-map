@@ -1,0 +1,48 @@
+@import './base.css';
+
+/* 保证页面铺满窗口 */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+  height: 100%;
+  /* 如果你的项目不需要最大宽度限制，可以直接删除下面的限制 */
+  /* max-width: 1280px;  ← 删掉 */
+  /* margin: 0 auto;     ← 删掉 */
+  /* padding: 2rem;       ← 删掉 */
+  font-weight: normal;
+}
+
+/* 下面这些是原模板的链接样式，可以保留，根据喜好调整 */
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+/* 原模板的宽屏布局会强制 body flex 居中，必须覆盖或删除 */
+/* 如果不需要原来的两栏布局，直接注释或删除下面整个媒体查询 */
+@media (min-width: 1024px) {
+  /* 可以完全删掉，或者改成仅调整某些细节 */
+  /* body {
+    display: flex;
+    place-items: center;
+  }
+  #app {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0 2rem;
+  } */
+}
