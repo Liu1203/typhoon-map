@@ -7,9 +7,9 @@
       </div>
       <nav class="nav-links">
         <router-link to="/home" class="nav-link" active-class="active">首页</router-link>
-        <a href="#" class="nav-link">归档</a>
-        <a href="#" class="nav-link">分类</a>
-        <a href="#" class="nav-link">关于</a>
+        <router-link to="/articles" class="nav-link" active-class="active">文章</router-link>
+        <router-link to="/categories" class="nav-link" active-class="active">分类</router-link>
+        <router-link to="/about" class="nav-link" active-class="active">关于</router-link>
       </nav>
       <div class="header-actions">
         <n-button text @click="toggleTheme">

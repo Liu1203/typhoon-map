@@ -18,6 +18,23 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/auth/LoginView.vue'),
   },
   {
+    path: '/articles',
+    name: 'articles',
+    component: () => import('@/views/article/ArchiveView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/categories',
+    name: 'categories',
+    component: () => import('@/views/article/CategoryView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/about',
+    name: 'about',
+    component: () => import('@/views/about/AboutView.vue'),
+  },
+  {
     path: '/article/:id',
     name: 'article',
     component: () => import('@/views/article/ArticleView.vue'),
