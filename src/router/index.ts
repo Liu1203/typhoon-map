@@ -48,25 +48,21 @@ const router = createRouter({
 })
 
 // 全局前置守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, from) => {
   const token = localStorage.getItem('token')
 
-  // 1. 如果要去的是登录页，已登录则跳到首页，未登录则放行
   if (to.path === '/login') {
     if (token) {
-      return next('/home')
-    } else {
-      return next()
+      return '/home'
     }
+    return true
   }
 
-  // 2. 如果目标路由需要登录但没 token，强制跳转登录页
   if (to.meta.requiresAuth && !token) {
-    return next('/login')
+    return '/login'
   }
 
-  // 3. 其他情况正常放行
-  next()
+  return true
 })
 
 export default router

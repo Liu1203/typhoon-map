@@ -1,59 +1,61 @@
 <template>
-  <AppHeader />
-  <div class="article-page">
-    <!-- 返回按钮 -->
-    <div class="article-nav">
-      <n-button text @click="router.push('/home')" class="back-btn">
-        ← 返回首页
-      </n-button>
+  <div class="article-wrapper">
+    <AppHeader />
+    <div class="article-page">
+      <!-- 返回按钮 -->
+      <div class="article-nav">
+        <n-button text @click="router.push('/home')" class="back-btn">
+          ← 返回首页
+        </n-button>
+      </div>
+
+      <!-- 加载状态 -->
+      <n-spin v-if="!article" size="large" class="loading-spin" />
+
+      <!-- 文章内容 -->
+      <article v-else class="article-card">
+        <!-- 文章头部 -->
+        <header class="article-header">
+          <span
+            class="article-category"
+            :style="{ background: article.categoryColor }"
+          >
+            {{ article.category }}
+          </span>
+          <span class="article-date">{{ article.date }}</span>
+        </header>
+
+        <h1 class="article-title">{{ article.title }}</h1>
+
+        <div class="article-meta">
+          <n-tag
+            v-for="tag in article.tags"
+            :key="tag"
+            size="small"
+            :bordered="false"
+            type="info"
+            class="article-tag"
+          >
+            #{{ tag }}
+          </n-tag>
+        </div>
+
+        <!-- 分隔线 -->
+        <div class="divider" />
+
+        <!-- Markdown 渲染区域 -->
+        <div class="article-body" v-html="renderedContent" />
+
+        <!-- 文章底部 -->
+        <div class="divider" />
+        <div class="article-footer">
+          <span>— END —</span>
+        </div>
+      </article>
+
+      <!-- 评论区 -->
+      <CommentSection v-if="article" :article-id="article.id" />
     </div>
-
-    <!-- 加载状态 -->
-    <n-spin v-if="!article" size="large" class="loading-spin" />
-
-    <!-- 文章内容 -->
-    <article v-else class="article-card">
-      <!-- 文章头部 -->
-      <header class="article-header">
-        <span
-          class="article-category"
-          :style="{ background: article.categoryColor }"
-        >
-          {{ article.category }}
-        </span>
-        <span class="article-date">{{ article.date }}</span>
-      </header>
-
-      <h1 class="article-title">{{ article.title }}</h1>
-
-      <div class="article-meta">
-        <n-tag
-          v-for="tag in article.tags"
-          :key="tag"
-          size="small"
-          :bordered="false"
-          type="info"
-          class="article-tag"
-        >
-          #{{ tag }}
-        </n-tag>
-      </div>
-
-      <!-- 分隔线 -->
-      <div class="divider" />
-
-      <!-- Markdown 渲染区域 -->
-      <div class="article-body" v-html="renderedContent" />
-
-      <!-- 文章底部 -->
-      <div class="divider" />
-      <div class="article-footer">
-        <span>— END —</span>
-      </div>
-    </article>
-
-    <!-- 评论区 -->
-    <CommentSection v-if="article" :article-id="article.id" />
   </div>
 </template>
 

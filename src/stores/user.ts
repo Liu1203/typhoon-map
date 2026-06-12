@@ -5,7 +5,13 @@ import type { LoginResult } from '@/types/api'
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
   const userInfo = ref<LoginResult['userInfo'] | null>(
-    JSON.parse(localStorage.getItem('userInfo') || 'null')
+    (() => {
+      try {
+        return JSON.parse(localStorage.getItem('userInfo') || 'null')
+      } catch {
+        return null
+      }
+    })()
   )
 
   function setLoginData(data: LoginResult) {
