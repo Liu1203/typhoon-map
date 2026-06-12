@@ -18,8 +18,6 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
-    proxy: {          // 代理跨域（按需）
-      '/api': 'http://localhost:8080'
-    }
+    // proxy: { '/api': 'http://localhost:8080' }  // 开发环境使用 MSW mock，无需代理
   },
 })
