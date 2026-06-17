@@ -15,198 +15,130 @@
       />
     </div>
 
-    <div class="login-container">
-      <div class="brand-panel">
-        <div class="brand-content">
-          <div class="brand-icon">
-            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="48" height="48" rx="12" fill="currentColor" fill-opacity="0.15"/>
-              <path d="M14 24L20 30L34 16" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h1 class="brand-title">Vue3 Admin</h1>
-          <p class="brand-desc">基于 Vue 3 + TypeScript + Naive UI<br/>的现代化管理系统</p>
-        </div>
-        <div class="decor-ring ring-1" />
-        <div class="decor-ring ring-2" />
-        <div class="decor-dot dot-1" />
-        <div class="decor-dot dot-2" />
-        <div class="decor-dot dot-3" />
+    <div class="login-card">
+      <div class="brand">
+        <span class="brand-icon">✦</span>
+        <span class="brand-name">My Blog</span>
       </div>
 
-      <div class="form-panel">
-        <div class="form-wrapper">
-          <div class="form-header">
-            <h2>{{ mode === 'login' ? '欢迎登录' : '创建账号' }}</h2>
-            <p>{{ mode === 'login' ? '请输入您的账号信息' : '注册一个新账号' }}</p>
-            <div class="mode-tabs">
-              <n-button
-                :type="mode === 'login' ? 'primary' : 'default'"
-                size="small"
-                @click="switchMode('login')"
-              >
-                登录
-              </n-button>
-              <n-button
-                :type="mode === 'register' ? 'primary' : 'default'"
-                size="small"
-                @click="switchMode('register')"
-              >
-                注册
-              </n-button>
+      <div class="mode-tabs">
+        <n-button
+          :type="mode === 'login' ? 'primary' : 'default'"
+          size="small"
+          @click="switchMode('login')"
+        >
+          登录
+        </n-button>
+        <n-button
+          :type="mode === 'register' ? 'primary' : 'default'"
+          size="small"
+          @click="switchMode('register')"
+        >
+          注册
+        </n-button>
+      </div>
+
+      <n-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-placement="top"
+        size="small"
+      >
+        <n-form-item path="username" label="用户名">
+          <n-input
+            v-model:value="formData.username"
+            placeholder="请输入用户名"
+            :input-props="{ autocomplete: mode === 'login' ? 'username' : 'new-username' }"
+            @keyup.enter="focusNext('password')"
+          />
+        </n-form-item>
+
+        <n-form-item v-if="mode === 'register'" path="name" label="昵称">
+          <n-input
+            ref="nameInputRef"
+            v-model:value="formData.name"
+            placeholder="请输入昵称"
+            :input-props="{ autocomplete: 'name' }"
+            @keyup.enter="focusNext('email')"
+          />
+        </n-form-item>
+
+        <n-form-item v-if="mode === 'register'" path="email" label="邮箱">
+          <n-input
+            ref="emailInputRef"
+            v-model:value="formData.email"
+            placeholder="请输入邮箱"
+            :input-props="{ autocomplete: 'email' }"
+            @keyup.enter="focusNext('password')"
+          />
+        </n-form-item>
+
+        <n-form-item path="password" label="密码">
+          <n-input
+            ref="passwordInputRef"
+            v-model:value="formData.password"
+            type="password"
+            show-password-on="click"
+            :placeholder="mode === 'login' ? '请输入密码' : '请输入密码（至少6位）'"
+            :input-props="{ autocomplete: mode === 'login' ? 'current-password' : 'new-password' }"
+            @keyup.enter="mode === 'login' ? focusNext('captcha') : focusNext('confirmPassword')"
+          />
+        </n-form-item>
+
+        <n-form-item v-if="mode === 'register'" path="confirmPassword" label="确认密码">
+          <n-input
+            ref="confirmPasswordInputRef"
+            v-model:value="formData.confirmPassword"
+            type="password"
+            show-password-on="click"
+            placeholder="请再次输入密码"
+            :input-props="{ autocomplete: 'new-password' }"
+            @keyup.enter="focusNext('captcha')"
+          />
+        </n-form-item>
+
+        <n-form-item path="captcha" label="验证码">
+          <div class="captcha-row">
+            <n-input
+              ref="captchaInputRef"
+              v-model:value="formData.captcha"
+              placeholder="请输入验证码"
+              :maxlength="4"
+              @keyup.enter="handleSubmit"
+            />
+            <div class="captcha-img" @click="refreshCaptcha" title="点击刷新验证码">
+              <canvas ref="captchaCanvas" width="90" height="34" />
             </div>
           </div>
+        </n-form-item>
 
-          <n-form
-            ref="formRef"
-            :model="formData"
-            :rules="rules"
-            label-placement="left"
-            label-width="80"
-            size="large"
-          >
-            <!-- 用户名 -->
-            <n-form-item path="username" label="用户名">
-              <n-input
-                v-model:value="formData.username"
-                :placeholder="mode === 'login' ? '请输入用户名 (admin)' : '请输入用户名'"
-                :input-props="{ autocomplete: mode === 'login' ? 'username' : 'new-username' }"
-                @keyup.enter="focusNext('password')"
-              >
-                <template #prefix>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>
-                  </svg>
-                </template>
-              </n-input>
-            </n-form-item>
-
-            <!-- 昵称（仅注册） -->
-            <n-form-item v-if="mode === 'register'" path="name" label="昵称">
-              <n-input
-                ref="nameInputRef"
-                v-model:value="formData.name"
-                placeholder="请输入昵称"
-                :input-props="{ autocomplete: 'name' }"
-                @keyup.enter="focusNext('email')"
-              >
-                <template #prefix>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                </template>
-              </n-input>
-            </n-form-item>
-
-            <!-- 邮箱（仅注册） -->
-            <n-form-item v-if="mode === 'register'" path="email" label="邮箱">
-              <n-input
-                ref="emailInputRef"
-                v-model:value="formData.email"
-                placeholder="请输入邮箱"
-                :input-props="{ autocomplete: 'email' }"
-                @keyup.enter="focusNext('password')"
-              >
-                <template #prefix>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="4" width="20" height="16" rx="2"/>
-                    <path d="M22 4L12 13 2 4"/>
-                  </svg>
-                </template>
-              </n-input>
-            </n-form-item>
-
-            <!-- 密码 -->
-            <n-form-item path="password" label="密码">
-              <n-input
-                ref="passwordInputRef"
-                v-model:value="formData.password"
-                type="password"
-                show-password-on="click"
-                :placeholder="mode === 'login' ? '请输入密码 (123456)' : '请输入密码（至少6位）'"
-                :input-props="{ autocomplete: mode === 'login' ? 'current-password' : 'new-password' }"
-                @keyup.enter="mode === 'login' ? focusNext('captcha') : focusNext('confirmPassword')"
-              >
-                <template #prefix>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0110 0v4"/>
-                    <circle cx="12" cy="16" r="1"/>
-                  </svg>
-                </template>
-              </n-input>
-            </n-form-item>
-
-            <!-- 确认密码（仅注册） -->
-            <n-form-item v-if="mode === 'register'" path="confirmPassword" label="确认密码">
-              <n-input
-                ref="confirmPasswordInputRef"
-                v-model:value="formData.confirmPassword"
-                type="password"
-                show-password-on="click"
-                placeholder="请再次输入密码"
-                :input-props="{ autocomplete: 'new-password' }"
-                @keyup.enter="focusNext('captcha')"
-              >
-                <template #prefix>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="11" width="18" height="11" rx="2"/>
-                    <path d="M7 11V7a5 5 0 0110 0v4"/>
-                    <circle cx="12" cy="16" r="1"/>
-                  </svg>
-                </template>
-              </n-input>
-            </n-form-item>
-
-            <!-- 验证码 -->
-            <n-form-item path="captcha" label="验证码">
-              <div class="captcha-row">
-                <n-input
-                  ref="captchaInputRef"
-                  v-model:value="formData.captcha"
-                  placeholder="请输入验证码"
-                  :maxlength="4"
-                  style="flex: 1"
-                  @keyup.enter="handleSubmit"
-                />
-                <div class="captcha-img" @click="refreshCaptcha" title="点击刷新验证码">
-                  <canvas ref="captchaCanvas" width="100" height="38" />
-                </div>
-              </div>
-            </n-form-item>
-
-            <!-- 记住密码（仅登录） -->
-            <div v-if="mode === 'login'" class="form-extra">
-              <n-checkbox v-model:checked="rememberPassword">
-                记住密码
-              </n-checkbox>
-              <n-button text type="primary" @click="showForgetModal = true">
-                忘记密码？
-              </n-button>
-            </div>
-
-            <!-- 提交按钮 -->
-            <n-button
-              type="primary"
-              block
-              size="large"
-              :loading="loading"
-              class="submit-btn"
-              @click="handleSubmit"
-            >
-              {{ loading ? (mode === 'login' ? '登录中...' : '注册中...') : (mode === 'login' ? '登 录' : '注 册') }}
-            </n-button>
-          </n-form>
-
-          <div class="form-footer">
-            <span>{{ mode === 'login' ? '还没有账号？' : '已有账号？' }}</span>
-            <n-button text type="primary" @click="switchMode(mode === 'login' ? 'register' : 'login')">
-              {{ mode === 'login' ? '立即注册' : '去登录' }}
-            </n-button>
-          </div>
+        <div v-if="mode === 'login'" class="form-extra">
+          <n-checkbox v-model:checked="rememberPassword">
+            记住密码
+          </n-checkbox>
+          <n-button text @click="showForgetModal = true">
+            忘记密码？
+          </n-button>
         </div>
+
+        <n-button
+          type="primary"
+          block
+          size="large"
+          :loading="loading"
+          class="submit-btn"
+          @click="handleSubmit"
+        >
+          {{ loading ? (mode === 'login' ? '登录中...' : '注册中...') : (mode === 'login' ? '登 录' : '注 册') }}
+        </n-button>
+      </n-form>
+
+      <div class="form-footer">
+        <span>{{ mode === 'login' ? '还没有账号？' : '已有账号？' }}</span>
+        <n-button text @click="switchMode(mode === 'login' ? 'register' : 'login')">
+          {{ mode === 'login' ? '立即注册' : '去登录' }}
+        </n-button>
       </div>
     </div>
 
@@ -493,15 +425,20 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
-$primary-color: #6366f1;
+$primary: #6366f1;
+$primary-light: #8b5cf6;
 
 .login-page {
   position: relative;
   height: 100vh;
-  background: linear-gradient(135deg, #0f0c29 0%, #1a1a4e 30%, #24243e 60%, #1a1a3e 100%);
+  background: linear-gradient(160deg, #0b0b1a 0%, #111128 30%, #1a1040 60%, #0f0c29 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+}
+
+:global(html), :global(body) {
   overflow: hidden;
 }
 
@@ -510,232 +447,147 @@ $primary-color: #6366f1;
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  overflow: hidden;
 }
 .particle {
   position: absolute;
-  bottom: -20px;
+  bottom: -24px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
   animation: floatUp linear infinite;
 }
 @keyframes floatUp {
   0% { transform: translateY(0) scale(1); opacity: 0; }
-  10% { opacity: 0.8; }
-  90% { opacity: 0.3; }
+  8% { opacity: 0.6; }
+  92% { opacity: 0.2; }
   100% { transform: translateY(-110vh) scale(0.3); opacity: 0; }
 }
 
-.login-container {
+.login-card {
   position: relative;
   z-index: 1;
-  display: flex;
-  width: 900px;
-  min-height: 550px;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.4), 0 0 100px rgba(100, 100, 255, 0.15);
-  animation: containerIn 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  width: 380px;
+  padding: 20px 24px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.5);
+  animation: cardIn 0.6s ease-out;
 }
-@keyframes containerIn {
-  from { opacity: 0; transform: translateY(40px) scale(0.96); }
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(30px) scale(0.96); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.brand-panel {
-  flex: 1;
-  background: linear-gradient(160deg, #4f46e5 0%, #7c3aed 40%, $primary-color 100%);
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 36px;
-  overflow: hidden;
-}
-.brand-content {
-  position: relative;
-  z-index: 2;
+.brand {
   text-align: center;
-  color: #fff;
-  animation: fadeInLeft 0.7s 0.2s both;
-}
-@keyframes fadeInLeft {
-  from { opacity: 0; transform: translateX(-30px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-.brand-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 20px;
-  color: #fff;
-  animation: iconPulse 3s ease-in-out infinite;
-}
-@keyframes iconPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
-}
-.brand-title {
-  font-size: 28px;
-  font-weight: 700;
-  margin: 0 0 12px;
-  letter-spacing: 2px;
-}
-.brand-desc {
-  font-size: 14px;
-  opacity: 0.85;
-  line-height: 1.8;
+  margin-bottom: 10px;
+
+  .brand-icon {
+    font-size: 18px;
+    color: $primary-light;
+  }
+  .brand-name {
+    display: block;
+    margin-top: 4px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: 1px;
+  }
 }
 
-.decor-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.12);
-  pointer-events: none;
-}
-.ring-1 {
-  width: 300px;
-  height: 300px;
-  bottom: -120px;
-  left: -80px;
-  animation: ringFloat 8s ease-in-out infinite;
-}
-.ring-2 {
-  width: 200px;
-  height: 200px;
-  top: -60px;
-  right: -60px;
-  animation: ringFloat 6s ease-in-out infinite reverse;
-}
-@keyframes ringFloat {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  33% { transform: translate(10px, -15px) rotate(120deg); }
-  66% { transform: translate(-5px, 10px) rotate(240deg); }
-}
-.decor-dot {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.2);
-  pointer-events: none;
-}
-.dot-1 { width: 12px; height: 12px; top: 15%; left: 20%; animation: dotFloat 5s ease-in-out infinite; }
-.dot-2 { width: 8px; height: 8px; bottom: 25%; right: 25%; animation: dotFloat 7s ease-in-out infinite 1s; }
-.dot-3 { width: 6px; height: 6px; top: 40%; right: 15%; animation: dotFloat 6s ease-in-out infinite 2s; }
-@keyframes dotFloat {
-  0%, 100% { transform: translate(0, 0); opacity: 0.4; }
-  50% { transform: translate(8px, -12px); opacity: 1; }
-}
-
-.form-panel {
-  flex: 1;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 40px;
-}
-.form-wrapper {
-  width: 100%;
-  max-width: 340px;
-  animation: fadeInRight 0.7s 0.3s both;
-}
-@keyframes fadeInRight {
-  from { opacity: 0; transform: translateX(30px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-.form-header {
-  text-align: center;
-  margin-bottom: 28px;
-}
-.form-header h2 {
-  margin: 0 0 4px;
-  font-size: 24px;
-  font-weight: 700;
-  color: #1a1a2e;
-}
-.form-header p {
-  margin: 0 0 16px;
-  font-size: 14px;
-  color: #888;
-}
-
-/* 模式切换按钮 */
 .mode-tabs {
   display: inline-flex;
-  gap: 8px;
+  gap: 4px;
   background: #f0f2f5;
-  padding: 3px;
-  border-radius: 8px;
-}
-.mode-tabs :deep(.n-button) {
+  padding: 2px;
   border-radius: 6px;
+  margin: 0 auto 10px;
+  width: 100%;
+
+  :deep(.n-button) {
+    flex: 1;
+    border-radius: 5px;
+    font-size: 12px;
+  }
 }
 
 .captcha-row {
   display: flex;
   gap: 12px;
-}
-.captcha-img {
-  flex-shrink: 0;
-  border-radius: 6px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px solid #e0e0e0;
-  transition: border-color 0.2s;
-}
-.captcha-img:hover {
-  border-color: $primary-color;
-}
-.captcha-img canvas {
-  display: block;
+
+  .captcha-img {
+    flex-shrink: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid #e0e0e0;
+    transition: border-color 0.2s;
+    line-height: 0;
+
+    &:hover {
+      border-color: $primary;
+    }
+    canvas {
+      display: block;
+    }
+  }
 }
 
 .form-extra {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  font-size: 13px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #888;
 }
 
 .submit-btn {
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 2px;
-  height: 44px;
-  background: linear-gradient(135deg, $primary-color, #8b5cf6) !important;
+  letter-spacing: 1px;
+  height: 36px;
+  background: linear-gradient(135deg, $primary, $primary-light) !important;
   border: none !important;
   transition: transform 0.2s, box-shadow 0.3s !important;
-}
-.submit-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4) !important;
-}
-.submit-btn:active {
-  transform: translateY(0);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba($primary, 0.35) !important;
+  }
+  &:active {
+    transform: translateY(0);
+  }
 }
 
 .form-footer {
   text-align: center;
-  margin-top: 20px;
-  font-size: 13px;
+  margin-top: 12px;
+  font-size: 12px;
   color: #999;
+
+  :deep(.n-button) {
+    font-size: 12px;
+  }
 }
 
-@media (max-width: 768px) {
-  .login-container {
-    width: 90vw;
-    flex-direction: column;
-    min-height: auto;
+:deep(.n-form-item) {
+  margin-bottom: 6px !important;
+  .n-form-item-label {
+    font-size: 13px;
+    padding-bottom: 2px;
   }
-  .brand-panel {
-    display: none;
+  .n-input {
+    border-radius: 8px;
   }
-  .form-panel {
-    padding: 32px 24px;
-    border-radius: 16px;
-  }
-  .form-wrapper {
-    max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    width: calc(100vw - 24px);
+    padding: 16px 14px;
   }
 }
 </style>
