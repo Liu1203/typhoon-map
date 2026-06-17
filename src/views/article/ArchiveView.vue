@@ -263,12 +263,12 @@ const recentComments = ref([
 <style scoped lang="scss">
 $primary: #6366f1;
 $primary-light: #8b5cf6;
-$bg-page: #f8f9fb;
-$bg-card: #fff;
-$text-primary: #333;
-$text-secondary: #666;
-$text-muted: #999;
-$border-color: #eee;
+$bg-page: var(--color-bg-page);
+$bg-card: var(--color-bg-card);
+$text-primary: var(--color-text-primary);
+$text-secondary: var(--color-text-secondary);
+$text-muted: var(--color-text-muted);
+$border-color: var(--color-border);
 $radius: 12px;
 $gap: 24px;
 $sidebar-left-width: 260px;
@@ -466,7 +466,7 @@ $sidebar-right-width: 300px;
 
 .comment-item {
   padding: 8px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border);
 
   &:last-child { border-bottom: none; }
 

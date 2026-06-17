@@ -1,12 +1,20 @@
 <template>
-  <router-view v-slot="{ Component, route }">
-    <transition name="page" mode="out-in">
-      <component :is="Component" :key="route.path" />
-    </transition>
-  </router-view>
+  <n-config-provider :theme="theme">
+    <router-view v-slot="{ Component, route }">
+      <transition name="page" mode="out-in">
+        <component :is="Component" :key="route.path" />
+      </transition>
+    </router-view>
+  </n-config-provider>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { NConfigProvider, darkTheme } from 'naive-ui'
+import { useTheme } from '@/composables/useTheme'
+
+const { isDark } = useTheme()
+const theme = computed(() => isDark.value ? darkTheme : null)
 </script>
 
 <style>

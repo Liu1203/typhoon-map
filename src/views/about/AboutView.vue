@@ -89,7 +89,7 @@ $primary-light: #8b5cf6;
 
 .about-page {
   min-height: 100vh;
-  background: #f8f9fb;
+  background: var(--color-bg-page);
 }
 
 .page-main {
@@ -105,14 +105,14 @@ $primary-light: #8b5cf6;
   h1 {
     font-size: 28px;
     font-weight: 700;
-    color: #1a1a2e;
+    color: var(--color-text-primary);
     margin: 0 0 8px;
   }
 
   .site-desc {
     margin: 0;
     font-size: 15px;
-    color: #888;
+    color: var(--color-text-secondary);
   }
 }
 
@@ -124,8 +124,8 @@ $primary-light: #8b5cf6;
 }
 
 .stat-card {
-  background: #fff;
-  border: 1px solid #eee;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 24px 16px;
   text-align: center;
@@ -155,7 +155,7 @@ $primary-light: #8b5cf6;
 
 .stat-label {
   font-size: 13px;
-  color: #888;
+  color: var(--color-text-secondary);
   font-weight: 500;
 }
 
@@ -166,11 +166,11 @@ $primary-light: #8b5cf6;
   justify-content: center;
   gap: 8px;
   padding: 20px 24px;
-  background: #fff;
-  border: 1px solid #eee;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   font-size: 14px;
-  color: #555;
+  color: var(--color-text-secondary);
 
   .timeline-dot {
     width: 8px;

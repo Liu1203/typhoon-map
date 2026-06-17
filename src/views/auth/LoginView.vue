@@ -438,9 +438,6 @@ $primary-light: #8b5cf6;
   overflow: hidden;
 }
 
-:global(html), :global(body) {
-  overflow: hidden;
-}
 
 .particles {
   position: absolute;

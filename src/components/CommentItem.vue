@@ -2,13 +2,12 @@
   <div class="comment-item">
     <div class="comment-main">
       <div class="comment-avatar">
-        <n-avatar
+        <UserAvatar
+          :src="comment.authorAvatar"
+          :name="comment.author"
+          :size="32"
           round
-          size="small"
-          :src="comment.authorAvatar || undefined"
-        >
-          {{ comment.author.charAt(0) }}
-        </n-avatar>
+        />
       </div>
       <div class="comment-body">
         <div class="comment-meta">
@@ -83,9 +82,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { NButton, NAvatar, NInput } from 'naive-ui'
+import { NButton, NInput } from 'naive-ui'
 import type { Comment } from '@/types/api'
 import MarkdownIt from 'markdown-it'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const props = defineProps<{
   comment: Comment
@@ -144,10 +144,10 @@ function submitInlineReply() {
 
 <style scoped lang="scss">
 $primary: #6366f1;
-$text-primary: #1a1a2e;
-$text-secondary: #555;
-$text-muted: #999;
-$border-color: #e8e8ed;
+$text-primary: var(--color-text-primary);
+$text-secondary: var(--color-text-secondary);
+$text-muted: var(--color-text-muted);
+$border-color: var(--color-border);
 
 .comment-item {
   margin-bottom: 16px;
@@ -245,7 +245,7 @@ $border-color: #e8e8ed;
   margin-top: 12px;
   margin-left: 44px;
   padding: 12px;
-  background: #f8f9fb;
+  background: var(--color-bg-page);
   border: 1px solid $border-color;
   border-radius: 8px;
 

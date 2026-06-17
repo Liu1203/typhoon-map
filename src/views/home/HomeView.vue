@@ -224,12 +224,11 @@ onMounted(async () => {
 <style scoped lang="scss">
 $primary: #6366f1;
 $primary-light: #8b5cf6;
-$bg-section: #f8f9fb;
 $text-muted: rgba(255, 255, 255, 0.6);
 
 .home-page {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  color: #1a1a2e;
+  color: var(--color-text-primary);
 }
 
 .particles {
@@ -422,8 +421,8 @@ $text-muted: rgba(255, 255, 255, 0.6);
 
 .section {
   padding: 80px 24px;
-  background: $bg-section;
-  &:nth-child(even) { background: #fff; }
+  background: var(--color-bg-page);
+  &:nth-child(even) { background: var(--color-bg-card); }
 }
 .section-header {
   text-align: center;
@@ -442,12 +441,12 @@ $text-muted: rgba(255, 255, 255, 0.6);
     margin: 0 0 12px;
     font-size: 32px;
     font-weight: 700;
-    color: #1a1a2e;
+    color: var(--color-text-primary);
   }
   p {
     margin: 0;
     font-size: 15px;
-    color: #888;
+    color: var(--color-text-secondary);
     line-height: 1.6;
   }
 }
@@ -460,8 +459,8 @@ $text-muted: rgba(255, 255, 255, 0.6);
   gap: 20px;
 }
 .article-card {
-  background: #fff;
-  border: 1px solid #eee;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: 14px;
   padding: 24px;
   cursor: pointer;
@@ -501,7 +500,7 @@ $text-muted: rgba(255, 255, 255, 0.6);
   font-size: 16px;
   font-weight: 600;
   line-height: 1.5;
-  color: #1a1a2e;
+  color: var(--color-text-primary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -514,9 +513,9 @@ $text-muted: rgba(255, 255, 255, 0.6);
   margin-top: 16px;
   gap: 8px;
 }
-.card-date { font-size: 13px; color: #999; white-space: nowrap; }
+.card-date { font-size: 13px; color: var(--color-text-muted); white-space: nowrap; }
 .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
-.tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: #f0f0f5; color: #666; }
+.tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--color-bg-page); color: var(--color-text-secondary); }
 
 .about-content {
   max-width: 600px;
@@ -555,7 +554,7 @@ $text-muted: rgba(255, 255, 255, 0.6);
   span { font-size: 11px; }
 }
 .about-name { margin: 0 0 12px; font-size: 22px; font-weight: 700; }
-.about-bio { margin: 0 0 24px; font-size: 15px; color: #666; line-height: 1.8; }
+.about-bio { margin: 0 0 24px; font-size: 15px; color: var(--color-text-secondary); line-height: 1.8; }
 .tech-stack { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 28px; }
 .tech-tag {
   padding: 5px 14px;
@@ -574,8 +573,8 @@ $text-muted: rgba(255, 255, 255, 0.6);
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #f0f0f5;
-  color: #555;
+  background: var(--color-bg-page);
+  color: var(--color-text-secondary);
   transition: all 0.2s;
   text-decoration: none;
   &:hover {
@@ -586,7 +585,7 @@ $text-muted: rgba(255, 255, 255, 0.6);
   }
 }
 
-.loading-state, .empty-state { text-align: center; padding: 48px 0; color: #999; }
+.loading-state, .empty-state { text-align: center; padding: 48px 0; color: var(--color-text-muted); }
 
 .footer {
   text-align: center;

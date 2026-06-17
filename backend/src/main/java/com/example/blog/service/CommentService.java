@@ -49,9 +49,17 @@ public class CommentService {
         if (comment == null) {
             throw new IllegalArgumentException("评论不存在");
         }
-        commentMapper.delete(new LambdaQueryWrapper<Comment>()
-                .eq(Comment::getId, commentId)
-                .or()
-                .eq(Comment::getParentId, commentId));
+        deleteDescendants(commentId);
+        commentMapper.deleteById(commentId);
+    }
+
+    private void deleteDescendants(Long parentId) {
+        List<Comment> children = commentMapper.selectList(
+                new LambdaQueryWrapper<Comment>()
+                        .eq(Comment::getParentId, parentId));
+        for (Comment child : children) {
+            deleteDescendants(child.getId());
+            commentMapper.deleteById(child.getId());
+        }
     }
 }

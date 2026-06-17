@@ -108,12 +108,12 @@ onMounted(async () => {
 // ===== 变量 =====
 $primary: #6366f1;
 $primary-light: #8b5cf6;
-$bg-page: #f8f9fb;
-$bg-card: #ffffff;
-$text-primary: #1a1a2e;
-$text-secondary: #555;
-$text-muted: #999;
-$border-color: #e8e8ed;
+$bg-page: var(--color-bg-page);
+$bg-card: var(--color-bg-card);
+$text-primary: var(--color-text-primary);
+$text-secondary: var(--color-text-secondary);
+$text-muted: var(--color-text-muted);
+$border-color: var(--color-border);
 $code-bg: #1e1e2e;
 $radius: 16px;
 $max-width: 760px;

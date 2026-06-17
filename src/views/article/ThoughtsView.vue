@@ -115,12 +115,12 @@ onMounted(async () => {
 <style scoped lang="scss">
 $primary: #6366f1;
 $primary-light: #8b5cf6;
-$bg-page: #f8f9fb;
-$bg-card: #fff;
-$text-primary: #333;
-$text-secondary: #666;
-$text-muted: #999;
-$border-color: #eee;
+$bg-page: var(--color-bg-page);
+$bg-card: var(--color-bg-card);
+$text-primary: var(--color-text-primary);
+$text-secondary: var(--color-text-secondary);
+$text-muted: var(--color-text-muted);
+$border-color: var(--color-border);
 $radius: 12px;
 
 .thoughts-page {
@@ -142,7 +142,7 @@ $radius: 12px;
     margin: 0 0 8px;
     font-size: 28px;
     font-weight: 700;
-    color: #1a1a2e;
+    color: var(--color-text-primary);
   }
   p {
     margin: 0;

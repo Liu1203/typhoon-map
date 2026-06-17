@@ -12,7 +12,7 @@
         <router-link to="/about" class="nav-link" active-class="active">关于</router-link>
       </nav>
       <div class="header-actions">
-        <n-button text @click="toggleTheme">
+        <n-button text @click="toggle">
           {{ isDark ? '☀️' : '🌙' }}
         </n-button>
         <template v-if="userStore.token">
@@ -50,14 +50,12 @@ import UserAvatar from '@/components/UserAvatar.vue'
 const router = useRouter()
 const userStore = useUserStore()
 
+import { useTheme } from '@/composables/useTheme'
+
+const { isDark, toggle } = useTheme()
+
 const avatarInputRef = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
-
-const isDark = ref(false)
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.style.filter = isDark.value ? 'invert(0.9) hue-rotate(180deg)' : ''
-}
 
 function triggerAvatarUpload() {
   if (!userStore.token || uploading.value) return
@@ -95,8 +93,6 @@ function goLogin() {
 
 <style scoped lang="scss">
 $primary: #6366f1;
-$bg-card: #fff;
-$border-color: #eee;
 $header-height: 60px;
 $gap: 24px;
 
@@ -106,8 +102,8 @@ $gap: 24px;
 }
 
 .blog-header {
-  background: $bg-card;
-  border-bottom: 1px solid $border-color;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -138,7 +134,7 @@ $gap: 24px;
 
   .nav-link {
     text-decoration: none;
-    color: #555;
+    color: var(--color-text-secondary);
     font-size: 14px;
     font-weight: 500;
     padding: 6px 16px;

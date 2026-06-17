@@ -215,11 +215,11 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 $primary: #6366f1;
-$bg-card: #ffffff;
-$text-primary: #1a1a2e;
-$text-secondary: #555;
-$text-muted: #999;
-$border-color: #e8e8ed;
+$bg-card: var(--color-bg-card);
+$text-primary: var(--color-text-primary);
+$text-secondary: var(--color-text-secondary);
+$text-muted: var(--color-text-muted);
+$border-color: var(--color-border);
 
 .comment-section {
   max-width: 760px;
@@ -253,7 +253,7 @@ $border-color: #e8e8ed;
 }
 
 .comment-form {
-  background: #f8f9fb;
+  background: var(--color-bg-page);
   border: 1px solid $border-color;
   border-radius: 12px;
   padding: 16px;
@@ -286,7 +286,7 @@ $border-color: #e8e8ed;
   padding: 32px 0;
   color: $text-muted;
   font-size: 14px;
-  background: #f8f9fb;
+  background: var(--color-bg-page);
   border: 1px dashed $border-color;
   border-radius: 12px;
   margin-bottom: 24px;
