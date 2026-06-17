@@ -1,6 +1,7 @@
 -- 初始化管理员用户（密码: 123456, bcrypt 加密）
-INSERT INTO "user" (name, email, avatar, password, username)
-VALUES ('清清', 'admin@example.com', '', '123456', 'admin');
+-- MERGE INTO 避免重复插入，不影响已有用户
+MERGE INTO "user" (name, email, avatar, password, username) KEY(username)
+VALUES ('清清', 'admin@example.com', '', '$2a$10$qfyl6VYgl0rGov0Fp5oaGeDXwSasjmW/Ybr8EoYVXY//ZQL7lH0mC', 'admin');
 
 -- 初始化文章数据
 INSERT INTO article (id, title, content, category, category_color, tags, date) VALUES
@@ -43,8 +44,7 @@ INSERT INTO comment (id, article_id, author, author_avatar, content, parent_id, 
 (5, 9, '博主', 'https://07akioni.oss-cn-beijing.aliyuncs.com/07akioni.jpeg', '是的，opencode.json 是项目级配置，只对当前项目生效。全局配置放在 ~/.config/opencode/opencode.json。', 4, '2026-06-11 16:00:00'),
 (6, 9, '阿强', NULL, '明白了，那项目配置和全局配置可以同时使用吗？', 4, '2026-06-11 16:30:00');
 
--- 重置自增 ID，避免与硬编码 ID 冲突
-ALTER TABLE "user" ALTER COLUMN id RESTART WITH 100;
+-- 重置自增 ID，避免与硬编码 ID 冲突（用户表已保留数据，不重置）
 ALTER TABLE article ALTER COLUMN id RESTART WITH 100;
 ALTER TABLE comment ALTER COLUMN id RESTART WITH 100;
 ALTER TABLE thought ALTER COLUMN id RESTART WITH 100;

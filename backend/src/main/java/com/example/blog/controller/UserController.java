@@ -3,7 +3,9 @@ package com.example.blog.controller;
 import com.example.blog.common.ApiResponse;
 import com.example.blog.entity.User;
 import com.example.blog.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -39,5 +41,16 @@ public class UserController {
             return ApiResponse.error(400, "name 和 email 不能为空");
         }
         return ApiResponse.success(userService.createUser(name, email), "创建成功");
+    }
+
+    @PostMapping("/api/user/avatar")
+    public ApiResponse<String> updateAvatar(@RequestParam("file") MultipartFile file,
+                                              HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        if (userId == null) {
+            return ApiResponse.error(401, "未登录");
+        }
+        String avatarUrl = userService.updateAvatar(userId, file);
+        return ApiResponse.success(avatarUrl, "头像更新成功");
     }
 }

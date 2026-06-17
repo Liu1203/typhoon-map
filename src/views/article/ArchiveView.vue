@@ -64,10 +64,11 @@
         <aside class="blog-sidebar blog-sidebar--right">
           <n-card title="关于我" :bordered="false" class="sidebar-card">
             <div class="profile-card">
-              <n-avatar
-                round
-                size="large"
+              <UserAvatar
                 :src="userStore.userInfo?.avatar || undefined"
+                :name="userStore.userInfo?.name"
+                :size="72"
+                round
                 class="profile-avatar"
               />
               <h4>{{ userStore.userInfo?.name || '博主' }}</h4>
@@ -120,10 +121,10 @@ import {
   NButton,
   NTag,
   NSpace,
-  NAvatar,
 } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const userStore = useUserStore()

@@ -52,3 +52,8 @@ export async function del<T>(url: string, config?: AxiosRequestConfig): Promise<
   const response = await http.delete<ApiResponse<T>>(url, config)
   return response.data.data
 }
+
+export async function upload<T>(url: string, formData: FormData): Promise<T> {
+  const response = await http.post<ApiResponse<T>>(url, formData)
+  return response.data.data
+}

@@ -47,7 +47,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(password));
         user.setName(name);
         user.setEmail(email);
-        user.setAvatar("https://api.dicebear.com/7.x/avataaars/svg?seed=" + System.currentTimeMillis());
+        user.setAvatar("");
         userMapper.insert(user);
 
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());

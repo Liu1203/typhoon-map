@@ -157,6 +157,7 @@ async function submitComment() {
       author: currentAuthor.value,
       content: contentInput.value.trim(),
       parentId: replyTarget.value?.id ?? null,
+      authorAvatar: userStore.userInfo?.avatar || undefined,
     })
     message.success(replyTarget.value ? '回复成功' : '评论成功')
     clearForm()
@@ -176,6 +177,7 @@ async function handleReplySubmit(parentId: number, content: string, author: stri
       author,
       content,
       parentId,
+      authorAvatar: userStore.userInfo?.avatar || undefined,
     })
     message.success('回复成功')
     replyTarget.value = null

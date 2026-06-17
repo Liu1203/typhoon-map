@@ -1,4 +1,4 @@
-import { get, post } from '@/utils/request'
+import { get, post, upload } from '@/utils/request'
 import type { User } from '@/types/api'
 
 // 获取用户列表，返回值自动推导为 User[]
@@ -14,4 +14,11 @@ export function getUserById(id: number) {
 // 新增用户
 export function createUser(data: { name: string; email: string }) {
   return post<User>('/api/user', data)
+}
+
+// 上传头像
+export function updateAvatar(file: File) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return upload<string>('/api/user/avatar', formData)
 }

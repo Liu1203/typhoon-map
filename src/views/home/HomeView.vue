@@ -22,7 +22,7 @@
           <router-link to="/thoughts" class="nav-link">随想</router-link>
           <router-link to="/about" class="nav-link">关于</router-link>
           <template v-if="userStore.token">
-            <n-avatar round :size="32" :src="userStore.userInfo?.avatar" class="user-avatar" />
+            <UserAvatar :src="userStore.userInfo?.avatar || undefined" :name="userStore.userInfo?.name" :size="32" round class="user-avatar" @click="triggerAvatarUpload" />
             <n-button text class="nav-logout" @click="handleLogout">退出</n-button>
           </template>
           <template v-else>
@@ -98,14 +98,23 @@
         <h2>关于我</h2>
       </div>
       <div class="about-content">
-        <n-avatar
-          :size="100"
-          :src="userStore.userInfo?.avatar"
-          class="about-avatar"
-          color="#6366f1"
-        >
-          <span style="font-size: 36px">👨‍💻</span>
-        </n-avatar>
+        <div class="avatar-wrapper" @click="triggerAvatarUpload">
+          <UserAvatar
+            :src="userStore.userInfo?.avatar || undefined"
+            :name="userStore.userInfo?.name"
+            :size="100"
+            round
+            class="about-avatar"
+          />
+          <div class="avatar-overlay">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span>更换头像</span>
+          </div>
+          <input ref="avatarInputRef" type="file" accept="image/*" hidden @change="handleAvatarChange" />
+        </div>
         <h3 class="about-name">{{ userStore.userInfo?.name || '开发者' }}</h3>
         <p class="about-bio">
           热爱前端技术，专注于 Vue 生态、TypeScript 和现代 Web 开发。
@@ -142,11 +151,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NSpin, NAvatar } from 'naive-ui'
+import { NButton, NSpin } from 'naive-ui'
 import { useUserStore } from '@/stores/user'
 import { getArticles } from '@/api/article'
+import { updateAvatar } from '@/api/user'
 import type { ArticleDetail } from '@/api/article'
 import { message } from '@/utils/message'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -154,6 +165,31 @@ const year = new Date().getFullYear()
 
 const articles = ref<ArticleDetail[]>([])
 const loading = ref(true)
+const avatarInputRef = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
+
+function triggerAvatarUpload() {
+  if (!userStore.token || uploading.value) return
+  avatarInputRef.value?.click()
+}
+
+async function handleAvatarChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input?.files?.[0]
+  if (!file) return
+
+  uploading.value = true
+  try {
+    const avatarUrl = await updateAvatar(file)
+    userStore.updateUserAvatar(avatarUrl)
+    message.success('头像更新成功')
+  } catch {
+    message.error('头像上传失败')
+  } finally {
+    uploading.value = false
+    if (input) input.value = ''
+  }
+}
 
 function handleLogout() {
   userStore.logout()
@@ -487,10 +523,36 @@ $text-muted: rgba(255, 255, 255, 0.6);
   margin: 0 auto;
   text-align: center;
 }
-.about-avatar {
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
   margin-bottom: 20px;
+  cursor: pointer;
+  border-radius: 50%;
+  &:hover .avatar-overlay {
+    opacity: 1;
+  }
+}
+.about-avatar {
   border: 3px solid rgba($primary, 0.2);
   box-shadow: 0 8px 24px rgba($primary, 0.12);
+}
+.avatar-overlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.25s;
+  span { font-size: 11px; }
 }
 .about-name { margin: 0 0 12px; font-size: 22px; font-weight: 700; }
 .about-bio { margin: 0 0 24px; font-size: 15px; color: #666; line-height: 1.8; }

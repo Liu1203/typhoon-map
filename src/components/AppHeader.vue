@@ -16,12 +16,16 @@
           {{ isDark ? '☀️' : '🌙' }}
         </n-button>
         <template v-if="userStore.token">
-          <n-avatar
-            round
-            size="small"
-            :src="userStore.userInfo?.avatar || undefined"
-            class="user-avatar"
-          />
+          <div class="avatar-wrapper" @click="triggerAvatarUpload">
+            <UserAvatar
+              :src="userStore.userInfo?.avatar || undefined"
+              :name="userStore.userInfo?.name"
+              :size="34"
+              round
+              class="user-avatar"
+            />
+            <input ref="avatarInputRef" type="file" accept="image/*" hidden @change="handleAvatarChange" />
+          </div>
           <n-button text type="info" @click="handleLogout">
             退出
           </n-button>
@@ -36,18 +40,46 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { NButton, NAvatar } from 'naive-ui'
+import { NButton } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { updateAvatar } from '@/api/user'
 import { message } from '@/utils/message'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+const avatarInputRef = ref<HTMLInputElement | null>(null)
+const uploading = ref(false)
 
 const isDark = ref(false)
 function toggleTheme() {
   isDark.value = !isDark.value
   document.documentElement.style.filter = isDark.value ? 'invert(0.9) hue-rotate(180deg)' : ''
+}
+
+function triggerAvatarUpload() {
+  if (!userStore.token || uploading.value) return
+  avatarInputRef.value?.click()
+}
+
+async function handleAvatarChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input?.files?.[0]
+  if (!file) return
+
+  uploading.value = true
+  try {
+    const avatarUrl = await updateAvatar(file)
+    userStore.updateUserAvatar(avatarUrl)
+    message.success('头像更新成功')
+  } catch {
+    message.error('头像上传失败')
+  } finally {
+    uploading.value = false
+    if (input) input.value = ''
+  }
 }
 
 function handleLogout() {
@@ -129,6 +161,12 @@ $gap: 24px;
   @include flex-center;
   gap: 8px;
 
+  .avatar-wrapper {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    line-height: 0;
+  }
   .user-avatar {
     margin: 0 4px;
   }
