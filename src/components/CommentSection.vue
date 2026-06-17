@@ -18,7 +18,6 @@
       <div v-else class="comment-form" :class="{ 'is-reply': !!replyTarget }">
         <div class="form-row">
           <n-input
-            ref="contentInputRef"
             v-model:value="contentInput"
             type="textarea"
             :placeholder="replyTarget ? `回复 @${replyTarget.author}...` : '写下你的评论...（支持 Markdown）'"
@@ -30,24 +29,34 @@
           />
         </div>
         <div class="form-actions">
-          <n-button
-            v-if="replyTarget"
-            text
-            type="default"
-            size="small"
-            @click="cancelReply"
-          >
-            取消回复
-          </n-button>
-          <n-button
-            type="primary"
-            size="small"
-            :loading="submitting"
-            :disabled="!canSubmit"
-            @click="submitComment"
-          >
-            {{ replyTarget ? '回复' : '发表评论' }}
-          </n-button>
+          <div class="form-actions-left">
+            <n-button text size="small" class="emoji-btn" @click="showEmojiPicker = !showEmojiPicker">
+              😊
+            </n-button>
+            <div v-if="showEmojiPicker" class="emoji-picker-wrapper">
+              <EmojiPicker @select="onEmojiSelect" @close="showEmojiPicker = false" />
+            </div>
+          </div>
+          <div class="form-actions-right">
+            <n-button
+              v-if="replyTarget"
+              text
+              type="default"
+              size="small"
+              @click="cancelReply"
+            >
+              取消回复
+            </n-button>
+            <n-button
+              type="primary"
+              size="small"
+              :loading="submitting"
+              :disabled="!canSubmit"
+              @click="submitComment"
+            >
+              {{ replyTarget ? '回复' : '发表评论' }}
+            </n-button>
+          </div>
         </div>
       </div>
 
@@ -78,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { NInput, NButton, NSpin } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import type { Comment } from '@/types/api'
@@ -86,6 +95,7 @@ import { getComments, createComment, deleteComment } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import { message } from '@/utils/message'
 import CommentItem from './CommentItem.vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const props = defineProps<{
   articleId: number
@@ -98,6 +108,24 @@ const loading = ref(true)
 const submitting = ref(false)
 
 const contentInput = ref('')
+const showEmojiPicker = ref(false)
+
+function onEmojiSelect(emoji: string) {
+  const el = document.activeElement as HTMLTextAreaElement | null
+  if (el && el.tagName === 'TEXTAREA') {
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    contentInput.value = contentInput.value.slice(0, start) + emoji + contentInput.value.slice(end)
+    const pos = start + emoji.length
+    nextTick(() => {
+      el.focus()
+      el.setSelectionRange(pos, pos)
+    })
+  } else {
+    contentInput.value += emoji
+  }
+  showEmojiPicker.value = false
+}
 
 interface ReplyTarget {
   id: number
@@ -275,9 +303,34 @@ $border-color: var(--color-border);
 
   .form-actions {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     align-items: center;
-    gap: 8px;
+
+    &-left {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    &-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  .emoji-btn {
+    font-size: 18px;
+    line-height: 1;
+    padding: 2px;
+  }
+
+  .emoji-picker-wrapper {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    z-index: 100;
+    margin-bottom: 4px;
   }
 }
 

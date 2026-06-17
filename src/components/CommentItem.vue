@@ -63,29 +63,40 @@
         />
       </div>
       <div class="form-actions">
-        <n-button text size="tiny" type="default" @click="$emit('cancelReply')">
-          取消
-        </n-button>
-        <n-button
-          size="tiny"
-          type="primary"
-          :loading="submitting"
-          :disabled="!inlineCanSubmit"
-          @click="submitInlineReply"
-        >
-          回复
-        </n-button>
+        <div class="form-actions-left">
+          <n-button text size="tiny" class="emoji-btn" @click="showInlineEmoji = !showInlineEmoji">
+            😊
+          </n-button>
+          <div v-if="showInlineEmoji" class="emoji-picker-wrapper">
+            <EmojiPicker @select="onInlineEmojiSelect" @close="showInlineEmoji = false" />
+          </div>
+        </div>
+        <div class="form-actions-right">
+          <n-button text size="tiny" type="default" @click="$emit('cancelReply')">
+            取消
+          </n-button>
+          <n-button
+            size="tiny"
+            type="primary"
+            :loading="submitting"
+            :disabled="!inlineCanSubmit"
+            @click="submitInlineReply"
+          >
+            回复
+          </n-button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { NButton, NInput } from 'naive-ui'
 import type { Comment } from '@/types/api'
 import MarkdownIt from 'markdown-it'
 import UserAvatar from '@/components/UserAvatar.vue'
+import EmojiPicker from '@/components/EmojiPicker.vue'
 
 const props = defineProps<{
   comment: Comment
@@ -104,6 +115,24 @@ const emit = defineEmits<{
 }>()
 
 const inlineContent = ref('')
+const showInlineEmoji = ref(false)
+
+function onInlineEmojiSelect(emoji: string) {
+  const el = document.activeElement as HTMLTextAreaElement | null
+  if (el && el.tagName === 'TEXTAREA') {
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    inlineContent.value = inlineContent.value.slice(0, start) + emoji + inlineContent.value.slice(end)
+    const pos = start + emoji.length
+    nextTick(() => {
+      el.focus()
+      el.setSelectionRange(pos, pos)
+    })
+  } else {
+    inlineContent.value += emoji
+  }
+  showInlineEmoji.value = false
+}
 
 const md = new MarkdownIt({
   html: false,
@@ -259,8 +288,34 @@ $border-color: var(--color-border);
 
   .form-actions {
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+
+    &-left {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    &-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+
+  .emoji-btn {
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px;
+  }
+
+  .emoji-picker-wrapper {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    z-index: 100;
+    margin-bottom: 4px;
   }
 }
 </style>
