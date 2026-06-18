@@ -10,8 +10,15 @@ export interface CreateArticleParams {
   date?: string
 }
 
-export function getAdminArticles() {
-  return get<ArticleDetail[]>('/api/admin/articles')
+export interface PageResult<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+export function getAdminArticles(page = 1, pageSize = 10) {
+  return get<PageResult<ArticleDetail>>('/api/admin/articles', { page, pageSize })
 }
 
 export function getAdminArticle(id: number) {

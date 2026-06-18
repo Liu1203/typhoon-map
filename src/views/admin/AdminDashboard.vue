@@ -14,44 +14,44 @@
           </n-button>
         </div>
 
-        <div v-if="loading" class="loading-state">
-          <n-spin size="large" />
-        </div>
-
-        <div v-else-if="errorMsg" class="error-state">
+        <div v-if="errorMsg" class="error-banner">
           <p>{{ errorMsg }}</p>
-          <n-button type="primary" @click="router.push('/home')">返回首页</n-button>
+          <n-button type="primary" size="small" @click="router.push('/home')">返回首页</n-button>
         </div>
 
-        <template v-else>
-          <div class="stats-row">
-            <div class="stat-card">
-              <span class="stat-value">{{ articles.length }}</span>
-              <span class="stat-label">文章总数</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ categoryCount }}</span>
-              <span class="stat-label">分类数</span>
-            </div>
-            <div class="stat-card">
-              <span class="stat-value">{{ tagCount }}</span>
-              <span class="stat-label">标签数</span>
-            </div>
+        <div class="stats-row">
+          <div class="stat-card">
+              <span class="stat-value">{{ totalCount }}</span>
+            <span class="stat-label">文章总数</span>
           </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ categoryCount }}</span>
+            <span class="stat-label">当前页分类数</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ tagCount }}</span>
+            <span class="stat-label">当前页标签数</span>
+          </div>
+        </div>
 
-          <div class="table-card">
-            <n-data-table
-              :columns="columns"
-              :data="articles"
-              :bordered="false"
-              :single-line="false"
-              striped
-            />
-            <div v-if="articles.length === 0" class="empty-state">
-              <n-empty description="暂无文章" />
-            </div>
+        <div class="table-card">
+          <n-data-table
+            :columns="columns"
+            :data="articles"
+            :bordered="false"
+            :single-line="false"
+            :remote="true"
+            :pagination="pagination"
+            :loading="loading"
+            :row-key="(row: ArticleDetail) => row.id"
+            striped
+            @update:page="handlePageChange"
+            @update:page-size="handlePageSizeChange"
+          />
+          <div v-if="articles.length === 0 && !loading" class="empty-state">
+            <n-empty description="暂无文章" />
           </div>
-        </template>
+        </div>
       </div>
     </main>
 
@@ -74,9 +74,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, h, onMounted } from 'vue'
+import { ref, computed, h, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { NButton, NDataTable, NSpin, NEmpty, NModal, NTag } from 'naive-ui'
+import { NButton, NDataTable, NEmpty, NModal, NTag } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import AppHeader from '@/components/AppHeader.vue'
 import { message } from '@/utils/message'
@@ -90,6 +90,15 @@ const errorMsg = ref('')
 const showDeleteModal = ref(false)
 const deleteTarget = ref<ArticleDetail | null>(null)
 const deleting = ref(false)
+
+const pagination = reactive({
+  pageSize: 10,
+  pageCount: 0,
+  pageSizes: [10, 20, 50],
+  showSizePicker: true,
+})
+
+const totalCount = ref(0)
 
 const categoryCount = computed(() => {
   const cats = new Set(articles.value.map(a => a.category))
@@ -163,25 +172,43 @@ const columns: DataTableColumns<ArticleDetail> = [
 ]
 
 onMounted(async () => {
+  await fetchArticles()
+})
+
+async function fetchArticles(page = 1, pageSize?: number) {
+  loading.value = true
   try {
-    articles.value = await getAdminArticles()
+    const ps = pageSize ?? pagination.pageSize
+    const result = await getAdminArticles(page, ps)
+    articles.value = result.items
+    totalCount.value = result.total
+    pagination.pageCount = Math.ceil(result.total / ps)
+    pagination.pageSize = ps
   } catch (e: any) {
     console.error(e)
     errorMsg.value = e?.message || '加载失败，请检查网络或登录状态'
   } finally {
     loading.value = false
   }
-})
+}
+
+function handlePageChange(page: number) {
+  fetchArticles(page)
+}
+
+function handlePageSizeChange(pageSize: number) {
+  fetchArticles(1, pageSize)
+}
 
 async function doDelete() {
   if (!deleteTarget.value) return false
   deleting.value = true
   try {
     await deleteArticle(deleteTarget.value.id)
-    articles.value = articles.value.filter(a => a.id !== deleteTarget.value!.id)
     message.success('删除成功')
     showDeleteModal.value = false
     deleteTarget.value = null
+    await fetchArticles()
     return true
   } catch {
     message.error('删除失败')
@@ -276,6 +303,7 @@ $primary: #6366f1;
   border-radius: 12px;
   border: 1px solid var(--color-border);
   overflow: hidden;
+  padding-bottom: 24px;
 }
 
 .loading-state,
@@ -284,6 +312,23 @@ $primary: #6366f1;
   text-align: center;
   padding: 64px 0;
   color: var(--color-text-muted);
+}
+
+.error-banner {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.error-banner p {
+  color: #ef4444;
+  font-size: 14px;
+  margin: 0;
 }
 
 .error-state p {

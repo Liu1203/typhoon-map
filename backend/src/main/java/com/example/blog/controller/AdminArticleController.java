@@ -2,10 +2,12 @@ package com.example.blog.controller;
 
 import com.example.blog.common.ApiResponse;
 import com.example.blog.dto.CreateArticleParams;
+import com.example.blog.dto.PageResult;
 import com.example.blog.entity.Article;
 import com.example.blog.entity.User;
 import com.example.blog.mapper.ArticleMapper;
 import com.example.blog.mapper.UserMapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -32,9 +34,19 @@ public class AdminArticleController {
     }
 
     @GetMapping
-    public ApiResponse<List<Article>> getArticles(HttpServletRequest request) {
+    public ApiResponse<PageResult<Article>> getArticles(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            HttpServletRequest request) {
         if (!checkAdmin(request)) return ApiResponse.error(403, "无权限");
-        return ApiResponse.success(articleMapper.selectList(null));
+        Page<Article> pageResult = articleMapper.selectPage(
+                new Page<>(page, pageSize),
+                null);
+        return ApiResponse.success(new PageResult<>(
+                pageResult.getRecords(),
+                pageResult.getTotal(),
+                (int) pageResult.getCurrent(),
+                (int) pageResult.getSize()));
     }
 
     @GetMapping("/{id}")
