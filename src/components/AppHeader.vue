@@ -33,7 +33,27 @@
         <n-button v-else text type="primary" @click="goLogin">
           登录
         </n-button>
+        <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">
+          <span :class="['hamburger', { open: mobileMenuOpen }]">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+        </button>
       </div>
+    </div>
+    <div v-if="mobileMenuOpen" class="mobile-nav" @click="mobileMenuOpen = false">
+      <router-link to="/home" class="mobile-nav-link">首页</router-link>
+      <router-link to="/articles" class="mobile-nav-link">文章</router-link>
+      <router-link to="/thoughts" class="mobile-nav-link">随想</router-link>
+      <router-link to="/about" class="mobile-nav-link">关于</router-link>
+      <div class="mobile-nav-divider"></div>
+      <template v-if="userStore.token">
+        <n-button text type="info" @click="handleLogout">退出</n-button>
+      </template>
+      <template v-else>
+        <n-button text type="primary" @click="goLogin">登录</n-button>
+      </template>
     </div>
   </header>
 </template>
@@ -56,6 +76,7 @@ const { isDark, toggle } = useTheme()
 
 const avatarInputRef = ref<HTMLInputElement | null>(null)
 const uploading = ref(false)
+const mobileMenuOpen = ref(false)
 
 function triggerAvatarUpload() {
   if (!userStore.token || uploading.value) return
@@ -172,5 +193,78 @@ $gap: 24px;
   .nav-links {
     display: none;
   }
+  .mobile-menu-btn {
+    display: flex;
+  }
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.hamburger {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 20px;
+
+  span {
+    display: block;
+    height: 2px;
+    background: var(--color-text-primary);
+    border-radius: 1px;
+    transition: all 0.3s ease;
+  }
+
+  &.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  &.open span:nth-child(2) {
+    opacity: 0;
+  }
+  &.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+}
+
+.mobile-nav {
+  display: none;
+  flex-direction: column;
+  padding: 12px 24px 16px;
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+  .mobile-nav {
+    display: flex;
+  }
+}
+
+.mobile-nav-link {
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:hover {
+    color: $primary;
+  }
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+.mobile-nav-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 8px 0;
 }
 </style>

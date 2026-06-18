@@ -140,6 +140,7 @@ import { ref, computed, nextTick } from 'vue'
 import { NButton, NInput } from 'naive-ui'
 import type { Comment } from '@/types/api'
 import { updateComment, likeComment, unlikeComment } from '@/api/comment'
+import { message } from '@/utils/message'
 import MarkdownIt from 'markdown-it'
 import UserAvatar from '@/components/UserAvatar.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
@@ -243,12 +244,14 @@ async function saveEdit() {
 async function handleLike() {
   const wasLiked = props.comment.likedByMe
   try {
-    if (wasLiked) {
-      await unlikeComment(props.comment.id)
-    } else {
-      await likeComment(props.comment.id)
-    }
-    emit('toggleLike', props.comment.id, !wasLiked)
+        if (wasLiked) {
+          await unlikeComment(props.comment.id)
+          message.success('已取消点赞')
+        } else {
+          await likeComment(props.comment.id)
+          message.success('点赞成功')
+        }
+        emit('toggleLike', props.comment.id, !wasLiked)
   } catch {
     // error handled by interceptor
   }

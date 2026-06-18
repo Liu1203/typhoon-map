@@ -17,7 +17,7 @@
           <n-card title="🔥 热门文章" :bordered="false" class="sidebar-card">
             <ul class="hot-list">
               <li v-for="article in hotArticles" :key="article.id" class="hot-item">
-                <a href="#">{{ article.title }}</a>
+                <a href="#" @click.prevent="router.push(`/article/${article.id}`)">{{ article.title }}</a>
               </li>
             </ul>
           </n-card>
@@ -39,7 +39,7 @@
                 </div>
               </template>
               <h3 class="post-title">{{ post.title }}</h3>
-              <p class="post-excerpt">{{ post.excerpt }}</p>
+              <p class="post-excerpt">{{ post.content.slice(0, 120) }}{{ post.content.length > 120 ? '...' : '' }}</p>
               <template #action>
                 <div class="post-footer">
                   <div class="post-tags">
@@ -93,16 +93,7 @@
             </div>
           </n-card>
 
-          <n-card title="💬 最新评论" :bordered="false" class="sidebar-card">
-            <div
-              v-for="comment in recentComments"
-              :key="comment.id"
-              class="comment-item"
-            >
-              <span class="comment-author">{{ comment.author }}</span>
-              <p class="comment-text">{{ comment.text }}</p>
-            </div>
-          </n-card>
+
         </aside>
       </div>
     </main>
@@ -114,7 +105,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import {
   NCard,
@@ -125,139 +116,45 @@ import {
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import UserAvatar from '@/components/UserAvatar.vue'
+import { getArticles } from '@/api/article'
+import type { ArticleDetail } from '@/api/article'
 
 const router = useRouter()
 const userStore = useUserStore()
+const articles = ref<ArticleDetail[]>([])
+const loading = ref(true)
 
-const categories = ref([
-  { name: 'Vue', count: 5 },
-  { name: 'TypeScript', count: 4 },
-  { name: 'CSS', count: 3 },
-  { name: '工程化', count: 2 },
-  { name: '随想', count: 1 },
-])
-
-interface Post {
-  id: number
-  title: string
-  excerpt: string
-  category: string
-  categoryColor: string
-  tags: string[]
-  date: string
-}
-
-const hotArticles = ref([
-  { id: 1, title: '用 Vite + Vue 3 从零搭建项目' },
-  { id: 2, title: 'TypeScript 泛型完全指南' },
-  { id: 3, title: 'MSW 完美 Mock 方案' },
-  { id: 4, title: 'AI对前端开发的影响与展望' },
-  { id: 5, title: 'CSS Grid 布局实战指南' },
-  { id: 6, title: '前端工程化最佳实践' },
-  { id: 7, title: '前端性能优化的那些事儿' },
-  { id: 8, title: '前端安全指南：防止 XSS 和 CSRF 攻击' }
-])
-
-const posts = ref<Post[]>([
-  {
-    id: 1,
-    title: '用 Vite + Vue 3 从零搭建一个前端项目',
-    excerpt: '本文记录了我如何用 Vite 从零搭建一个 Vue 3 + TypeScript 的现代化前端项目，包括 ESLint、Prettier、环境变量等配置。',
-    category: 'Vue',
-    categoryColor: '#42b883',
-    tags: ['Vite', 'Vue3', 'TypeScript'],
-    date: '2026-04-15',
-  },
-  {
-    id: 2,
-    title: 'TypeScript 泛型完全指南（适合入门）',
-    excerpt: '泛型是 TypeScript 中最强大的特性之一，本文用大量示例带你理解泛型的本质与常见用法。',
-    category: 'TypeScript',
-    categoryColor: '#3178c6',
-    tags: ['TypeScript', '泛型', '前端基础'],
-    date: '2026-04-10',
-  },
-  {
-    id: 3,
-    title: '使用 MSW 实现前端的完美 Mock 方案',
-    excerpt: 'MSW (Mock Service Worker) 可以拦截网络请求并返回模拟数据，完全不依赖后端，开发体验接近真实。',
-    category: '工具',
-    categoryColor: '#e67e22',
-    tags: ['MSW', 'Mock', '开发工具'],
-    date: '2026-04-05',
-  },
-  {
-    id: 4,
-    title: 'AI对前端开发的影响与展望',
-    excerpt: '随着 AI 技术的发展，前端开发也迎来了新的变革。本文探讨了 AI 在代码生成、智能提示、自动化测试等方面的应用，以及未来可能的发展趋势。',
-    category: '技术展望',
-    categoryColor: '#9b59b6',
-    tags: ['AI', '前端开发', '技术展望'],
-    date: '2026-04-01',
-  },
-  {
-    id: 5,
-    title: 'CSS Grid 布局实战指南',
-    excerpt: 'CSS Grid 是现代 CSS 中最强大的布局工具之一，本文通过实战案例讲解了 Grid 的基本用法和一些高级技巧。',
-    category: 'CSS',
-    categoryColor: '#3498db',
-    tags: ['CSS', 'Grid', '布局'],
-    date: '2026-03-28',
-  },
-  {
-    id: 6,
-    title: '前端工程化最佳实践',
-    excerpt: '随着项目规模的增长，前端工程化变得越来越重要。本文总结了前端工程化的核心理念和一些实用的工具与方法。',
-    category: '工程化',
-    categoryColor: '#e74c3c',
-    tags: ['工程化', '构建工具', '自动化'],
-    date: '2026-03-20',
-  },
-  {
-    id: 7,
-    title: '前端性能优化的那些事儿',
-    excerpt: '性能优化是前端开发中永恒的话题，本文从资源加载、渲染优化、代码分割等多个角度分享了一些实用的性能优化技巧。',
-    category: '性能',
-    categoryColor: '#1abc9c',
-    tags: ['性能优化', '前端性能', '优化技巧'],
-    date: '2026-03-15',
-  },
-  {
-    id: 8,
-    title: '前端安全指南：防止 XSS 和 CSRF 攻击',
-    excerpt: '安全问题是前端开发中不可忽视的一环，本文介绍了常见的 XSS 和 CSRF 攻击类型，并提供了一些有效的防护措施。',
-    category: '安全',
-    categoryColor: '#34495e',
-    tags: ['安全', 'XSS', 'CSRF'],
-    date: '2026-03-10',
-  },
-  {
-    id: 9,
-    title: 'OpenCode 配置完全指南：打造你的专属 AI 编程助手',
-    excerpt: 'OpenCode 是新一代交互式 AI CLI 编程工具。本文详细介绍 opencode.json 项目级配置、全局配置、Agent/Subagent 定义、Skills 扩展、MCP 服务集成以及权限控制，助你高效定制开发环境。',
-    category: '工具',
-    categoryColor: '#e67e22',
-    tags: ['OpenCode', 'AI', 'CLI', '配置'],
-    date: '2026-06-11',
+const categories = computed(() => {
+  const map: Record<string, number> = {}
+  for (const a of articles.value) {
+    map[a.category] = (map[a.category] ?? 0) + 1
   }
-])
-
-const tagCloud = ref<Record<string, number>>({
-  Vue: 5,
-  TypeScript: 4,
-  Vite: 3,
-  前端: 6,
-  JavaScript: 4,
-  CSS: 2,
-  Node: 1,
-  MSW: 1,
+  return Object.entries(map).map(([name, count]) => ({ name, count }))
 })
 
-const recentComments = ref([
-  { id: 1, author: '小明', text: '写得很好，学到了很多！' },
-  { id: 2, author: '小红', text: '期待下一篇 TypeScript 的文章。' },
-  { id: 3, author: '大佬', text: 'MSW 确实好用，感谢分享。' },
-])
+const hotArticles = computed(() => articles.value.slice(0, 8))
+
+const posts = computed(() => articles.value)
+
+const tagCloud = computed(() => {
+  const map: Record<string, number> = {}
+  for (const a of articles.value) {
+    for (const t of a.tags) {
+      map[t] = (map[t] ?? 0) + 1
+    }
+  }
+  return map
+})
+
+onMounted(async () => {
+  try {
+    articles.value = await getArticles()
+  } catch {
+    console.warn('获取文章列表失败')
+  } finally {
+    loading.value = false
+  }
+})
 </script>
 
 <style scoped lang="scss">
@@ -464,24 +361,7 @@ $sidebar-right-width: 300px;
   }
 }
 
-.comment-item {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--color-border);
 
-  &:last-child { border-bottom: none; }
-
-  .comment-author {
-    font-weight: 600;
-    font-size: 13px;
-    color: $text-primary;
-  }
-
-  .comment-text {
-    margin: 4px 0 0;
-    font-size: 13px;
-    color: $text-secondary;
-  }
-}
 
 .blog-footer {
   text-align: center;

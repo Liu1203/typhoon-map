@@ -89,6 +89,12 @@
       <div v-else class="empty-state">
         <p>暂无文章</p>
       </div>
+
+      <div v-if="articles.length > 6" class="view-more">
+        <n-button class="btn-ghost" @click="router.push('/articles')">
+          查看更多文章 →
+        </n-button>
+      </div>
     </section>
 
     <!-- ABOUT -->
@@ -586,6 +592,7 @@ $text-muted: rgba(255, 255, 255, 0.6);
 }
 
 .loading-state, .empty-state { text-align: center; padding: 48px 0; color: var(--color-text-muted); }
+.view-more { text-align: center; margin-top: 32px; }
 
 .footer {
   text-align: center;

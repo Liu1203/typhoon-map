@@ -115,7 +115,7 @@
 
         <div v-if="mode === 'login'" class="form-extra">
           <n-checkbox v-model:checked="rememberPassword">
-            记住密码
+            记住用户名
           </n-checkbox>
           <n-button text @click="showForgetModal = true">
             忘记密码？
@@ -378,10 +378,8 @@ async function handleLogin() {
 
   if (rememberPassword.value) {
     localStorage.setItem('saved_username', formData.username)
-    localStorage.setItem('saved_password', formData.password)
   } else {
     localStorage.removeItem('saved_username')
-    localStorage.removeItem('saved_password')
   }
 
   userStore.setLoginData(result)
@@ -414,10 +412,8 @@ function handleForgetSubmit() {
 
 onMounted(() => {
   const savedUser = localStorage.getItem('saved_username')
-  const savedPass = localStorage.getItem('saved_password')
-  if (savedUser && savedPass) {
+  if (savedUser) {
     formData.username = savedUser
-    formData.password = savedPass
     rememberPassword.value = true
   }
   nextTick(() => drawCaptcha())

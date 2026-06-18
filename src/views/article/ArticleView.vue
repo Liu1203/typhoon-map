@@ -1,6 +1,7 @@
 <template>
   <div class="article-wrapper">
     <AppHeader />
+    <div class="progress-bar" :style="{ width: progress + '%' }" />
     <div class="article-page">
       <!-- 返回按钮 -->
       <div class="article-nav">
@@ -60,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NCard, NTag, NSpin, NButton } from 'naive-ui'
 import MarkdownIt from 'markdown-it'
@@ -93,6 +94,16 @@ const renderedContent = computed(() => {
   if (!article.value) return ''
   return md.render(article.value.content)
 })
+
+const progress = ref(0)
+function updateProgress() {
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight
+  progress.value = docHeight > 0 ? Math.min(window.scrollY / docHeight * 100, 100) : 0
+}
+onMounted(() => {
+  window.addEventListener('scroll', updateProgress)
+})
+onUnmounted(() => window.removeEventListener('scroll', updateProgress))
 
 onMounted(async () => {
   const id = Number(route.params.id)

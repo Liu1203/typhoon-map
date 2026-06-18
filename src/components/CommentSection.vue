@@ -90,10 +90,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { NInput, NButton, NSpin } from 'naive-ui'
+import { NInput, NButton, NSpin, useDialog } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import type { Comment } from '@/types/api'
-import { getComments, createComment, deleteComment } from '@/api/comment'
+import { getComments, createComment, deleteComment, updateComment, likeComment, unlikeComment } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import { message } from '@/utils/message'
 import CommentItem from './CommentItem.vue'
@@ -167,6 +167,11 @@ function goLogin() {
 
 function startReply(id: number, author: string) {
   replyTarget.value = { id, author }
+  contentInput.value = `@${author} `
+  nextTick(() => {
+    const el = document.activeElement as HTMLTextAreaElement | null
+    el?.focus()
+  })
 }
 
 function cancelReply() {
@@ -219,29 +224,51 @@ async function handleReplySubmit(parentId: number, content: string, author: stri
   }
 }
 
-async function handleDelete(commentId: number) {
+const dialog = useDialog()
+
+function handleDelete(commentId: number) {
+  dialog.warning({
+    title: '确认删除',
+    content: '删除后不可恢复，确定要删除该评论吗？',
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await deleteComment(commentId)
+        message.success('已删除评论')
+        await fetchComments()
+      } catch {
+        message.error('删除失败，请重试')
+      }
+    },
+  })
+}
+
+async function handleSave(commentId: number, content: string) {
   try {
-    await deleteComment(commentId)
-    message.success('已删除评论')
-    await fetchComments()
-  } catch {
-    message.error('删除失败，请重试')
-  }
-}
-
-function handleSave(commentId: number, content: string) {
-  const c = comments.value.find(c => c.id === commentId)
-  if (c) {
-    c.content = content
+    await updateComment(commentId, content)
+    const c = comments.value.find(c => c.id === commentId)
+    if (c) c.content = content
     message.success('编辑成功')
+  } catch {
+    message.error('编辑失败，请重试')
   }
 }
 
-function handleToggleLike(commentId: number, liked: boolean) {
-  const c = comments.value.find(c => c.id === commentId)
-  if (c) {
-    c.likedByMe = liked
-    c.likeCount = (c.likeCount ?? 0) + (liked ? 1 : -1)
+async function handleToggleLike(commentId: number, liked: boolean) {
+  try {
+    if (liked) {
+      await likeComment(commentId)
+    } else {
+      await unlikeComment(commentId)
+    }
+    const c = comments.value.find(c => c.id === commentId)
+    if (c) {
+      c.likedByMe = liked
+      c.likeCount = (c.likeCount ?? 0) + (liked ? 1 : -1)
+    }
+  } catch {
+    message.error('操作失败，请重试')
   }
 }
 
