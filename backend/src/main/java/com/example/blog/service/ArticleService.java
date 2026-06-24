@@ -8,6 +8,9 @@ import com.example.blog.mapper.ArticleLikeMapper;
 import com.example.blog.mapper.ArticleMapper;
 import org.springframework.stereotype.Service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 import java.util.List;
 
 @Service
@@ -105,5 +108,24 @@ public class ArticleService {
                             .eq(Article::getId, articleId)
                             .setSql("like_count = like_count - 1"));
         }
+    }
+
+    public IPage<Article> searchArticles(String keyword, int page, int size, Long userId) {
+        LambdaQueryWrapper<Article> wrapper = new LambdaQueryWrapper<Article>()
+                .and(w -> w.like(Article::getTitle, keyword)
+                        .or().like(Article::getContent, keyword))
+                .orderByDesc(Article::getViewCount);
+        Page<Article> pageParam = new Page<>(page, size);
+        IPage<Article> result = articleMapper.selectPage(pageParam, wrapper);
+        if (userId != null) {
+            for (Article article : result.getRecords()) {
+                long liked = articleLikeMapper.selectCount(
+                        new LambdaQueryWrapper<ArticleLike>()
+                                .eq(ArticleLike::getArticleId, article.getId())
+                                .eq(ArticleLike::getUserId, userId));
+                article.setLikedByMe(liked > 0);
+            }
+        }
+        return result;
     }
 }

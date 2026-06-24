@@ -217,6 +217,7 @@ function scrollTo(id: string) {
 }
 
 onMounted(async () => {
+  document.title = '清 - 前端技术博客'
   try {
     articles.value = await getArticles()
   } catch {

@@ -411,6 +411,7 @@ function handleForgetSubmit() {
 }
 
 onMounted(() => {
+  document.title = '登录 - 清'
   const savedUser = localStorage.getItem('saved_username')
   if (savedUser) {
     formData.username = savedUser

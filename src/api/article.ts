@@ -40,3 +40,15 @@ export function unlikeArticle(id: number): Promise<void> {
 export function incrementViewCount(id: number): Promise<void> {
   return post<void>(`/api/articles/${id}/view`)
 }
+
+export interface SearchResult {
+  articles: ArticleDetail[]
+  total: number
+  page: number
+  size: number
+  keyword: string
+}
+
+export function searchArticles(keyword: string, page = 1, size = 10): Promise<SearchResult> {
+  return get<SearchResult>('/api/articles/search', { keyword, page, size })
+}

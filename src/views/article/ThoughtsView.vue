@@ -102,6 +102,7 @@ async function loadMore() {
 }
 
 onMounted(async () => {
+  document.title = '灵感随想 - 清'
   try {
     await loadThoughts(1)
   } catch {

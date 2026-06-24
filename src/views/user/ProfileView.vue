@@ -380,7 +380,10 @@ async function handleAvatarChange(event: Event) {
   }
 }
 
-onMounted(fetchUserInfo)
+onMounted(() => {
+  document.title = '个人中心 - 清'
+  fetchUserInfo()
+})
 </script>
 
 <style scoped lang="scss">

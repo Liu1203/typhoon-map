@@ -290,24 +290,63 @@ onUnmounted(() => {
   window.removeEventListener('scroll', updateProgress)
   document.querySelector('.article-body')?.removeEventListener('click', handleCodeCopy)
   cancelAnimationFrame(rafId)
+  removeSeoMeta()
 })
 
-onMounted(async () => {
-  const id = Number(route.params.id)
-  try {
-    const [articleData, articlesData] = await Promise.all([
-      getArticleById(id),
-      getArticles(),
-    ])
-    article.value = articleData
-    allArticles.value = articlesData
-    incrementViewCount(id).catch(() => {})
-    nextTick(bindImageClick)
-    checkFavorited(id).then(v => { isFavorited.value = v }).catch(() => {})
-  } catch {
-    router.replace('/home')
+function setMeta(name: string, content: string, prop = false) {
+    const attr = prop ? 'property' : 'name'
+    let el = document.querySelector(`meta[${attr}="${name}"]`)
+    if (!el) {
+      el = document.createElement('meta')
+      el.setAttribute(attr, name)
+      document.head.appendChild(el)
+    }
+    el.setAttribute('content', content)
   }
-})
+
+  function removeMeta(name: string, prop = false) {
+    const attr = prop ? 'property' : 'name'
+    const el = document.querySelector(`meta[${attr}="${name}"]`)
+    if (el) el.remove()
+  }
+
+  function updateSeoMeta(articleData: ArticleDetail) {
+    const title = `${articleData.title} - 清`
+    document.title = title
+    const desc = articleData.content.replace(/[#*`\n\r\[\]()>\\-]/g, '').slice(0, 160)
+    setMeta('description', desc)
+    setMeta('og:title', title, true)
+    setMeta('og:description', desc, true)
+    setMeta('og:type', 'article', true)
+    setMeta('og:url', window.location.href, true)
+    setMeta('keywords', articleData.tags.join(','))
+  }
+
+  function removeSeoMeta() {
+    document.title = '清'
+    removeMeta('og:title', true)
+    removeMeta('og:description', true)
+    removeMeta('og:type', true)
+    removeMeta('og:url', true)
+  }
+
+  onMounted(async () => {
+    const id = Number(route.params.id)
+    try {
+      const [articleData, articlesData] = await Promise.all([
+        getArticleById(id),
+        getArticles(),
+      ])
+      article.value = articleData
+      allArticles.value = articlesData
+      updateSeoMeta(articleData)
+      incrementViewCount(id).catch(() => {})
+      nextTick(bindImageClick)
+      checkFavorited(id).then(v => { isFavorited.value = v }).catch(() => {})
+    } catch {
+      router.replace('/home')
+    }
+  })
 
 async function handleLike() {
   if (!article.value) return

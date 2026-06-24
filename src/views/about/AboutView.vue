@@ -64,6 +64,7 @@ const stats = computed<StatItem[]>(() => [
 ])
 
 onMounted(async () => {
+  document.title = '关于 - 清'
   const [articlesRes, thoughtsRes] = await Promise.allSettled([
     getArticles(),
     getThoughts(1, 1),

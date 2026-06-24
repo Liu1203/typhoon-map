@@ -1,12 +1,15 @@
 package com.example.blog.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.example.blog.common.ApiResponse;
 import com.example.blog.entity.Article;
 import com.example.blog.service.ArticleService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/articles")
@@ -64,5 +67,22 @@ public class ArticleController {
         }
         articleService.unlikeArticle(id, userId);
         return ApiResponse.success(null, "取消点赞");
+    }
+
+    @GetMapping("/search")
+    public ApiResponse<Map<String, Object>> searchArticles(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        IPage<Article> pageResult = articleService.searchArticles(keyword, page, size, userId);
+        Map<String, Object> result = new HashMap<>();
+        result.put("articles", pageResult.getRecords());
+        result.put("total", pageResult.getTotal());
+        result.put("page", page);
+        result.put("size", size);
+        result.put("keyword", keyword);
+        return ApiResponse.success(result);
     }
 }

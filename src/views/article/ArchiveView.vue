@@ -12,6 +12,9 @@
               clearable
               size="small"
             />
+            <div v-if="searchQuery.trim()" class="search-all-link">
+              <a href="#" @click.prevent="goToSearch">搜索全部文章 →</a>
+            </div>
           </n-card>
 
           <n-card title="📂 文章分类" :bordered="false" class="sidebar-card">
@@ -213,6 +216,14 @@ function clearFilters() {
   selectedTag.value = null
 }
 
+function goToSearch() {
+  router.push(`/search?q=${encodeURIComponent(searchQuery.value.trim())}`)
+}
+
+onMounted(() => {
+  document.title = '文章归档 - 清'
+})
+
 const hasActiveFilters = computed(() => searchQuery.value || selectedCategory.value || selectedTag.value)
 
 onMounted(async () => {
@@ -385,6 +396,17 @@ $sidebar-right-width: 300px;
   .sidebar-card {
     @include card-base;
     margin-bottom: 20px;
+  }
+
+  .search-all-link {
+    margin-top: 10px;
+    text-align: right;
+    a {
+      font-size: 12px;
+      color: $primary;
+      text-decoration: none;
+      &:hover { text-decoration: underline; }
+    }
   }
 
   &--left {

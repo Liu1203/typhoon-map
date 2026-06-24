@@ -104,7 +104,10 @@ async function handleUnfavorite(articleId: number) {
   }
 }
 
-onMounted(fetchFavorites)
+onMounted(() => {
+  document.title = '我的收藏 - 清'
+  fetchFavorites()
+})
 </script>
 
 <style scoped lang="scss">

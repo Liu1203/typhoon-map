@@ -25,6 +25,8 @@ public class Article {
     private LocalDate date;
     private Long viewCount;
     private Long likeCount;
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private Boolean likedByMe;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -65,4 +67,6 @@ public class Article {
     public void setViewCount(Long viewCount) { this.viewCount = viewCount; }
     public Long getLikeCount() { return likeCount; }
     public void setLikeCount(Long likeCount) { this.likeCount = likeCount; }
+    public Boolean getLikedByMe() { return likedByMe; }
+    public void setLikedByMe(Boolean likedByMe) { this.likedByMe = likedByMe; }
 }
