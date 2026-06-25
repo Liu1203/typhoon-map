@@ -114,6 +114,7 @@ import MarkdownIt from 'markdown-it'
 import AppHeader from '@/components/AppHeader.vue'
 import { message } from '@/utils/message'
 import { getAdminArticle, createArticle, updateArticle } from '@/api/admin'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const route = useRoute()
 const router = useRouter()
@@ -128,7 +129,7 @@ const md = new MarkdownIt({
   typographer: true,
 })
 
-const rendered = computed(() => md.render(form.value.content || ''))
+const rendered = computed(() => sanitizeHtml(md.render(form.value.content || '')))
 
 const tagsList = ref<string[]>([])
 const form = ref({

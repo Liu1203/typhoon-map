@@ -146,6 +146,7 @@ import ArticleToc from '@/components/ArticleToc.vue'
 import RelatedArticles from '@/components/RelatedArticles.vue'
 import { message } from '@/utils/message'
 import { useUserStore } from '@/stores/user'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const route = useRoute()
 const router = useRouter()
@@ -216,7 +217,7 @@ function handleCodeCopy(event: Event) {
 
 const renderedContent = computed(() => {
   if (!article.value) return ''
-  return md.render(article.value.content)
+  return sanitizeHtml(md.render(article.value.content))
 })
 
 const readingTime = computed(() => {

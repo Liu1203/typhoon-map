@@ -134,6 +134,7 @@ import { NCard, NButton, NTag, NInput, NSpin, NPagination } from 'naive-ui'
 import AppHeader from '@/components/AppHeader.vue'
 import { searchArticles } from '@/api/article'
 import type { ArticleDetail } from '@/api/article'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const route = useRoute()
 const router = useRouter()
@@ -197,7 +198,7 @@ function highlight(text: string): string {
   if (!searchKeyword.value) return escapeHtml(text)
   const escaped = escapeHtml(text)
   const re = new RegExp(`(${escapeRegex(searchKeyword.value)})`, 'gi')
-  return escaped.replace(re, '<mark class="search-highlight">$1</mark>')
+  return sanitizeHtml(escaped.replace(re, '<mark class="search-highlight">$1</mark>'))
 }
 
 function escapeHtml(str: string): string {

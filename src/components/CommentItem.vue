@@ -144,6 +144,7 @@ import { message } from '@/utils/message'
 import MarkdownIt from 'markdown-it'
 import UserAvatar from '@/components/UserAvatar.vue'
 import EmojiPicker from '@/components/EmojiPicker.vue'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const props = defineProps<{
   comment: Comment
@@ -214,7 +215,7 @@ const md = new MarkdownIt({
 const renderedContent = computed(() => {
   let html = md.render(props.comment.content)
   html = html.replace(/@(\S+)/g, '<span class="mention">@$1</span>')
-  return html
+  return sanitizeHtml(html)
 })
 
 function startEdit() {

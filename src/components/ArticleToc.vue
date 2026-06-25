@@ -18,6 +18,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { sanitizeHtml } from '@/utils/sanitize'
 
 const props = defineProps<{
   content: string
@@ -34,7 +35,7 @@ const activeId = ref('')
 
 function parseHeadings() {
   const div = document.createElement('div')
-  div.innerHTML = props.content
+  div.innerHTML = sanitizeHtml(props.content)
   const result: Heading[] = []
   div.querySelectorAll('h1, h2, h3').forEach(el => {
     const id = el.getAttribute('id') || el.textContent?.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w\u4e00-\u9fff-]/g, '') || ''
@@ -57,6 +58,7 @@ function scrollTo(id: string) {
 let observer: IntersectionObserver | null = null
 
 function setupObserver() {
+  observer?.disconnect()
   observer = new IntersectionObserver(
     (entries) => {
       const intersecting = entries.filter(e => e.isIntersecting)
