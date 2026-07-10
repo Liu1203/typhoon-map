@@ -35,6 +35,14 @@
             <span class="stat-value">{{ tagCount }}</span>
             <span class="stat-label">当前页标签数</span>
           </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ publishedCount }}</span>
+            <span class="stat-label">当前页已发布</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value">{{ draftCount }}</span>
+            <span class="stat-label">当前页草稿</span>
+          </div>
         </div>
 
         <div class="table-card">
@@ -113,6 +121,9 @@ const tagCount = computed(() => {
   return tags.size
 })
 
+const publishedCount = computed(() => articles.value.filter(a => a.status !== 'draft').length)
+const draftCount = computed(() => articles.value.filter(a => a.status === 'draft').length)
+
 const columns: DataTableColumns<ArticleDetail> = [
   { title: 'ID', key: 'id', width: 60 },
   {
@@ -147,6 +158,19 @@ const columns: DataTableColumns<ArticleDetail> = [
           style: 'margin-right: 4px',
         }, { default: () => tag })
       )
+    }
+  },
+  {
+    title: '状态',
+    key: 'status',
+    width: 100,
+    render(row) {
+      const isDraft = row.status === 'draft'
+      return h(NTag, {
+        size: 'small',
+        bordered: false,
+        type: isDraft ? 'warning' : 'success',
+      }, { default: () => isDraft ? '草稿' : '已发布' })
     }
   },
   { title: '日期', key: 'date', width: 120 },
@@ -293,7 +317,7 @@ $primary: #6366f1;
 
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
   margin-bottom: 24px;
 }
@@ -365,5 +389,11 @@ $primary: #6366f1;
   color: var(--color-text-muted);
   border-top: 1px solid var(--color-border);
   background: var(--color-bg-card);
+}
+
+@media (max-width: 900px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 </style>

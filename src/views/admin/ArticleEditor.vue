@@ -11,8 +11,11 @@
           </div>
           <div class="header-actions">
             <n-button @click="router.push('/admin')">取消</n-button>
-            <n-button type="primary" :loading="saving" @click="handleSave">
-              {{ saving ? '保存中...' : '保存文章' }}
+            <n-button :loading="savingDraft" @click="handleSave('draft')">
+              {{ savingDraft ? '保存中...' : '保存草稿' }}
+            </n-button>
+            <n-button type="primary" :loading="publishing" @click="handleSave('published')">
+              {{ publishing ? '发布中...' : '发布文章' }}
             </n-button>
           </div>
         </div>
@@ -59,6 +62,12 @@
                   :is-date-disabled="() => false"
                   value-format="yyyy-MM-dd"
                 />
+              </div>
+              <div class="field">
+                <label class="field-label">状态</label>
+                <n-tag :type="form.status === 'published' ? 'success' : 'warning'" :bordered="false">
+                  {{ form.status === 'published' ? '已发布' : '草稿' }}
+                </n-tag>
               </div>
             </div>
 
@@ -109,7 +118,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NInput, NButton, NColorPicker, NDatePicker, NDynamicTags } from 'naive-ui'
+import { NInput, NButton, NColorPicker, NDatePicker, NDynamicTags, NTag } from 'naive-ui'
 import MarkdownIt from 'markdown-it'
 import AppHeader from '@/components/AppHeader.vue'
 import { message } from '@/utils/message'
@@ -121,7 +130,8 @@ const router = useRouter()
 const isEdit = computed(() => !!route.params.id)
 const textareaRef = ref<HTMLTextAreaElement>()
 const previewRef = ref<HTMLDivElement>()
-const saving = ref(false)
+const savingDraft = ref(false)
+const publishing = ref(false)
 
 const md = new MarkdownIt({
   html: false,
@@ -138,6 +148,7 @@ const form = ref({
   category: '',
   categoryColor: '#6366f1',
   date: new Date().toISOString().split('T')[0],
+  status: 'draft' as 'draft' | 'published',
 })
 
 onMounted(async () => {
@@ -149,6 +160,7 @@ onMounted(async () => {
       form.value.category = article.category
       form.value.categoryColor = article.categoryColor || '#6366f1'
       form.value.date = article.date
+      form.value.status = article.status || 'published'
       tagsList.value = [...article.tags]
     } catch {
       message.error('加载文章失败')
@@ -171,34 +183,40 @@ function syncScroll() {
   // placeholder for future sync scroll implementation
 }
 
-async function handleSave() {
-  if (!form.value.title.trim()) {
+async function handleSave(status: 'draft' | 'published') {
+  if (status === 'published' && !form.value.title.trim()) {
     message.warning('请输入文章标题')
     return
   }
-  if (!form.value.content.trim()) {
+  if (status === 'published' && !form.value.content.trim()) {
     message.warning('请输入文章内容')
     return
   }
 
-  saving.value = true
+  if (status === 'draft') {
+    savingDraft.value = true
+  } else {
+    publishing.value = true
+  }
   try {
     const params = {
       ...form.value,
+      status,
       tags: tagsList.value,
     }
     if (isEdit.value) {
       await updateArticle(Number(route.params.id), params)
-      message.success('文章更新成功')
+      message.success(status === 'published' ? '文章发布成功' : '草稿保存成功')
     } else {
       await createArticle(params)
-      message.success('文章创建成功')
+      message.success(status === 'published' ? '文章发布成功' : '草稿保存成功')
     }
     router.push('/admin')
   } catch (e: any) {
     message.error(e?.message || '保存失败')
   } finally {
-    saving.value = false
+    savingDraft.value = false
+    publishing.value = false
   }
 }
 </script>
@@ -297,7 +315,7 @@ $primary: #6366f1;
 
 .field-row {
   display: grid;
-  grid-template-columns: 1fr 140px 180px;
+  grid-template-columns: 1fr 140px 180px 100px;
   gap: 16px;
 
   @media (max-width: 768px) {

@@ -8,6 +8,7 @@ export interface CreateArticleParams {
   categoryColor?: string
   tags?: string[]
   date?: string
+  status?: 'draft' | 'published'
 }
 
 export interface PageResult<T> {

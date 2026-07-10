@@ -8,6 +8,7 @@ export interface ArticleDetail {
   categoryColor: string
   tags: string[]
   date: string
+  status?: 'draft' | 'published'
   viewCount?: number
   likeCount?: number
   likedByMe?: boolean

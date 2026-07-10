@@ -7,6 +7,7 @@ import com.example.blog.mapper.UserMapper;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
@@ -20,17 +21,25 @@ public class DataInitializer implements CommandLineRunner {
     private final ArticleMapper articleMapper;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
-    public DataInitializer(ArticleMapper articleMapper, UserMapper userMapper, PasswordEncoder passwordEncoder) {
+    public DataInitializer(ArticleMapper articleMapper, UserMapper userMapper, PasswordEncoder passwordEncoder, JdbcTemplate jdbcTemplate) {
         this.articleMapper = articleMapper;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
     public void run(String... args) throws Exception {
+        migrateArticleStatusColumn();
         migrateAdminPassword();
         loadArticleContent();
+    }
+
+    private void migrateArticleStatusColumn() {
+        jdbcTemplate.execute("ALTER TABLE article ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'published'");
+        jdbcTemplate.update("UPDATE article SET status = 'published' WHERE status IS NULL OR status = ''");
     }
 
     private void migrateAdminPassword() {

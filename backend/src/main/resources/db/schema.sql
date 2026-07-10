@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS article (
     category_color VARCHAR(20),
     tags VARCHAR(500),
     date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'published',
     view_count BIGINT DEFAULT 0,
     like_count BIGINT DEFAULT 0
 );

@@ -15,6 +15,7 @@ import java.util.List;
 
 @Service
 public class ArticleService {
+    private static final String STATUS_PUBLISHED = "published";
 
     private final ArticleMapper articleMapper;
     private final ArticleLikeMapper articleLikeMapper;
@@ -25,11 +26,18 @@ public class ArticleService {
     }
 
     public List<Article> getAllArticles() {
-        return articleMapper.selectList(null);
+        return articleMapper.selectList(
+                new LambdaQueryWrapper<Article>()
+                        .eq(Article::getStatus, STATUS_PUBLISHED)
+                        .orderByDesc(Article::getDate)
+                        .orderByDesc(Article::getId));
     }
 
     public Article getArticleById(Long id) {
-        Article article = articleMapper.selectById(id);
+        Article article = articleMapper.selectOne(
+                new LambdaQueryWrapper<Article>()
+                        .eq(Article::getId, id)
+                        .eq(Article::getStatus, STATUS_PUBLISHED));
         if (article == null) {
             throw new IllegalArgumentException("文章不存在");
         }
@@ -39,12 +47,16 @@ public class ArticleService {
     public List<Article> getHotArticles(int limit) {
         return articleMapper.selectList(
                 new LambdaQueryWrapper<Article>()
+                        .eq(Article::getStatus, STATUS_PUBLISHED)
                         .orderByDesc(Article::getViewCount)
                         .last("LIMIT " + limit));
     }
 
     public List<Article> getRelatedArticles(Long id) {
-        Article article = articleMapper.selectById(id);
+        Article article = articleMapper.selectOne(
+                new LambdaQueryWrapper<Article>()
+                        .eq(Article::getId, id)
+                        .eq(Article::getStatus, STATUS_PUBLISHED));
         if (article == null) {
             return List.of();
         }
@@ -52,12 +64,14 @@ public class ArticleService {
         if (tags.isEmpty()) {
             return articleMapper.selectList(
                     new LambdaQueryWrapper<Article>()
+                            .eq(Article::getStatus, STATUS_PUBLISHED)
                             .ne(Article::getId, id)
                             .orderByDesc(Article::getViewCount)
                             .last("LIMIT 4"));
         }
         List<Article> all = articleMapper.selectList(
                 new LambdaQueryWrapper<Article>()
+                        .eq(Article::getStatus, STATUS_PUBLISHED)
                         .ne(Article::getId, id));
         return all.stream()
                 .filter(a -> {
@@ -114,6 +128,7 @@ public class ArticleService {
         LambdaQueryWrapper<Article> wrapper = new LambdaQueryWrapper<Article>()
                 .and(w -> w.like(Article::getTitle, keyword)
                         .or().like(Article::getContent, keyword))
+                .eq(Article::getStatus, STATUS_PUBLISHED)
                 .orderByDesc(Article::getViewCount);
         Page<Article> pageParam = new Page<>(page, size);
         IPage<Article> result = articleMapper.selectPage(pageParam, wrapper);

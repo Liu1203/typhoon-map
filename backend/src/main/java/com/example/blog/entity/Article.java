@@ -23,6 +23,7 @@ public class Article {
     private String categoryColor;
     private String tags;
     private LocalDate date;
+    private String status;
     private Long viewCount;
     private Long likeCount;
     @com.baomidou.mybatisplus.annotation.TableField(exist = false)
@@ -63,6 +64,8 @@ public class Article {
 
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
     public Long getViewCount() { return viewCount; }
     public void setViewCount(Long viewCount) { this.viewCount = viewCount; }
     public Long getLikeCount() { return likeCount; }
