@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "types": [
+      "@dcloudio/uni-app"
+    ]
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue"]
+}

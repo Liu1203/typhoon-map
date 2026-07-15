@@ -1,0 +1,47 @@
+{
+  "name": "清清天气",
+  "appid": "__UNI__E35C807",
+  "versionName": "1.0.0",
+  "versionCode": "100",
+  "description": "简洁天气查询工具",
+  "uniStatistics": {
+    "enable": false
+  },
+  "mp-weixin": {
+    "appid": "wxab8d25de47927731",
+    "setting": {
+      "urlCheck": false,
+      "es6": true,
+      "minified": true
+    },
+    "permission": {
+      "scope.userLocation": {
+        "desc": "获取您的位置信息以查询当地天气"
+      }
+    },
+    "usingComponents": true
+  },
+  "mp-alipay": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    }
+  },
+  "mp-toutiao": {
+    "appid": "",
+    "setting": {
+      "urlCheck": false
+    }
+  },
+  "app-plus": {
+    "compatible": {
+      "ignoreVersion": true
+    },
+    "distribute": {
+      "android": {
+        "permissions": ["<uses-permission android:name=\"android.permission.INTERNET\"/>"]
+      },
+      "ios": {}
+    }
+  }
+}

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Typhoon</title>
+<link rel="stylesheet" href="./leaflet.min.css">
+<script src="./leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e}
+#map{width:100%;height:100%}
+.cyclone-marker{width:36px;height:36px;border-radius:50%;border:3px solid;background:rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;animation:spin-ccw 4s linear infinite;box-shadow:0 0 8px rgba(0,0,0,0.3)}
+.cyclone-marker.cw{animation-name:spin-cw}
+@keyframes spin-ccw{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+@keyframes spin-cw{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.leaflet-popup-content-wrapper{border-radius:8px;padding:0}
+.leaflet-popup-content{margin:10px 14px;font-size:13px;line-height:1.5;min-width:140px}
+.popup-title{font-weight:600;font-size:14px;margin-bottom:4px;display:flex;justify-content:space-between;gap:8px}
+.popup-row{display:flex;justify-content:space-between;gap:16px;margin-top:2px}
+.popup-label{color:#888;font-size:11px}
+.popup-value{font-size:13px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+var map,markers=[],polylines=[],currentMarker=null,currentData=null
+
+function init(){
+  try{
+    map=L.map('map',{center:[20,120],zoom:5,zoomControl:false,attributionControl:false})
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18}).addTo(map)
+    map.on('zoomend',function(){
+      if(currentData){currentData.nodeInterval=autoIntervalByScale(map.getZoom());render(currentData)}
+      post({action:'scaleChanged',scale:map.getZoom()})
+    })
+    setTimeout(function(){post({action:'ready'})},500)
+  }catch(e){
+    document.body.innerHTML='<div style="color:#fff;padding:20px;text-align:center;margin-top:40%"><p style="font-size:18px;margin-bottom:12px">地图加载失败</p><p style="font-size:13px;color:#999">'+e.message+'</p></div>'
+  }
+}
+
+function autoIntervalByScale(s){if(s>=14)return 1;if(s>=10)return 3;if(s>=7)return 6;return 12}
+
+function post(d){try{if(window.uni&&window.uni.postMessage)uni.postMessage({data:d})}catch(e){}}
+
+var GRADE_COLORS={TD:'#66BB6A',TS:'#FFCA28',STS:'#FF9800',TY:'#EF5350',STY:'#AB47BC',SuperTY:'#EC407A'}
+function gc(g){return GRADE_COLORS[g]||'#90A4AE'}
+function fmt(t){if(!t||t=='')return'';var s=String(t).trim();if(!s)return'';if(s.length>=10)return s.slice(0,4)+'/'+s.slice(4,6)+'/'+s.slice(6,8)+' '+s.slice(8,10)+':00';if(s.length==8)return s.slice(0,4)+'/'+s.slice(4,6)+'/'+s.slice(6,8);return s}
+
+function clearAll(){
+  markers.forEach(function(m){map.removeLayer(m)});polylines.forEach(function(p){map.removeLayer(p)})
+  markers=[];polylines=[];currentMarker=null
+}
+
+function sampleNodes(pts,ih){
+  if(!pts||!pts.length)return[];if(pts.length==1)return[0]
+  var r=[0,pts.length-1],lt=pts[0].time,lg=pts[0].grade
+  for(var i=1;i<pts.length-1;i++){
+    var p=pts[i]
+    if(p.grade!==lg){r.push(i);lg=p.grade;lt=p.time;continue}
+    var dh=0
+    if(typeof p.time==='string'&&p.time.length===12&&typeof lt==='string'&&lt.length===12){
+      var ad=new Date(Date.UTC(+p.time.slice(0,4),+p.time.slice(4,6)-1,+p.time.slice(6,8),+p.time.slice(8,10),+p.time.slice(10,12)))
+      var bd=new Date(Date.UTC(+lt.slice(0,4),+lt.slice(4,6)-1,+lt.slice(6,8),+lt.slice(8,10),+lt.slice(10,12)))
+      dh=(ad.getTime()-bd.getTime())/3600000
+    }else{dh=Number(p.time)-Number(lt)}
+    if(dh>=ih){r.push(i);lt=p.time}
+  }
+  return Array.from(new Set(r)).sort(function(a,b){return a-b})
+}
+
+function render(data){
+  if(!map)return;clearAll();currentData=data
+  var hist=data.history||[],fc=data.forecast||[],cp=data.currentPos,ni=data.nodeInterval||6
+  if(!hist.length&&!fc.length)return
+  function mps(pts,ss,se,color,dash){
+    var ll=pts.slice(ss,se+1).map(function(p){return[p.lat,p.lon]}).filter(function(ll){return ll[0]&&ll[1]})
+    if(ll.length<2)return;polylines.push(L.polyline(ll,{color:color,weight:3,dashArray:dash||null}).addTo(map))
+  }
+  if(hist.length>1){for(var s=0,i=1;i<=hist.length;i++){if(i===hist.length||hist[i].grade!==hist[i-1].grade){mps(hist,s,i-1,gc(hist[s].grade));s=i}}}
+  if(hist.length&&fc.length){var lh=hist[hist.length-1];polylines.push(L.polyline([[lh.lat,lh.lon],[fc[0].lat,fc[0].lon]],{color:gc(lh.grade),weight:3,dashArray:'8,8'}).addTo(map))}
+  if(fc.length>1){for(var s=0,i=1;i<=fc.length;i++){if(i===fc.length||fc[i].grade!==fc[i-1].grade){mps(fc,s,i-1,gc(fc[s].grade),'8,8');s=i}}}
+  if(cp){
+    var dir=cp.lat>0?'':' cw'
+    var icon=L.divIcon({className:'',html:'<div class="cyclone-marker'+dir+'" style="border-color:'+gc(cp.grade)+'">🌀</div>',iconSize:[42,42],iconAnchor:[21,21]})
+    currentMarker=L.marker([cp.lat,cp.lon],{icon}).addTo(map);markers.push(currentMarker)
+    currentMarker.on('click',function(){post({action:'markerTap',point:cp,type:'history',id:1})})
+  }
+  var hi=sampleNodes(hist,ni)
+  for(var j=0;j<hi.length;j++){var idx=hi[j];if(cp&&idx===hist.length-1)continue;var p=hist[idx];var dot=L.circleMarker([p.lat,p.lon],{radius:5,color:gc(p.grade),fillColor:gc(p.grade),fillOpacity:0.8,weight:2}).addTo(map);markers.push(dot);(function(pt,iid){dot.on('click',function(){post({action:'markerTap',point:pt,type:'history',id:100+iid})})})(p,idx)}
+  var fi=sampleNodes(fc,ni)
+  for(var j=0;j<fi.length;j++){var idx=fi[j];var p=fc[idx];var dot=L.circleMarker([p.lat,p.lon],{radius:5,color:gc(p.grade),fillColor:gc(p.grade),fillOpacity:0.7,weight:2}).addTo(map);markers.push(dot);(function(pt,iid){dot.on('click',function(){post({action:'markerTap',point:pt,type:'forecast',id:200+iid})})})(p,idx)}
+}
+
+function updateMapData(data){render(data)}
+function setCenter(lat,lng,zoom){if(map){if(zoom)map.setView([lat,lng],zoom);else map.panTo([lat,lng])}}
+function zoomIn(){if(map)map.zoomIn()}
+function zoomOut(){if(map)map.zoomOut()}
+
+document.addEventListener('DOMContentLoaded',init)
+</script>
+</body>
+</html>

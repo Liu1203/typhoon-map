@@ -1,0 +1,8 @@
+node_modules/
+dist/
+android-build/
+android-build-v2/
+HelloUniApp-build/
+*.apk
+src/static/temp-typhoon/
+src/static/typhoon-map/
