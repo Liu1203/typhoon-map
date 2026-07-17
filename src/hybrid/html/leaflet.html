@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>台风路径</title>
+<link rel="stylesheet" href="./leaflet.min.css">
+<script src="./leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+#map{width:100%;height:100%}
+
+/* ===== Top Bar ===== */
+.top-bar{position:absolute;z-index:1000;top:0;left:0;right:0;display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(251,247,240,0.95);backdrop-filter:blur(10px)}
+.back-btn{width:32px;height:32px;border:none;background:rgba(0,0,0,0.05);border-radius:50%;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:#555}
+.tab-row{display:flex;flex:1;gap:0;border-radius:8px;background:rgba(0,0,0,0.06);padding:2px}
+.tab{flex:1;text-align:center;padding:6px 0;font-size:13px;color:#888;border-radius:6px;background:transparent;border:none;cursor:pointer;transition:all .15s}
+.tab.active{background:#fff;color:#C0392B;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.year-wrap{flex-shrink:0;display:none}
+.year-wrap.show{display:block}
+.year-select{padding:5px 10px;border-radius:6px;border:none;background:rgba(0,0,0,0.06);font-size:13px;color:#333;outline:none;font-weight:500}
+
+/* ===== Chip Bar ===== */
+.chip-bar{position:absolute;z-index:999;top:50px;left:0;right:0;padding:6px 0;background:rgba(251,247,240,0.92);display:flex;overflow:hidden}
+.chip-bar.hidden{display:none}
+.chip-scroll{display:flex;gap:6px;padding:0 12px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chip-scroll::-webkit-scrollbar{display:none}
+.chip{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 14px;border-radius:10px;background:rgba(0,0,0,0.04);min-width:64px;white-space:nowrap;cursor:pointer;border:1.5px solid transparent;transition:all .15s;flex-shrink:0}
+.chip.active{background:linear-gradient(135deg,#C0392B,#8B1A1A);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(192,57,43,0.3)}
+.chip-name{font-size:14px;font-weight:600}
+.chip-num{font-size:10px;opacity:0.5}
+.chip.active .chip-name,.chip.active .chip-num{opacity:1}
+.chip-fade{position:absolute;right:0;top:0;bottom:0;width:36px;background:linear-gradient(90deg,transparent,rgba(251,247,240,0.95));pointer-events:none}
+
+/* ===== Collapsed bar ===== */
+.collapsed-bar{position:absolute;z-index:999;top:50px;left:0;right:0;display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(251,247,240,0.95);font-size:13px;cursor:pointer}
+.collapsed-bar.hidden{display:none}
+.collapsed-bar .c-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.collapsed-bar .c-name{font-weight:700;color:#C0392B;flex:1}
+.collapsed-bar .c-grade{padding:1px 6px;border-radius:4px;font-size:11px;color:#fff;font-weight:600}
+.collapsed-bar .c-wind{color:#999;font-size:11px}
+.collapsed-bar .c-arrow{color:#bbb}
+
+/* ===== Loading ===== */
+.loading-bar{position:absolute;z-index:999;top:56px;left:0;right:0;padding:8px 12px;background:rgba(251,247,240,0.95);font-size:13px;color:#999;text-align:center}
+
+/* ===== Legend ===== */
+.legend{position:absolute;z-index:998;left:8px;bottom:12px;display:flex;flex-wrap:wrap;gap:3px;max-width:75%}
+.legend-item{display:flex;align-items:center;gap:2px;background:rgba(26,26,46,0.8);padding:2px 6px;border-radius:4px}
+.legend-dot{width:7px;height:7px;border-radius:50%}
+.legend-text{font-size:9px;color:#ddd;white-space:nowrap}
+
+/* ===== Fetching overlay ===== */
+.fetch-overlay{position:absolute;inset:0;z-index:998;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(0,0,0,0.4);color:#fff;font-size:13px}
+.fetch-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== Empty ===== */
+.empty-msg{position:absolute;inset:0;z-index:997;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;pointer-events:none}
+.empty-msg-card{display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 32px;background:rgba(255,255,255,0.92);border-radius:16px;pointer-events:auto;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
+.empty-msg-card .e-icon{font-size:40px}
+.empty-msg-card .e-text{font-size:14px;color:#666}
+.empty-msg-card .e-btn{padding:6px 20px;background:#C0392B;color:#fff;border:none;border-radius:20px;font-size:12px;cursor:pointer}
+
+/* ===== Typhoon marker (CSS rotation!) ===== */
+.cyclone-wrap{width:56px;height:56px;display:flex;align-items:center;justify-content:center;animation:spin-ccw 8s linear infinite}
+@keyframes spin-ccw{from{transform:rotate(0deg)}to{transform:rotate(-360deg)}}
+
+.cyclone-core{width:48px;height:48px;border-radius:50%;border:3px solid;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 0 14px rgba(0,0,0,0.4)}
+.cyclone-inner{width:16px;height:16px;border-radius:50%;background:#fff}
+.cyclone-arm{position:absolute;width:3px;height:10px;border-radius:2px;background:rgba(255,255,255,0.9)}
+.cyclone-arm.a1{top:-1px;left:50%;transform:translateX(-50%)}
+.cyclone-arm.a2{bottom:-1px;left:50%;transform:translateX(-50%)}
+.cyclone-arm.a3{left:-1px;top:50%;transform:translateY(-50%)}
+.cyclone-arm.a4{right:-1px;top:50%;transform:translateY(-50%)}
+
+.leaflet-popup-content-wrapper{border-radius:10px;padding:0}
+.leaflet-popup-content{margin:8px 12px;font-size:12px;line-height:1.5;min-width:120px}
+</style>
+</head>
+<body>
+<div class="top-bar" id="topBar">
+  <button class="back-btn" onclick="goBack()">←</button>
+  <div class="tab-row">
+    <button class="tab active" id="tabActive" onclick="switchTab('active')">活跃台风</button>
+    <button class="tab" id="tabHistory" onclick="switchTab('history')">历史台风</button>
+  </div>
+  <div class="year-wrap" id="yearWrap">
+    <select class="year-select" id="yearSelect" onchange="onYearChange(this.value)"></select>
+  </div>
+</div>
+
+<div class="chip-bar" id="chipBar">
+  <div class="chip-scroll" id="chipScroll"></div>
+  <div class="chip-fade"></div>
+</div>
+
+<div class="collapsed-bar hidden" id="collapsedBar" onclick="expandList()">
+  <div class="c-dot" id="cDot"></div>
+  <span class="c-name" id="cName"></span>
+  <span class="c-grade" id="cGrade"></span>
+  <span class="c-wind" id="cWind"></span>
+  <span class="c-arrow">▼</span>
+</div>
+
+<div class="loading-bar" id="loadingBar" style="display:none"></div>
+
+<div id="map"></div>
+
+<div class="legend" id="legend" style="display:none"></div>
+<div class="fetch-overlay" id="fetchOverlay" style="display:none">
+  <div class="fetch-spinner"></div>
+  <span>加载路径...</span>
+</div>
+<div class="empty-msg" id="emptyMsg" style="display:none"></div>
+
+<script>
+// ===== State =====
+var state={mode:'active',year:new Date().getFullYear()-1,typhoons:[],selectedId:null,detail:null,listExpanded:true}
+var map,markers=[],polylines=[],currentMarker=null,currentData=null
+
+var GRADE_COLORS={TD:'#5DADE2',TS:'#F4D03F',STS:'#E67E22',TY:'#E74C3C',STY:'#8E44AD',SuperTY:'#FF1493'}
+var GRADE_NAMES={TD:'热带低压',TS:'热带风暴',STS:'强热带风暴',TY:'台风',STY:'强台风',SuperTY:'超强台风'}
+function gc(g){return GRADE_COLORS[g]||'#90A4AE'}
+
+// ===== Init =====
+function init(){
+  try{
+    map=L.map('map',{center:[20,120],zoom:5,zoomControl:false,attributionControl:false})
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd',crossOrigin:true}).addTo(map)
+    map.on('zoomend',function(){if(currentData)render(currentData,false)})
+    initYearSelect()
+    loadActive()
+  }catch(e){document.getElementById('emptyMsg').innerHTML='<div class="empty-msg-card"><div class="e-text">地图加载失败: '+e.message+'</div></div>';document.getElementById('emptyMsg').style.display='flex'}
+}
+
+function post(d){try{if(window.uni&&window.uni.postMessage)uni.postMessage({data:d})}catch(e){}}
+
+// ===== Navigation =====
+function goBack(){post({action:'back'})}
+
+// ===== Tab =====
+function switchTab(mode){
+  if(mode===state.mode)return
+  state.mode=mode;state.selectedId=null;state.detail=null;state.listExpanded=true
+  document.getElementById('tabActive').className=mode==='active'?'tab active':'tab'
+  document.getElementById('tabHistory').className=mode==='history'?'tab active':'tab'
+  document.getElementById('yearWrap').className=mode==='history'?'year-wrap show':'year-wrap'
+  if(mode==='active')loadActive();else loadHistory(state.year)
+}
+
+// ===== Year =====
+function initYearSelect(){
+  var sel=document.getElementById('yearSelect'),cy=new Date().getFullYear()
+  for(var y=cy-1;y>=2015;y--){var o=document.createElement('option');o.value=y;o.textContent=y+' 年';if(y===state.year)o.selected=true;sel.appendChild(o)}
+}
+
+function onYearChange(y){
+  state.year=parseInt(y);loadHistory(state.year)
+}
+
+// ===== Data Fetching =====
+function fetchJsonp(url,cb,errCb){
+  var cbName='_jp'+Date.now()
+  window[cbName]=function(data){delete window[cbName];cb(data)}
+  var s=document.createElement('script');s.src=url.replace('{cb}',cbName)
+  s.onerror=function(err){delete window[cbName];if(errCb)errCb(err)}
+  document.head.appendChild(s);setTimeout(function(){document.head.removeChild(s)},5000)
+}
+
+function loadActive(){
+  state.typhoons=[];state.selectedId=null;state.detail=null
+  showLoading('正在获取活跃台风...')
+  var xhr=new XMLHttpRequest()
+  xhr.open('GET','http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default?t='+Date.now())
+  xhr.timeout=8000
+  xhr.onload=function(){
+    hideLoading()
+    try{
+      var m=xhr.responseText.match(/\{[\s\S]*\}/);if(!m){showEmpty('暂无活跃台风');return}
+      var data=JSON.parse(m[0]);if(!data.typhoonList||!data.typhoonList.length){showEmpty('暂无可追踪台风');return}
+      state.typhoons=data.typhoonList.map(function(v){return{id:v[0],nameCn:v[2],nameEn:v[1],tcNum:v[4]}})
+      renderChips()
+      selectTyphoon(state.typhoons[0])
+    }catch(e){showEmpty('数据解析失败')}
+  }
+  xhr.onerror=function(){hideLoading();showEmpty('网络请求失败')}
+  xhr.ontimeout=function(){hideLoading();showEmpty('请求超时')}
+  xhr.send()
+}
+
+function loadHistory(year){
+  state.typhoons=[];state.selectedId=null;state.detail=null
+  showLoading('正在获取 '+year+' 年台风...')
+  var xhr=new XMLHttpRequest()
+  xhr.open('GET','http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_'+year+'?t='+Date.now())
+  xhr.timeout=8000
+  xhr.onload=function(){
+    hideLoading()
+    try{
+      var m=xhr.responseText.match(/\{[\s\S]*\}/);if(!m){showEmpty(year+' 年暂无台风记录');return}
+      var data=JSON.parse(m[0]);if(!data.typhoonList||!data.typhoonList.length){showEmpty(year+' 年暂无台风记录');return}
+      state.typhoons=data.typhoonList.map(function(v){return{id:v[0],nameCn:v[2],nameEn:v[1],tcNum:v[4]}})
+      renderChips()
+      selectTyphoon(state.typhoons[0])
+    }catch(e){showEmpty('数据解析失败')}
+  }
+  xhr.onerror=function(){hideLoading();showEmpty('网络请求失败')}
+  xhr.ontimeout=function(){hideLoading();showEmpty('请求超时')}
+  xhr.send()
+}
+
+function selectTyphoon(t){
+  state.selectedId=t.id;state.listExpanded=false
+  renderChips()
+  document.getElementById('fetchOverlay').style.display='flex'
+  var xhr=new XMLHttpRequest()
+  xhr.open('GET','http://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_'+t.id+'?t='+Date.now())
+  xhr.timeout=8000
+  xhr.onload=function(){
+    document.getElementById('fetchOverlay').style.display='none'
+    try{
+      var m=xhr.responseText.match(/\{[\s\S]*\}/);if(!m)return
+      var data=JSON.parse(m[0]);if(!data.typhoon)return
+      var raw=data.typhoon,points=raw[8]||[],last=points[points.length-1],forecast=last?last[11]&&last[11].BABJ||[]:[]
+      var history=points.map(function(v){return{time:v[1]!=null?String(v[1]):'',lon:Number(v[4])||0,lat:Number(v[5])||0,pressure:v[6]||0,windSpeed:v[7]||0,grade:v[3]||'TD',gradeText:GRADE_NAMES[v[3]]||v[3]||'热带低压'}})
+      var lastHistTime=history.length>0?history[history.length-1].time:''
+      var baseTime=lastHistTime.length===12?new Date(Date.UTC(+lastHistTime.slice(0,4),+lastHistTime.slice(4,6)-1,+lastHistTime.slice(6,8),+lastHistTime.slice(8,10),+lastHistTime.slice(10,12))):new Date()
+      var fc=forecast.map(function(v){var off=Number(v[0])||0,ft=new Date(baseTime.getTime()+off*3600000);var pad=function(n){return String(n).padStart(2,'0')};var ts=ft.getUTCFullYear()+pad(ft.getUTCMonth()+1)+pad(ft.getUTCDate())+pad(ft.getUTCHours())+pad(ft.getUTCMinutes());return{time:ts,lon:Number(v[2])||0,lat:Number(v[3])||0,pressure:v[4]||0,windSpeed:v[5]||0,grade:v[7]||'TD',gradeText:GRADE_NAMES[v[7]]||v[7]||'热带低压'}})
+      state.detail={id:t.id,nameCn:t.nameCn,nameEn:t.nameEn,tcNum:t.tcNum,history:history,forecast:fc}
+      showCollapsedBar()
+      render(state.detail)
+    }catch(e){}
+  }
+  xhr.onerror=function(){document.getElementById('fetchOverlay').style.display='none'}
+  xhr.ontimeout=function(){document.getElementById('fetchOverlay').style.display='none'}
+  xhr.send()
+}
+
+// ===== UI Helpers =====
+function displayName(t){return t.nameCn||t.nameEn||t.tcNum||'未知'}
+
+function renderChips(){
+  var container=document.getElementById('chipScroll'),bar=document.getElementById('chipBar')
+  container.innerHTML=''
+  for(var i=0;i<state.typhoons.length;i++){
+    var t=state.typhoons[i]
+    var chip=document.createElement('div')
+    chip.className='chip'+(t.id===state.selectedId?' active':'')
+    chip.innerHTML='<span class="chip-name">'+displayName(t)+'</span><span class="chip-num">'+t.tcNum+'</span>'
+    chip.onclick=(function(ty){return function(){selectTyphoon(ty)}})(t)
+    container.appendChild(chip)
+  }
+  bar.className=state.listExpanded?'chip-bar':'chip-bar hidden'
+}
+
+function showCollapsedBar(){
+  var t=state.typhoons.find(function(x){return x.id===state.selectedId})
+  if(!t||!state.detail)return
+  var cp=state.detail.history[state.detail.history.length-1]
+  if(!cp)return
+  document.getElementById('cDot').style.background=gc(cp.grade)
+  document.getElementById('cName').textContent=displayName(t)
+  document.getElementById('cGrade').style.background=gc(cp.grade)
+  document.getElementById('cGrade').textContent=cp.gradeText
+  document.getElementById('cWind').textContent=cp.windSpeed+'m/s'
+  document.getElementById('collapsedBar').className='collapsed-bar'
+}
+
+function expandList(){
+  state.listExpanded=true
+  renderChips()
+  document.getElementById('collapsedBar').className='collapsed-bar hidden'
+}
+
+function showLoading(msg){
+  document.getElementById('loadingBar').style.display='block';document.getElementById('loadingBar').textContent=msg;document.getElementById('emptyMsg').style.display='none'
+}
+function hideLoading(){document.getElementById('loadingBar').style.display='none'}
+
+function showEmpty(msg){
+  document.getElementById('emptyMsg').innerHTML='<div class="empty-msg-card"><span class="e-icon">🌀</span><div class="e-text">'+msg+'</div></div>';document.getElementById('emptyMsg').style.display='flex'
+}
+
+// ===== Map Rendering =====
+function clearAll(){
+  markers.forEach(function(m){map.removeLayer(m)});polylines.forEach(function(p){map.removeLayer(p)})
+  markers=[];polylines=[]
+}
+
+function sampleNodes(pts,ih){
+  if(!pts||!pts.length)return[];if(pts.length==1)return[0]
+  var r=[0,pts.length-1],lt=pts[0].time,lg=pts[0].grade
+  for(var i=1;i<pts.length-1;i++){
+    var p=pts[i];if(p.grade!==lg){r.push(i);lg=p.grade;lt=p.time;continue}
+    var dh=0
+    if(typeof p.time==='string'&&p.time.length===12&&typeof lt==='string'&&lt.length===12){
+      var ad=new Date(Date.UTC(+p.time.slice(0,4),+p.time.slice(4,6)-1,+p.time.slice(6,8),+p.time.slice(8,10),+p.time.slice(10,12)))
+      var bd=new Date(Date.UTC(+lt.slice(0,4),+lt.slice(4,6)-1,+lt.slice(6,8),+lt.slice(8,10),+lt.slice(10,12)))
+      dh=(ad.getTime()-bd.getTime())/3600000
+    }else{dh=Number(p.time)-Number(lt)}
+    if(dh>=ih){r.push(i);lt=p.time}
+  }
+  return Array.from(new Set(r)).sort(function(a,b){return a-b})
+}
+
+function fmt(t){if(!t||t=='')return'';var s=String(t).trim();if(!s)return'';if(s.length>=10)return s.slice(0,4)+'/'+s.slice(4,6)+'/'+s.slice(6,8)+' '+s.slice(8,10)+':00';if(s.length==8)return s.slice(0,4)+'/'+s.slice(4,6)+'/'+s.slice(6,8);return s}
+
+function hexToRgba(hex,a){var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return'rgba('+r+','+g+','+b+','+a+')'}
+
+function autoIntervalByScale(s){if(s>=14)return 1;if(s>=10)return 3;if(s>=7)return 6;return 12}
+
+function render(data,doFit){
+  if(!map)return;clearAll();currentData=data
+  var hist=data.history||[],fc=data.forecast||[],cp=hist.length>0?hist[hist.length-1]:null,ni=data.nodeInterval||autoIntervalByScale(map.getZoom())
+  if(!hist.length&&!fc.length)return
+
+  function mps(pts,ss,se,color,dash){
+    var ll=pts.slice(ss,se+1).map(function(p){return[p.lat,p.lon]}).filter(function(ll){return ll[0]&&ll[1]})
+    if(ll.length<2)return
+    polylines.push(L.polyline(ll,{color:hexToRgba(color,0.3),weight:10,dashArray:dash||null}).addTo(map))
+    polylines.push(L.polyline(ll,{color:color,weight:4,dashArray:dash||null}).addTo(map))
+  }
+
+  if(hist.length>1){for(var s=0,i=1;i<=hist.length;i++){if(i===hist.length||hist[i].grade!==hist[i-1].grade){mps(hist,s,i-1,gc(hist[s].grade));s=i}}}
+
+  if(hist.length&&fc.length){
+    var lh=hist[hist.length-1],conn=gc(lh.grade)
+    polylines.push(L.polyline([[lh.lat,lh.lon],[fc[0].lat,fc[0].lon]],{color:hexToRgba(conn,0.3),weight:10,dashArray:'8,8'}).addTo(map))
+    polylines.push(L.polyline([[lh.lat,lh.lon],[fc[0].lat,fc[0].lon]],{color:conn,weight:4,dashArray:'8,8'}).addTo(map))
+  }
+
+  if(fc.length>1){for(var s=0,i=1;i<=fc.length;i++){if(i===fc.length||fc[i].grade!==fc[i-1].grade){mps(fc,s,i-1,gc(fc[s].grade),'8,8');s=i}}}
+
+  // Current position: CSS rotating marker!
+  if(cp){
+    var c=gc(cp.grade)
+    var html='<div class="cyclone-wrap"><div class="cyclone-core" style="border-color:'+c+';background:'+hexToRgba(c,0.2)+'">'
+      +'<div class="cyclone-arm a1"></div><div class="cyclone-arm a2"></div>'
+      +'<div class="cyclone-arm a3"></div><div class="cyclone-arm a4"></div>'
+      +'<div class="cyclone-inner"></div></div></div>'
+    var icon=L.divIcon({className:'',html:html,iconSize:[56,56],iconAnchor:[28,28]})
+    var mk=L.marker([cp.lat,cp.lon],{icon}).addTo(map)
+    markers.push(mk)
+    mk.on('click',function(){post({action:'markerTap',point:cp,type:'history'})})
+  }
+
+  // Path dots
+  var hi=sampleNodes(hist,ni)
+  for(var j=0;j<hi.length;j++){var idx=hi[j];if(cp&&idx===hist.length-1)continue;var hp=hist[idx];var dot=L.circleMarker([hp.lat,hp.lon],{radius:5,color:gc(hp.grade),fillColor:gc(hp.grade),fillOpacity:0.85,weight:2}).addTo(map);markers.push(dot);(function(pt,iid){dot.on('click',function(){post({action:'markerTap',point:pt,type:'history',id:100+iid})})})(hp,idx)}
+  var fi=sampleNodes(fc,ni)
+  for(var j=0;j<fi.length;j++){var idx=fi[j],fp=fc[idx];var dot=L.circleMarker([fp.lat,fp.lon],{radius:5,color:gc(fp.grade),fillColor:gc(fp.grade),fillOpacity:0.7,weight:2}).addTo(map);markers.push(dot);(function(pt,iid){dot.on('click',function(){post({action:'markerTap',point:pt,type:'forecast',id:200+iid})})})(fp,idx)}
+
+  // Legend
+  var leg=document.getElementById('legend'),legHTML=''
+  for(var g in GRADE_NAMES){legHTML+='<div class="legend-item"><div class="legend-dot" style="background:'+GRADE_COLORS[g]+'"></div><span class="legend-text">'+GRADE_NAMES[g]+'</span></div>'}
+  leg.innerHTML=legHTML;leg.style.display='flex'
+
+  // Fit bounds
+  if(doFit!==false){
+    var allPts=hist.concat(fc).filter(function(p){return p.lat&&p.lon});if(cp)allPts.push(cp)
+    if(allPts.length>0){
+      var bounds=allPts.reduce(function(b,p){b.minLat=Math.min(b.minLat,p.lat);b.maxLat=Math.max(b.maxLat,p.lat);b.minLng=Math.min(b.minLng,p.lon);b.maxLng=Math.max(b.maxLng,p.lon);return b},{minLat:90,maxLat:-90,minLng:180,maxLng:-180})
+      map.fitBounds([[bounds.minLat,bounds.minLng],[bounds.maxLat,bounds.maxLng]],{padding:[50,50]})
+    }
+  }
+}
+
+document.addEventListener('DOMContentLoaded',init)
+</script>
+</body>
+</html>

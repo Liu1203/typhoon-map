@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref } from "vue"
 import { onShow, onPullDownRefresh } from "@dcloudio/uni-app"
-import { getWeather, getCityId, getCityCoords, getHourlyForecast, type CurrentWeather } from "@/api/weather"
+import { getWeather, getCityId, getCityCoords, getHourlyForecast, getWeatherByCoords, type CurrentWeather } from "@/api/weather"
 import WeatherIcon from "@/components/WeatherIcon.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
 
@@ -75,6 +75,24 @@ async function detectCity(): Promise<string | null> {
   })
 }
 
+
+async function detectCoords(): Promise<{ lat: number; lon: number } | null> {
+  return new Promise((resolve) => {
+    let settled = false
+    const done = (r: { lat: number; lon: number } | null) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(r)
+    }
+    const timer = setTimeout(() => { done(null) }, 15000)
+    uni.getLocation({
+      type: "wgs84",
+      success(res: any) { done({ lat: res.latitude, lon: res.longitude }) },
+      fail() { done(null) },
+    })
+  })
+}
 
 interface CacheEntry {
   data: CurrentWeather
@@ -189,40 +207,28 @@ async function locateMe() {
   if (locating.value) return
   locating.value = true
   try {
-    const city = await detectCity()
-    if (!city) {
+    const coords = await detectCoords()
+    if (!coords) {
       uni.showToast({ title: "定位失败: " + locateError.value, icon: "none", duration: 3000 })
       locating.value = false
       return
     }
-    if (city === currentCity.value) {
-      uni.showToast({ title: "当前已是 " + city, icon: "none", duration: 1500 })
-      locating.value = false
-      return
-    }
-    currentCity.value = city
-    uni.setStorageSync("selected_city", city)
     loading.value = true
     failed.value = false
-    const cid = getCityId(city)
-    if (cid) {
-      forecastHourlys.value = {}
-      expandedIndex.value = -1
-      const res = await getWeather(cid)
-      if (res) {
-        const coords = getCityCoords(city)
-        if (coords) {
-          const hourly = await getHourlyForecast(coords.lat, coords.lon)
-          if (hourly.length > 0) res.hourly = hourly
-        }
-        applyWeatherData(res)
-        setCache(res, city)
-      }
-      loading.value = false
+    forecastHourlys.value = {}
+    expandedIndex.value = -1
+    const result = await getWeatherByCoords(coords.lat, coords.lon)
+    if (result) {
+      currentCity.value = result.placeName
+      uni.setStorageSync("selected_city", result.placeName)
+      const hourly = await getHourlyForecast(coords.lat, coords.lon)
+      if (hourly.length > 0) result.weather.hourly = hourly
+      applyWeatherData(result.weather)
+      setCache(result.weather, result.placeName)
     } else {
-      loading.value = false
-      uni.showToast({ title: "暂不支持该城市", icon: "none", duration: 1500 })
+      uni.showToast({ title: "获取天气失败", icon: "none", duration: 2000 })
     }
+    loading.value = false
   } catch (e: any) {
     loading.value = false
     uni.showToast({ title: "定位失败", icon: "none", duration: 2000 })
@@ -432,7 +438,7 @@ function hourLabel(t: string): string {
       <view class="entry-cards anim-fade-in-up" style="animation-delay: 0.3s">
         <view class="entry-card typhoon-entry" @tap="uni.navigateTo({ url: '/pages/typhoon/typhoon' })">
           <view class="entry-icon-wrap">
-            <text class="entry-icon">🌀</text>
+            <image src="/static/typhoon-entry.svg" class="entry-icon-svg" mode="aspectFit" />
           </view>
           <view class="entry-text-wrap">
             <text class="entry-title">台风路径</text>
@@ -908,6 +914,11 @@ function hourLabel(t: string): string {
 .quake-entry .entry-icon-wrap { background: rgba(91,140,122,0.1); }
 
 .entry-icon { font-size: 22px; }
+
+.entry-icon-svg {
+  width: 28px;
+  height: 28px;
+}
 
 .entry-text-wrap {
   flex: 1;

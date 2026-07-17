@@ -118,16 +118,18 @@ export async function getTyphoonDetail(id: string): Promise<TyphoonDetail | null
     const ft = new Date(baseTime.getTime() + offsetH * 3600000)
     const pad = (n: number) => String(n).padStart(2, "0")
     const timeStr = `${ft.getUTCFullYear()}${pad(ft.getUTCMonth() + 1)}${pad(ft.getUTCDate())}${pad(ft.getUTCHours())}${pad(ft.getUTCMinutes())}`
+    const lon = Number(v[2])
+    const lat = Number(v[3])
     return {
       time: timeStr,
-      lon: Number(v[2]) || 0,
-      lat: Number(v[3]) || 0,
+      lon: isFinite(lon) ? lon : 0,
+      lat: isFinite(lat) ? lat : 0,
       pressure: v[4] || 0,
       windSpeed: v[5] || 0,
       grade: v[7] || "TD",
       gradeText: parseGrade(v[7]),
     }
-  })
+  }).filter(p => !(p.lat === 0 && p.lon === 0)) // 过滤无效坐标
   return {
     id,
     nameCn: raw[2] || "",

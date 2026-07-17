@@ -169,6 +169,70 @@ function dayName(dateStr: string): string {
   return days[d.getDay()]
 }
 
+export interface CoordsWeather {
+  weather: CurrentWeather
+  placeName: string
+}
+
+export async function getWeatherByCoords(lat: number, lon: number): Promise<CoordsWeather | null> {
+  const res = await req(`https://wttr.in/${lat},${lon}?format=j1`)
+  const data = (res as any)?.data
+  if (!data?.current_condition?.[0]) return null
+
+  const cur = data.current_condition[0]
+  const avg = data.weather?.[0]
+  const astro = avg?.astronomy?.[0]
+  const desc = cur.weatherDesc?.[0]?.value ?? ""
+
+  const nearest = data.nearest_area?.[0]
+  const areaName = nearest?.areaName?.[0]?.value || nearest?.region?.[0]?.value || ""
+  const country = nearest?.country?.[0]?.value || ""
+  let placeName = areaName || ""
+  if (placeName && country && country !== areaName) {
+    placeName = areaName + "，" + country
+  }
+  if (!placeName) {
+    placeName = lat.toFixed(1) + "°N," + lon.toFixed(1) + "°E"
+  }
+
+  const forecast: ForecastDay[] = (data.weather || []).slice(1, 4).map((w: any) => ({
+    day: dayName(w.date),
+    date: w.date,
+    weather: forecastWeather(w.hourly),
+    high: w.maxtempC ?? "--",
+    low: w.mintempC ?? "--",
+  }))
+
+  const hourly: HourlyItem[] = ((avg?.hourly) || []).map((h: any) => ({
+    time: String(parseInt(h.time || "0") / 100).padStart(2, "0") + ":00",
+    temp: h.tempC ?? "--",
+    weather: translateWeather(h.weatherDesc?.[0]?.value ?? ""),
+    rainChance: h.chanceofrain ?? "0",
+    windDir: WIND_DIR[h.winddir16Point] || h.winddir16Point || "",
+    windScale: h.windspeedKmph ?? "0",
+  }))
+
+  return {
+    weather: {
+      temp: cur.temp_C,
+      feelsLike: cur.FeelsLikeC ?? "--",
+      humidity: cur.humidity,
+      windDir: WIND_DIR[cur.winddir16Point] || cur.winddir16Point,
+      windScale: cur.windspeedKmph,
+      windLevel: windLevel(cur.windspeedKmph),
+      weather: translateWeather(desc),
+      high: avg?.maxtempC ?? "--",
+      low: avg?.mintempC ?? "--",
+      sunrise: astro?.sunrise ?? "--",
+      sunset: astro?.sunset ?? "--",
+      uvIndex: cur.uvIndex ?? "--",
+      forecast,
+      hourly,
+    },
+    placeName,
+  }
+}
+
 export async function getWeather(cityEn: string): Promise<CurrentWeather | null> {
   const res = await req(`https://wttr.in/${encodeURIComponent(cityEn)}?format=j1`)
   const data = (res as any)?.data
