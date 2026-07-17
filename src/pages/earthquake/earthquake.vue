@@ -168,37 +168,39 @@ function formatTime(ts: number): string {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--color-bg);
 }
 
 .bar {
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--color-paper-border);
   max-height: 45vh;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 
 .bar-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  gap: 10px;
+  padding: var(--spacing-md) var(--spacing-lg);
+  gap: var(--spacing-sm);
 }
 
 .bar-count {
-  font-size: 13px;
-  color: #999;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-light);
   white-space: nowrap;
 }
 
 .date-picker {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #4A90D9;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
 }
 
 .date-arrow {
@@ -206,29 +208,31 @@ function formatTime(ts: number): string {
 }
 
 .bar-toggle {
-  font-size: 12px;
-  color: #4A90D9;
+  font-size: var(--font-size-xs);
+  color: var(--color-primary);
   white-space: nowrap;
 }
 
 .quake-list {
   flex: 1;
   overflow-y: auto;
-  padding: 0 14px 10px;
+  padding: 0 var(--spacing-lg) var(--spacing-sm);
 }
 
 .quake-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid #f5f5f5;
+  gap: var(--spacing-md);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-paper-border);
+  transition: background var(--transition-fast);
 }
 
 .quake-item.active {
-  background: #f0f7ff;
-  margin: 0 -14px;
-  padding: 10px 14px;
+  background: rgba(192,57,43,0.05);
+  margin: 0 calc(-1 * var(--spacing-lg));
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-sm);
 }
 
 .quake-tag {
@@ -239,29 +243,31 @@ function formatTime(ts: number): string {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .quake-tag-text {
   color: #fff;
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
 }
 
 .quake-info {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .quake-place {
-  font-size: 14px;
-  color: #333;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-medium);
 }
 
 .quake-meta {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--font-size-xs);
+  color: var(--color-ink-light);
 }
 
 .map-container {
@@ -278,39 +284,41 @@ function formatTime(ts: number): string {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: #999;
-  font-size: 14px;
+  gap: var(--spacing-md);
+  color: var(--color-ink-light);
+  font-size: var(--font-size-sm);
 }
 
 .info-card {
-  background: #fff;
-  padding: 14px 20px;
-  border-top: 1px solid #f0f0f0;
+  background: var(--color-paper);
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-top: 1px solid var(--color-paper-border);
+  flex-shrink: 0;
 }
 
 .info-mag {
-  font-size: 24px;
-  font-weight: 700;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
 }
 
 .info-time {
-  font-size: 13px;
-  color: #999;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-light);
 }
 
 .info-place {
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink);
+  margin-bottom: var(--spacing-xs);
+  font-weight: var(--font-weight-medium);
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 13px;
-  color: #666;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-soft);
   margin-bottom: 2px;
 }
 </style>

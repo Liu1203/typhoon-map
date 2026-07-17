@@ -160,7 +160,7 @@ const scale = computed(() => props.size / 56)
 }
 .cloud-wrap.dark .cloud-body,
 .cloud-wrap.dark .cloud-bump {
-  background: linear-gradient(180deg, #D8DEE8 0%, #B0BBC8 100%);
+  background: linear-gradient(180deg, #C8C0B4 0%, #A09888 100%);
 }
 .cloud-wrap.back {
   opacity: 0.55;
@@ -179,16 +179,16 @@ const scale = computed(() => props.size / 56)
   height: 55%;
   bottom: 0;
   left: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #F0F4F8 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #F2EDE4 100%);
   border-radius: 20px 20px 14px 14px;
-  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.06));
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.05));
 }
 
 /* 三个圆顶 */
 .cloud-bump {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff 0%, #F0F4F8 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #F2EDE4 100%);
 }
 
 /* 左顶：小 */
@@ -219,7 +219,7 @@ const scale = computed(() => props.size / 56)
 /* 阴天后层云更深 */
 .overcast .cloud-wrap.back .cloud-body,
 .overcast .cloud-wrap.back .cloud-bump {
-  background: linear-gradient(180deg, #D0D8E0 0%, #A8B4C0 100%);
+  background: linear-gradient(180deg, #C0B8A8 0%, #988F80 100%);
 }
 
 @keyframes driftFront {
@@ -231,17 +231,17 @@ const scale = computed(() => props.size / 56)
   50% { transform: translateX(-50%) scale(0.92) translateX(-2px); }
 }
 
-/* ===== 晴 (参考 iOS Weather) ===== */
+/* ===== 晴 (暖金太阳) ===== */
 .sunny .sun-core {
   position: absolute;
   width: 22px;
   height: 22px;
-  background: radial-gradient(circle at 35% 35%, #FFF3A0 0%, #FFD700 40%, #FFB800 100%);
+  background: radial-gradient(circle at 35% 35%, #FFF0C0 0%, #F0C060 40%, #D4A040 100%);
   border-radius: 50%;
-  box-shadow: 
-    0 0 8px rgba(255,215,0,0.5),
-    0 0 16px rgba(255,184,0,0.4),
-    inset 0 -2px 4px rgba(255,184,0,0.2);
+  box-shadow:
+    0 0 8px rgba(212,168,64,0.45),
+    0 0 18px rgba(208,140,50,0.35),
+    inset 0 -2px 4px rgba(200,140,60,0.2);
   animation: pulse 4s ease-in-out infinite;
 }
 
@@ -249,17 +249,17 @@ const scale = computed(() => props.size / 56)
   position: absolute;
   width: 2px;
   height: 10px;
-  background: linear-gradient(180deg, transparent 0%, #FFD700 50%, transparent 100%);
+  background: linear-gradient(180deg, transparent 0%, #E0B860 50%, transparent 100%);
   top: -14px;
   left: 50%;
   transform-origin: bottom center;
   transform: translateX(-50%) rotate(var(--r));
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(255,215,0,0.5), 0 0 16px rgba(255,184,0,0.4), inset 0 -2px 4px rgba(255,184,0,0.2); }
-  50% { transform: scale(1.08); box-shadow: 0 0 14px rgba(255,215,0,0.7), 0 0 28px rgba(255,184,0,0.5), inset 0 -2px 4px rgba(255,184,0,0.3); }
+  0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(212,168,64,0.45), 0 0 18px rgba(208,140,50,0.35), inset 0 -2px 4px rgba(200,140,60,0.2); }
+  50% { transform: scale(1.08); box-shadow: 0 0 14px rgba(212,168,64,0.65), 0 0 28px rgba(208,140,50,0.45), inset 0 -2px 4px rgba(200,140,60,0.3); }
 }
 
 /* ===== 多云 ===== */
@@ -270,11 +270,11 @@ const scale = computed(() => props.size / 56)
   position: absolute;
   width: 16px;
   height: 16px;
-  background: radial-gradient(circle at 35% 35%, #FFF3A0, #FFD700, #FFB800);
+  background: radial-gradient(circle at 35% 35%, #FFF0C0, #F0C060, #D4A040);
   border-radius: 50%;
   top: 2px;
   right: 2px;
-  box-shadow: 0 0 8px rgba(255,215,0,0.5);
+  box-shadow: 0 0 8px rgba(212,168,64,0.45);
   animation: pulse 4s ease-in-out infinite;
 }
 .partly-cloudy .cloud-wrap { animation: cloudBob 5s ease-in-out infinite; }
@@ -293,7 +293,7 @@ const scale = computed(() => props.size / 56)
   position: absolute;
   width: 2px;
   height: 12px;
-  background: linear-gradient(180deg, transparent 0%, #5AA9E6 30%, #4A90D9 100%);
+  background: linear-gradient(180deg, transparent 0%, #7DB5A0 30%, #5B8C7A 100%);
   bottom: -4px;
   left: 50%;
   transform: translateX(calc(var(--x) - 50%));
@@ -304,7 +304,7 @@ const scale = computed(() => props.size / 56)
 
 .rain.light .drops { height: 10px; }
 .rain.medium .drops { height: 12px; }
-.rain.heavy .drops { height: 14px; background: linear-gradient(180deg, transparent 0%, #4A8CDA 30%, #3A7BC8 100%); width: 2.5px; }
+.rain.heavy .drops { height: 14px; background: linear-gradient(180deg, transparent 0%, #5B8C7A 30%, #3D6B5A 100%); width: 2.5px; }
 
 @keyframes fall {
   0% { transform: translateX(calc(var(--x) - 50%)) translateY(-16px); opacity: 0; }
@@ -326,7 +326,7 @@ const scale = computed(() => props.size / 56)
   position: absolute;
   width: 100%;
   height: 100%;
-  background: linear-gradient(180deg, #FFF176 0%, #FFD740 40%, #FFAB00 100%);
+  background: linear-gradient(180deg, #FFF0C0 0%, #F0C860 40%, #D4A040 100%);
   /* 经典锯齿闪电：上宽下尖，三段转折 */
   clip-path: polygon(
     55% 0%,       /* 顶尖偏右 */
@@ -341,16 +341,16 @@ const scale = computed(() => props.size / 56)
     58% 40%,      /* 右分叉外 */
     44% 0%        /* 回顶 */
   );
-  filter: 
-    drop-shadow(0 0 6px rgba(255,215,64,0.8))
-    drop-shadow(0 0 14px rgba(255,171,0,0.5));
+  filter:
+    drop-shadow(0 0 6px rgba(240,200,96,0.7))
+    drop-shadow(0 0 14px rgba(212,160,64,0.4));
   animation: flash 4s ease-in-out infinite;
 }
 .thunder .bolt-glow {
   position: absolute;
   width: 44px;
   height: 44px;
-  background: radial-gradient(circle, rgba(255,238,88,0.5) 0%, rgba(255,171,0,0.25) 50%, transparent 70%);
+  background: radial-gradient(circle, rgba(240,200,96,0.45) 0%, rgba(212,160,64,0.2) 50%, transparent 70%);
   border-radius: 50%;
   bottom: 0;
   left: 50%;
@@ -395,7 +395,7 @@ const scale = computed(() => props.size / 56)
   position: absolute;
   width: 42px;
   height: 3px;
-  background: linear-gradient(90deg, transparent 0%, rgba(180,195,205,0.65) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(160,150,135,0.55) 50%, transparent 100%);
   border-radius: 1.5px;
   left: 50%;
   transform: translateX(-50%) translateY(var(--y));

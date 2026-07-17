@@ -34,13 +34,43 @@ function nearestCity(lat: number, lon: number): string {
   return best
 }
 
+const locateError = ref("")
+
 async function detectCity(): Promise<string | null> {
   return new Promise((resolve) => {
+    let settled = false
+    const done = (result: string | null) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(result)
+    }
+    const timer = setTimeout(() => {
+      locateError.value = "超时"
+      done(null)
+    }, 15000)
+
     uni.getLocation({
       type: "wgs84",
-      timeout: 5000,
-      success(res: any) { resolve(nearestCity(res.latitude, res.longitude)) },
-      fail() { resolve(null) },
+      success(res: any) {
+        done(nearestCity(res.latitude, res.longitude))
+      },
+      fail(err: any) {
+        const msg = (err?.errMsg || err?.message || JSON.stringify(err) || "未知")
+        console.log("定位失败:", msg)
+        locateError.value = msg
+        if (msg.includes("not authorized") || msg.includes("deny") || msg.includes("permission")) {
+          uni.showModal({
+            title: "需要定位权限",
+            content: "请在系统设置中允许本应用访问位置信息",
+            confirmText: "去设置",
+            success(modalRes: any) {
+              if (modalRes.confirm) uni.openSetting({})
+            }
+          })
+        }
+        done(null)
+      },
     })
   })
 }
@@ -80,7 +110,7 @@ function setCache(data: CurrentWeather, city: string) {
 
 function applyWeatherData(res: CurrentWeather) {
   weather.value = res
-  const lightBg = res.weather.includes("雪") || res.weather.includes("雾") || res.weather.includes("霾")
+  const lightBg = isLightBg(res.weather)
   uni.setNavigationBarColor({ frontColor: lightBg ? '#000000' : '#ffffff', backgroundColor: '#000000' })
   updateTime.value = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
 }
@@ -158,11 +188,44 @@ onPullDownRefresh(async () => {
 async function locateMe() {
   if (locating.value) return
   locating.value = true
-  const city = await detectCity()
-  if (city) {
+  try {
+    const city = await detectCity()
+    if (!city) {
+      uni.showToast({ title: "定位失败: " + locateError.value, icon: "none", duration: 3000 })
+      locating.value = false
+      return
+    }
+    if (city === currentCity.value) {
+      uni.showToast({ title: "当前已是 " + city, icon: "none", duration: 1500 })
+      locating.value = false
+      return
+    }
     currentCity.value = city
     uni.setStorageSync("selected_city", city)
-    await load()
+    loading.value = true
+    failed.value = false
+    const cid = getCityId(city)
+    if (cid) {
+      forecastHourlys.value = {}
+      expandedIndex.value = -1
+      const res = await getWeather(cid)
+      if (res) {
+        const coords = getCityCoords(city)
+        if (coords) {
+          const hourly = await getHourlyForecast(coords.lat, coords.lon)
+          if (hourly.length > 0) res.hourly = hourly
+        }
+        applyWeatherData(res)
+        setCache(res, city)
+      }
+      loading.value = false
+    } else {
+      loading.value = false
+      uni.showToast({ title: "暂不支持该城市", icon: "none", duration: 1500 })
+    }
+  } catch (e: any) {
+    loading.value = false
+    uni.showToast({ title: "定位失败", icon: "none", duration: 2000 })
   }
   locating.value = false
 }
@@ -187,15 +250,30 @@ function goSearch() {
 }
 
 function weatherBg(w: string): string {
-  if (w.includes("雷")) return "linear-gradient(180deg, #3D3F45 0%, #6B6F77 100%)"
-  if (w.includes("雪") || w.includes("冰雹")) return "linear-gradient(180deg, #DCE5EC 0%, #F0F4F8 100%)"
-  if (w.includes("雾") || w.includes("霾")) return "linear-gradient(180deg, #B8BEC3 0%, #D5D9DD 100%)"
-  if (w.includes("大") && w.includes("雨")) return "linear-gradient(180deg, #4A6A7A 0%, #7A9AA8 100%)"
-  if (w.includes("雨") || w.includes("阵雨")) return "linear-gradient(180deg, #5A7D8F 0%, #8FA8B8 100%)"
-  if (w.includes("阴")) return "linear-gradient(180deg, #8E9EAB 0%, #BFC9D0 100%)"
-  if (w.includes("多云")) return "linear-gradient(180deg, #6B8DBF 0%, #B0C4DE 100%)"
-  if (w.includes("晴")) return "linear-gradient(180deg, #4A90D9 0%, #87CEEB 100%)"
-  return "linear-gradient(180deg, #4A90D9 0%, #87CEEB 100%)"
+  if (w.includes("雷")) return "linear-gradient(175deg, #2C2C2C 0%, #4A4440 30%, #6B6058 100%)"
+  if (w.includes("雪") || w.includes("冰雹")) return "linear-gradient(175deg, #D8D3C8 0%, #E8E3D8 40%, #F5F0E8 100%)"
+  if (w.includes("雾") || w.includes("霾")) return "linear-gradient(175deg, #B8B0A0 0%, #D0C8B8 50%, #E8E0D0 100%)"
+  if (w.includes("大") && w.includes("雨")) return "linear-gradient(175deg, #3A4248 0%, #586068 40%, #7A8288 100%)"
+  if (w.includes("雨") || w.includes("阵雨")) return "linear-gradient(175deg, #4A5658 0%, #708080 50%, #98A8A8 100%)"
+  if (w.includes("阴")) return "linear-gradient(175deg, #8A8680 0%, #B0A898 50%, #D0C8B8 100%)"
+  if (w.includes("多云")) return "linear-gradient(175deg, #7A8A98 0%, #A0B0B8 40%, #C8D4D8 100%)"
+  if (w.includes("晴")) return "linear-gradient(175deg, #5A8A98 0%, #80B0B8 35%, #B8D4D8 100%)"
+  return "linear-gradient(175deg, #5A8A98 0%, #80B0B8 35%, #B8D4D8 100%)"
+}
+
+function weatherAccent(w: string): string {
+  if (w.includes("雷")) return "#D4A853"
+  if (w.includes("雪") || w.includes("冰雹")) return "#8B9DAF"
+  if (w.includes("雾") || w.includes("霾")) return "#A09888"
+  if (w.includes("雨")) return "#5B8C7A"
+  if (w.includes("阴")) return "#8C8278"
+  if (w.includes("多云")) return "#D4A853"
+  if (w.includes("晴")) return "#C0784A"
+  return "#C0784A"
+}
+
+function isLightBg(w: string): boolean {
+  return w.includes("雪") || w.includes("雾") || w.includes("霾")
 }
 
 function hourNum(t: string): number {
@@ -224,60 +302,85 @@ function hourLabel(t: string): string {
 </script>
 
 <template>
-  <view class="container" :style="{ background: weather ? weatherBg(weather.weather) : '#4A90D9', paddingTop: (statusBarHeight + 16) + 'px' }">
+  <view class="container" :class="{ 'light-bg': weather && isLightBg(weather.weather) }" :style="{ background: weather ? weatherBg(weather.weather) : 'linear-gradient(175deg, #5A8A98 0%, #80B0B8 35%, #B8D4D8 100%)', paddingTop: (statusBarHeight + 12) + 'px' }">
     <SkeletonLoader v-if="loading && !weather" />
 
     <template v-else-if="weather">
-      <view class="card current-weather">
+      <view class="header-section anim-fade-in-down">
         <view class="city-row" @tap="goSearch">
-          <text class="city-name">{{ currentCity }}</text>
-          <text class="city-arrow">▼</text>
-          <view class="locate-btn" @tap.stop="locateMe">
-            <text class="locate-icon">📍</text>
+          <view class="city-left">
+            <text class="city-name">{{ currentCity }}</text>
+            <text class="city-arrow">&#9662;</text>
+          </view>
+          <view :class="['locate-btn', locating && 'is-locating']" @tap.stop="locateMe">
+            <text class="locate-icon">{{ locating ? '◎' : '◎' }}</text>
+            <text class="locate-text">{{ locating ? '定位中' : '定位' }}</text>
           </view>
         </view>
-        <view class="weather-main">
-          <WeatherIcon :weather="weather.weather" :size="56" />
-          <text class="temp">{{ weather.temp }}°</text>
+        <text class="update-time" v-if="updateTime">{{ refreshing ? '刷新中...' : '更新于 ' + updateTime }}</text>
+      </view>
+
+      <view class="weather-hero anim-fade-in-scale" :style="{ '--accent': weatherAccent(weather.weather) }">
+        <view class="temp-display">
+          <text class="temp-value">{{ weather.temp }}</text>
+          <text class="temp-unit">°</text>
         </view>
-        <text class="weather-text">{{ weather.weather }}</text>
-        <view class="temp-range">
-          <text class="temp-high">{{ weather.high }}°</text>
-          <text class="temp-sep">/</text>
-          <text class="temp-low">{{ weather.low }}°</text>
+        <view class="weather-badge">
+          <WeatherIcon :weather="weather.weather" :size="44" />
+          <text class="weather-desc">{{ weather.weather }}</text>
         </view>
-        <view class="detail-row">
-          <text>{{ weather.windDir }}</text>
-          <text>{{ weather.windLevel }}</text>
-        </view>
-        <view class="extra-row">
-          <text>体感 {{ weather.feelsLike }}°</text>
-          <text>紫外线 {{ weather.uvIndex }}</text>
-        </view>
-        <view class="extra-row">
-          <text>🌅 {{ weather.sunrise }}</text>
-          <text>🌇 {{ weather.sunset }}</text>
-        </view>
-        <view class="extra-row">
-          <text>湿度 {{ weather.humidity }}%</text>
-        </view>
-        <view class="update-row">
-          <text class="update-time" v-if="updateTime">{{ refreshing ? '刷新中...' : '更新于 ' + updateTime }}</text>
+        <view class="temp-range-row">
+          <text class="temp-high">↑ {{ weather.high }}°</text>
+          <view class="temp-divider" />
+          <text class="temp-low">↓ {{ weather.low }}°</text>
         </view>
       </view>
 
-      <view class="card forecast" v-if="weather.forecast.length > 0">
-        <view class="section-title">未来两天</view>
+      <view class="detail-grid anim-fade-in-up" style="animation-delay: 0.1s">
+        <view class="detail-item">
+          <text class="detail-label">体感</text>
+          <text class="detail-value">{{ weather.feelsLike }}°</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">湿度</text>
+          <text class="detail-value">{{ weather.humidity }}%</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">{{ weather.windDir }}</text>
+          <text class="detail-value">{{ weather.windLevel }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">紫外线</text>
+          <text class="detail-value">{{ weather.uvIndex }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">日出</text>
+          <text class="detail-value">{{ weather.sunrise }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">日落</text>
+          <text class="detail-value">{{ weather.sunset }}</text>
+        </view>
+      </view>
+
+      <view class="card forecast anim-fade-in-up" style="animation-delay: 0.2s" v-if="weather.forecast.length > 0">
+        <view class="section-header">
+          <view class="section-decor" />
+          <text class="section-title">未来天气</text>
+        </view>
         <view class="forecast-list">
           <view v-for="(f, i) in weather.forecast" :key="f.day">
             <view class="forecast-item" :class="{ expanded: expandedIndex === i }" @tap="toggleForecast(i)">
               <text class="forecast-day">{{ f.day }}</text>
-              <WeatherIcon :weather="f.weather" :size="28" />
+              <view class="forecast-icon-wrap">
+                <WeatherIcon :weather="f.weather" :size="26" />
+              </view>
               <text class="forecast-weather">{{ f.weather }}</text>
               <view class="forecast-temps">
                 <text class="forecast-high">{{ f.high }}°</text>
                 <text class="forecast-low">{{ f.low }}°</text>
               </view>
+              <text class="forecast-expand">{{ expandedIndex === i ? '▲' : '▼' }}</text>
             </view>
             <view v-if="expandedIndex === i" class="forecast-hourly-wrap">
               <view v-if="!forecastHourlys[i]" class="forecast-hourly-loading">
@@ -302,36 +405,56 @@ function hourLabel(t: string): string {
         </view>
       </view>
 
-      <view class="card hourly-card" v-if="weather.hourly && weather.hourly.length > 0">
-        <view class="section-title">逐时天气</view>
-        <scroll-view scroll-x class="hourly-scroll">
-          <view class="hourly-list">
-            <view v-for="(h, i) in weather.hourly" :key="i" class="hourly-item" :class="{ 'is-sun': sunHour(weather.sunrise) === hourNum(h.time), 'is-dusk': sunHour(weather.sunset) === hourNum(h.time) }">
-              <text class="hourly-time">{{ hourLabel(h.time) }}</text>
-              <WeatherIcon :weather="h.weather" :size="26" />
-              <text class="hourly-temp">{{ h.temp }}°</text>
-              <text class="hourly-desc">{{ h.weather }}</text>
-              <text class="hourly-wind">{{ windArrow(h.windDir) }} {{ h.windScale }}</text>
-              <view :class="['rain-tag', parseInt(h.rainChance) > 30 ? 'rain-heavy' : parseInt(h.rainChance) > 0 ? 'rain-light' : 'rain-none']">
-                <text>{{ parseInt(h.rainChance) > 0 ? h.rainChance + '%' : '无雨' }}</text>
+      <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="weather.hourly && weather.hourly.length > 0">
+        <view class="section-header">
+          <view class="section-decor" />
+          <text class="section-title">逐时天气</text>
+        </view>
+        <view class="hourly-scroll-wrap">
+          <scroll-view scroll-x class="hourly-scroll" :show-scrollbar="false">
+            <view class="hourly-list">
+              <view v-for="(h, i) in weather.hourly" :key="i" class="hourly-item" :class="{ 'is-sun': sunHour(weather.sunrise) === hourNum(h.time), 'is-dusk': sunHour(weather.sunset) === hourNum(h.time) }">
+                <text class="hourly-time">{{ hourLabel(h.time) }}</text>
+                <WeatherIcon :weather="h.weather" :size="26" />
+                <text class="hourly-temp">{{ h.temp }}°</text>
+                <text class="hourly-desc">{{ h.weather }}</text>
+                <text class="hourly-wind">{{ windArrow(h.windDir) }} {{ h.windScale }}</text>
+                <view :class="['rain-tag', parseInt(h.rainChance) > 30 ? 'rain-heavy' : parseInt(h.rainChance) > 0 ? 'rain-light' : 'rain-none']">
+                  <text>{{ parseInt(h.rainChance) > 0 ? h.rainChance + '%' : '无雨' }}</text>
+                </view>
               </view>
             </view>
+          </scroll-view>
+          <view class="scroll-fade-right" />
+        </view>
+      </view>
+
+      <view class="entry-cards anim-fade-in-up" style="animation-delay: 0.3s">
+        <view class="entry-card typhoon-entry" @tap="uni.navigateTo({ url: '/pages/typhoon/typhoon' })">
+          <view class="entry-icon-wrap">
+            <text class="entry-icon">🌀</text>
           </view>
-        </scroll-view>
-      </view>
-
-      <view class="typhoon-entry" @tap="uni.navigateTo({ url: '/pages/typhoon/typhoon' })">
-        <text class="typhoon-entry-text">🌀 台风路径</text>
-        <text class="typhoon-entry-arrow">›</text>
-      </view>
-
-      <view class="typhoon-entry" @tap="uni.navigateTo({ url: '/pages/earthquake/earthquake' })">
-        <text class="typhoon-entry-text">🌍 地震信息</text>
-        <text class="typhoon-entry-arrow">›</text>
+          <view class="entry-text-wrap">
+            <text class="entry-title">台风路径</text>
+            <text class="entry-subtitle">查看实时台风动态</text>
+          </view>
+          <text class="entry-arrow">›</text>
+        </view>
+        <view class="entry-card quake-entry" @tap="uni.navigateTo({ url: '/pages/earthquake/earthquake' })">
+          <view class="entry-icon-wrap">
+            <text class="entry-icon">🌍</text>
+          </view>
+          <view class="entry-text-wrap">
+            <text class="entry-title">地震信息</text>
+            <text class="entry-subtitle">全球地震数据查询</text>
+          </view>
+          <text class="entry-arrow">›</text>
+        </view>
       </view>
     </template>
 
     <view v-else class="error-view">
+      <text class="error-icon">☁</text>
       <text class="error-text">无法获取天气数据</text>
       <view class="retry-btn" @tap="onShow()">
         <text>重新加载</text>
@@ -343,150 +466,244 @@ function hourLabel(t: string): string {
 <style scoped>
 .container {
   box-sizing: border-box;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-bottom: 32px;
+  padding-left: var(--spacing-lg);
+  padding-right: var(--spacing-lg);
+  padding-bottom: calc(32px + var(--safe-area-bottom));
   min-height: 100vh;
-  padding-bottom: calc(32px + env(safe-area-inset-bottom));
+  transition: background 0.8s ease;
 }
 
-.error-view {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  height: 400px;
-  gap: 16px;
-}
+.light-bg .city-name,
+.light-bg .temp-value,
+.light-bg .temp-unit,
+.light-bg .weather-desc,
+.light-bg .detail-value,
+.light-bg .detail-label,
+.light-bg .section-title,
+.light-bg .forecast-day,
+.light-bg .forecast-weather,
+.light-bg .forecast-high,
+.light-bg .forecast-low,
+.light-bg .hourly-time,
+.light-bg .hourly-temp,
+.light-bg .hourly-desc,
+.light-bg .update-time,
+.light-bg .entry-title { color: var(--color-ink); }
 
-.error-text {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 16px;
-}
+.light-bg .card { background: rgba(255,255,255,0.85); }
+.light-bg .detail-item { background: rgba(255,255,255,0.7); }
+.light-bg .entry-card { background: rgba(255,255,255,0.85); }
 
-.retry-btn {
-  background: #fff;
-  border-radius: 10px;
-  padding: 10px 28px;
-  color: #4a90d9;
-  font-size: 15px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.card {
-  background: #fff;
-  border-radius: 20px;
-  padding: 28px 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin-bottom: 12px;
-}
-
-.current-weather {
-  text-align: center;
+.header-section {
+  padding: var(--spacing-sm) 0 var(--spacing-xl);
 }
 
 .city-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-bottom: 16px;
-  padding: 4px 0;
+  justify-content: space-between;
+}
+
+.city-left {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
 }
 
 .city-name {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.15);
 }
 
 .city-arrow {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.7);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.city-row:active .city-arrow {
+  opacity: 1;
 }
 
 .locate-btn {
-  margin-left: 8px;
-  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.22);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.3);
+  transition: all var(--transition-fast);
+}
+
+.locate-btn.is-locating {
+  background: rgba(255,255,255,0.35);
+  border-color: rgba(255,255,255,0.5);
+}
+
+.locate-btn:active {
+  background: rgba(255,255,255,0.4);
+  transform: scale(0.95);
 }
 
 .locate-icon {
-  font-size: 16px;
-}
-
-.weather-main {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.temp {
-  font-size: 72px;
-  font-weight: 200;
-  color: #333;
+  font-size: 12px;
   line-height: 1;
 }
 
-.weather-text {
-  font-size: 18px;
-  color: #666;
-  display: block;
-  margin-bottom: 16px;
+.locate-btn.is-locating .locate-icon {
+  animation: spin 1s linear infinite;
 }
 
-.temp-range {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 16px;
+.locate-text {
+  font-size: var(--font-size-xs);
+  color: #fff;
+  font-weight: var(--font-weight-medium);
 }
 
-.temp-high {
-  font-size: 18px;
-  color: #e74c3c;
-  font-weight: 500;
-}
-
-.temp-sep {
-  font-size: 18px;
-  color: #ddd;
-}
-
-.temp-low {
-  font-size: 18px;
-  color: #3498db;
-  font-weight: 500;
-}
-
-.detail-row, .extra-row {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  font-size: 14px;
-  color: #999;
-  margin-bottom: 6px;
-}
-
-.update-row {
-  display: flex;
-  justify-content: center;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .update-time {
-  font-size: 12px;
-  color: #bbb;
-  margin-top: 10px;
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.6);
+  margin-top: 2px;
+}
+
+.weather-hero {
+  text-align: center;
+  padding: var(--spacing-lg) 0 var(--spacing-2xl);
+}
+
+.temp-display {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.temp-value {
+  font-size: 100px;
+  font-weight: var(--font-weight-light);
+  color: #fff;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  font-family: var(--font-family-number);
+}
+
+.temp-unit {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-light);
+  color: rgba(255,255,255,0.7);
+  margin-top: 12px;
+  margin-left: -2px;
+}
+
+.weather-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.weather-desc {
+  font-size: var(--font-size-xl);
+  color: rgba(255,255,255,0.85);
+  font-weight: var(--font-weight-medium);
+}
+
+.temp-range-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+}
+
+.temp-high {
+  font-size: var(--font-size-md);
+  color: rgba(255,255,255,0.75);
+  font-weight: var(--font-weight-medium);
+}
+
+.temp-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255,255,255,0.3);
+}
+
+.temp-low {
+  font-size: var(--font-size-md);
+  color: rgba(255,255,255,0.65);
+  font-weight: var(--font-weight-medium);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.detail-item {
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md) var(--spacing-sm);
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: background var(--transition-fast);
+}
+
+.detail-label {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.65);
+  margin-bottom: 2px;
+}
+
+.detail-value {
+  display: block;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+}
+
+.card {
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03);
+  margin-bottom: var(--spacing-md);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+
+.section-decor {
+  width: 3px;
+  height: 18px;
+  background: var(--color-primary);
+  border-radius: 2px;
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 16px;
-  display: block;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink);
 }
 
 .forecast-list {
@@ -497,168 +714,254 @@ function hourLabel(t: string): string {
 .forecast-item {
   display: flex;
   align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #f5f5f5;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 0;
+  border-bottom: 1px solid var(--color-paper-border);
+  transition: background var(--transition-fast);
 }
 
 .forecast-item.expanded {
-  background: #f8fafc;
-  margin: 0 -24px;
-  padding: 10px 24px;
-  border-radius: 12px;
+  background: var(--color-paper);
+  margin: 0 calc(-1 * var(--spacing-lg));
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
 }
 
-.forecast-item:last-child {
-  border-bottom: none;
-}
-
-.forecast-hourly-wrap {
-  padding: 8px 0 12px;
-  border-bottom: 1px solid #f5f5f5;
-}
-
-.forecast-hourly-loading, .forecast-hourly-empty {
-  font-size: 13px;
-  color: #bbb;
-  text-align: center;
-  padding: 12px 0;
-}
+.forecast-item:last-child { border-bottom: none; }
 
 .forecast-day {
-  width: 40px;
-  font-size: 14px;
-  color: #666;
+  width: 44px;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-soft);
+  font-weight: var(--font-weight-medium);
+}
+
+.forecast-icon-wrap {
+  width: 32px;
+  display: flex;
+  justify-content: center;
 }
 
 .forecast-weather {
   flex: 1;
-  font-size: 14px;
-  color: #666;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-soft);
 }
 
 .forecast-temps {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-sm);
+  min-width: 70px;
+  justify-content: flex-end;
 }
 
 .forecast-high {
-  font-size: 15px;
-  color: #333;
-  font-weight: 500;
+  font-size: var(--font-size-md);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-semibold);
 }
 
 .forecast-low {
-  font-size: 15px;
-  color: #999;
+  font-size: var(--font-size-md);
+  color: var(--color-ink-light);
 }
 
-.hourly-card {
-  padding: 18px 18px 14px;
+.forecast-expand {
+  font-size: var(--font-size-xs);
+  color: var(--color-ash);
+  width: 20px;
+  text-align: center;
 }
 
-.hourly-scroll {
-  white-space: nowrap;
+.forecast-hourly-wrap {
+  padding: var(--spacing-sm) 0 var(--spacing-md);
+  border-bottom: 1px solid var(--color-paper-border);
 }
+
+.forecast-hourly-loading, .forecast-hourly-empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-light);
+  text-align: center;
+  padding: var(--spacing-md) 0;
+}
+
+.hourly-card { padding: var(--spacing-lg) var(--spacing-md); }
+
+.hourly-scroll-wrap {
+  position: relative;
+}
+
+.scroll-fade-right {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(90deg, transparent, rgba(251,247,240,0.95));
+  pointer-events: none;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.hourly-scroll { white-space: nowrap; }
 
 .hourly-list {
   display: flex;
-  gap: 10px;
+  gap: var(--spacing-sm);
+  padding-right: 36px;
 }
 
 .hourly-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  min-width: 72px;
-  padding: 10px 8px;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.5);
+  gap: 4px;
+  min-width: 68px;
+  padding: var(--spacing-sm) 6px;
+  border-radius: var(--radius-md);
+  background: var(--color-paper);
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
 }
 
 .hourly-item.is-sun {
-  background: rgba(255,180,50,0.15);
-  border: 1px solid rgba(255,160,30,0.25);
+  background: rgba(212,168,83,0.12);
+  border-color: rgba(212,168,83,0.25);
 }
 
 .hourly-item.is-dusk {
-  background: rgba(180,100,180,0.12);
-  border: 1px solid rgba(160,80,160,0.2);
+  background: rgba(139,109,175,0.08);
+  border-color: rgba(139,109,175,0.2);
 }
 
 .hourly-time {
-  font-size: 12px;
-  color: #888;
-  font-weight: 600;
+  font-size: var(--font-size-xs);
+  color: var(--color-ink-light);
+  font-weight: var(--font-weight-semibold);
 }
 
 .hourly-temp {
-  font-size: 16px;
-  color: #333;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-semibold);
 }
 
 .hourly-desc {
-  font-size: 11px;
-  color: #666;
+  font-size: 10px;
+  color: var(--color-ink-soft);
   text-align: center;
   white-space: normal;
-  max-width: 60px;
+  max-width: 56px;
 }
 
 .hourly-wind {
-  font-size: 11px;
-  color: #aaa;
+  font-size: 10px;
+  color: var(--color-ash);
 }
 
 .rain-tag {
   padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.rain-heavy {
-  background: rgba(74,144,217,0.15);
-  color: #4A90D9;
-}
-
-.rain-light {
-  background: rgba(74,144,217,0.08);
-  color: #6AADE0;
-}
-
-.rain-none {
-  background: transparent;
-  color: #bbb;
-}
-
-.hourly-arrow {
+  border-radius: var(--radius-full);
   font-size: 10px;
-  color: #bbb;
+  font-weight: var(--font-weight-medium);
 }
 
-.typhoon-entry {
+.rain-heavy { background: rgba(91,140,122,0.12); color: var(--color-jade); }
+.rain-light { background: rgba(91,140,122,0.06); color: var(--color-jade-light); }
+.rain-none { color: var(--color-ash); }
+
+.entry-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+}
+
+.entry-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg) var(--spacing-xl);
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+  border: 1px solid rgba(255,255,255,0.6);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.entry-card:active {
+  transform: scale(0.985);
+  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+}
+
+.entry-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 14px 24px;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  margin-top: 16px;
+  flex-shrink: 0;
 }
 
-.typhoon-entry-text {
-  font-size: 15px;
-  color: #4A90D9;
-  font-weight: 500;
+.typhoon-entry .entry-icon-wrap { background: rgba(192,57,43,0.1); }
+.quake-entry .entry-icon-wrap { background: rgba(91,140,122,0.1); }
+
+.entry-icon { font-size: 22px; }
+
+.entry-text-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.typhoon-entry-arrow {
-  font-size: 20px;
-  color: #4A90D9;
-  line-height: 1;
+.entry-title {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink);
 }
+
+.entry-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-ink-light);
+}
+
+.entry-arrow {
+  font-size: 22px;
+  color: var(--color-ash);
+  font-weight: var(--font-weight-light);
+}
+
+.error-view {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 500px;
+  gap: var(--spacing-md);
+}
+
+.error-icon {
+  font-size: 48px;
+  opacity: 0.4;
+}
+
+.error-text {
+  color: rgba(255,255,255,0.75);
+  font-size: var(--font-size-md);
+}
+
+.retry-btn {
+  background: rgba(255,255,255,0.9);
+  border-radius: var(--radius-full);
+  padding: 10px 32px;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.retry-btn:active { transform: scale(0.96); }
 </style>

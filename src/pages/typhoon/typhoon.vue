@@ -368,17 +368,21 @@ const listExpanded = ref(true)
       />
 
       <view v-if="showEmptyOverlay" class="map-message">
-        <text class="map-message-text" v-if="tabMode === 'active'">暂无可追踪台风</text>
-        <text class="map-message-text" v-else>{{ selectedYear }} 年暂无台风记录</text>
-        <view v-if="tabMode === 'active'" class="map-message-btn" @tap.stop="switchTab('history')">
-          <text>查看历史台风</text>
-        </view>
-        <view v-else class="map-message-btn" @tap.stop="switchTab('active')">
-          <text>返回活跃台风</text>
+        <view class="map-message-card">
+          <text class="map-message-icon">🌀</text>
+          <text class="map-message-text" v-if="tabMode === 'active'">暂无可追踪台风</text>
+          <text class="map-message-text" v-else>{{ selectedYear }} 年暂无台风记录</text>
+          <view v-if="tabMode === 'active'" class="map-message-btn" @tap.stop="switchTab('history')">
+            <text>查看历史台风</text>
+          </view>
+          <view v-else class="map-message-btn" @tap.stop="switchTab('active')">
+            <text>返回活跃台风</text>
+          </view>
         </view>
       </view>
 
       <view v-if="fetching" class="map-loading-overlay">
+        <view class="loading-spinner" />
         <text>加载中...</text>
       </view>
     </view>
@@ -386,15 +390,23 @@ const listExpanded = ref(true)
     <view v-if="selectedPoint" class="info-card" @tap="selectedPoint = null">
       <view class="info-row">
         <text class="info-name">{{ formatTime(selectedPoint.point.time) }}</text>
-        <view class="info-tag" :class="'tag-' + selectedPoint.point.grade">{{ selectedPoint.point.gradeText }}</view>
+        <view :class="['info-grade-tag', 'grade-' + selectedPoint.point.grade]">{{ selectedPoint.point.gradeText }}</view>
       </view>
       <view class="info-row">
-        <text>风速 {{ selectedPoint.point.windSpeed }} m/s</text>
-        <text>气压 {{ selectedPoint.point.pressure }} hPa</text>
+        <view class="info-stat">
+          <text class="info-stat-label">风速</text>
+          <text class="info-stat-value">{{ selectedPoint.point.windSpeed }} m/s</text>
+        </view>
+        <view class="info-stat">
+          <text class="info-stat-label">气压</text>
+          <text class="info-stat-value">{{ selectedPoint.point.pressure }} hPa</text>
+        </view>
       </view>
       <view class="info-row">
-        <text>位置 {{ selectedPoint.point.lat.toFixed(1) }}&deg;N {{ selectedPoint.point.lon.toFixed(1) }}&deg;E</text>
-        <text class="info-type">{{ selectedPoint.type === 'history' ? '实况' : '预报' }}</text>
+        <text class="info-coord">{{ selectedPoint.point.lat.toFixed(1) }}&deg;N {{ selectedPoint.point.lon.toFixed(1) }}&deg;E</text>
+        <view :class="['info-type-badge', selectedPoint.type === 'forecast' ? 'type-forecast' : 'type-history']">
+          <text>{{ selectedPoint.type === 'history' ? '实况' : '预报' }}</text>
+        </view>
       </view>
     </view>
 
@@ -406,128 +418,134 @@ const listExpanded = ref(true)
   height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--color-bg);
 }
 
 .bar {
-  padding: 10px 12px;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-paper);
+  border-bottom: 1px solid var(--color-paper-border);
+  flex-shrink: 0;
 }
 
 .tab-row {
   display: flex;
   gap: 0;
-  border-radius: 10px;
-  background: #f0f2f5;
+  border-radius: var(--radius-md);
+  background: var(--color-paper-dark);
   padding: 3px;
-  margin-bottom: 10px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .tab {
   flex: 1;
   text-align: center;
   padding: 8px 0;
-  font-size: 14px;
-  color: #666;
-  border-radius: 8px;
-  transition: all 0.2s;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-light);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
 }
 
 .tab-active {
-  background: #fff;
-  color: #4A90D9;
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--color-paper);
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-xs);
 }
 
 .tag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .selected-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: var(--spacing-xs) 0;
 }
 
 .selected-bar-left {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .selected-bar-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #4A90D9;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
 }
 
 .selected-bar-info {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--font-size-xs);
+  color: var(--color-ink-light);
 }
 
 .selected-bar-expand {
-  font-size: 12px;
-  color: #999;
+  font-size: var(--font-size-xs);
+  color: var(--color-ink-light);
 }
 
 .year-row {
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .year-picker {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 14px;
-  background: #f0f2f5;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #333;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-lg);
+  background: var(--color-paper-dark);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink);
 }
 
 .year-arrow {
   font-size: 10px;
-  color: #999;
+  color: var(--color-ash);
 }
 
 .loading-hint {
-  font-size: 14px;
-  color: #999;
-  padding: 4px 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-light);
+  padding: var(--spacing-xs) 0;
 }
 
 .tag {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 18px;
-  border-radius: 14px;
-  background: #f5f6f8;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper-dark);
+  border: 1px solid transparent;
+  transition: all var(--transition-fast);
 }
 
 .tag.active {
-  background: linear-gradient(135deg, #4A90D9, #357ABD);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   color: #fff;
+  border-color: transparent;
+  box-shadow: 0 2px 8px rgba(192,57,43,0.25);
 }
 
 .tag-name {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
 }
 
 .tag-num {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   opacity: 0.7;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .tag.active .tag-num {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .map-container {
@@ -542,27 +560,41 @@ const listExpanded = ref(true)
   z-index: 2;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
   pointer-events: none;
 }
 
+.map-message-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-3xl) var(--spacing-4xl);
+  background: rgba(255,255,255,0.95);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+}
+
+.map-message-icon {
+  font-size: 40px;
+}
+
 .map-message-text {
-  font-size: 16px;
-  color: #666;
+  font-size: var(--font-size-md);
+  color: var(--color-ink-soft);
   pointer-events: none;
 }
 
 .map-message-btn {
-  padding: 10px 24px;
-  background: #4A90D9;
-  border-radius: 20px;
+  padding: var(--spacing-sm) var(--spacing-2xl);
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--font-size-sm);
   pointer-events: auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-sm);
 }
 
 .map-loading-overlay {
@@ -570,51 +602,95 @@ const listExpanded = ref(true)
   z-index: 3;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.6);
-  font-size: 14px;
-  color: #999;
+  gap: var(--spacing-md);
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(4px);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-light);
+}
+
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--color-paper-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .info-card {
-  background: #fff;
-  padding: 12px 20px;
-  border-top: 1px solid #eee;
+  background: var(--color-paper);
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-top: 1px solid var(--color-paper-border);
+  flex-shrink: 0;
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 4px;
-  font-size: 13px;
-  color: #666;
+  margin-bottom: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-soft);
 }
 
 .info-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink);
 }
 
-.info-type {
-  font-size: 12px;
-  color: #bbb;
+.info-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.info-tag {
+.info-stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-ash);
+}
+
+.info-stat-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-ink);
+}
+
+.info-coord {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink-soft);
+}
+
+.info-type-badge {
   padding: 2px 10px;
-  border-radius: 10px;
-  font-size: 12px;
-  color: #fff;
-  font-weight: 500;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
 }
 
-.info-tag.tag-TD { background: #66BB6A; }
-.info-tag.tag-TS { background: #FFCA28; color: #333; }
-.info-tag.tag-STS { background: #FF9800; }
-.info-tag.tag-TY { background: #EF5350; }
-.info-tag.tag-STY { background: #AB47BC; }
-.info-tag.tag-SuperTY { background: #EC407A; }
+.type-history { background: var(--color-jade); color: #fff; }
+.type-forecast { background: var(--color-gold); color: #fff; }
+
+.info-grade-tag {
+  padding: 2px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  color: #fff;
+  font-weight: var(--font-weight-medium);
+}
+
+.grade-TD { background: #66BB6A; }
+.grade-TS { background: #FFCA28; color: #333; }
+.grade-STS { background: #FF9800; }
+.grade-TY { background: #EF5350; }
+.grade-STY { background: #AB47BC; }
+.grade-SuperTY { background: #EC407A; }
 </style>

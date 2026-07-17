@@ -3,32 +3,42 @@
     {
       "path": "pages/index/index",
       "style": {
-        "navigationStyle": "custom"
+        "navigationStyle": "custom",
+        "animationType": "fade-in",
+        "animationDuration": 300
       }
     },
     {
       "path": "pages/search/search",
       "style": {
-        "navigationBarTitleText": "选择城市"
+        "navigationBarTitleText": "选择城市",
+        "animationType": "slide-in-bottom",
+        "animationDuration": 300
       }
     },
     {
       "path": "pages/typhoon/typhoon",
       "style": {
-        "navigationBarTitleText": "台风路径"
+        "navigationBarTitleText": "台风路径",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
       }
     },
     {
       "path": "pages/earthquake/earthquake",
       "style": {
-        "navigationBarTitleText": "地震信息"
+        "navigationBarTitleText": "地震信息",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
       }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "天气查询",
-    "navigationBarBackgroundColor": "#F8F8F8",
-    "backgroundColor": "#F8F8F8"
+    "navigationBarBackgroundColor": "#FBF7F0",
+    "backgroundColor": "#F5F0E8",
+    "animationType": "fade-in",
+    "animationDuration": 300
   }
 }
