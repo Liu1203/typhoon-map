@@ -1,38 +1,9 @@
 ﻿<script setup lang="ts">
 import { ref } from "vue"
 import { onShow, onPullDownRefresh } from "@dcloudio/uni-app"
-import { getWeather, getCityId, getCityCoords, getHourlyForecast, getWeatherByCoords, type CurrentWeather } from "@/api/weather"
+import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
 import WeatherIcon from "@/components/WeatherIcon.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
-
-const CITY_COORDS: Record<string, [number, number]> = {
-  "北京": [39.9, 116.4], "上海": [31.2, 121.5], "广州": [23.1, 113.3],
-  "深圳": [22.5, 114.1], "杭州": [30.3, 120.2], "成都": [30.6, 104.1],
-  "武汉": [30.6, 114.3], "西安": [34.3, 108.9], "南京": [32.1, 118.8],
-  "重庆": [29.6, 106.5], "天津": [39.1, 117.2], "长沙": [28.2, 112.9],
-  "苏州": [31.3, 120.6], "昆明": [25.0, 102.7], "厦门": [24.5, 118.1],
-  "青岛": [36.1, 120.4], "大连": [38.9, 121.6], "郑州": [34.7, 113.7],
-  "哈尔滨": [45.8, 126.5], "贵阳": [26.6, 106.7],
-  "沈阳": [41.8, 123.4], "济南": [36.7, 117.0], "合肥": [31.8, 117.3],
-  "福州": [26.1, 119.3], "南昌": [28.7, 115.9], "太原": [37.9, 112.5],
-  "石家庄": [38.0, 114.5], "南宁": [22.8, 108.4], "长春": [43.9, 125.3],
-  "兰州": [36.1, 103.8], "呼和浩特": [40.8, 111.7], "银川": [38.5, 106.1],
-  "西宁": [36.6, 101.8], "乌鲁木齐": [43.8, 87.6], "拉萨": [29.7, 91.1],
-  "海口": [20.0, 110.3], "珠海": [22.3, 113.6], "东莞": [23.0, 113.8],
-  "佛山": [23.0, 113.1], "宁波": [29.9, 121.6], "无锡": [31.6, 120.3],
-  "温州": [28.0, 120.7], "泉州": [24.9, 118.6], "烟台": [37.5, 121.4],
-  "桂林": [25.3, 110.3], "三亚": [18.3, 109.5], "丽江": [26.9, 100.2],
-  "秦皇岛": [39.9, 119.6], "威海": [37.5, 122.1], "北海": [21.5, 109.1],
-}
-
-function nearestCity(lat: number, lon: number): string {
-  let min = Infinity, best = "北京"
-  for (const [name, [clat, clon]] of Object.entries(CITY_COORDS)) {
-    const d = Math.sqrt((lat - clat) ** 2 + (lon - clon) ** 2)
-    if (d < min) { min = d; best = name }
-  }
-  return best
-}
 
 const locateError = ref("")
 
@@ -133,16 +104,16 @@ function applyWeatherData(res: CurrentWeather) {
   updateTime.value = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
 }
 
-async function fetchAndUpdate(cid: string, city: string) {
-  const res = await getWeather(cid)
+async function fetchAndUpdate(city: string) {
+  const coords = getCityCoords(city)
+  if (!coords) {
+    if (!weather.value) failed.value = true
+    return
+  }
+  const res = await getWeather(coords.lat, coords.lon)
   if (res) {
     forecastHourlys.value = {}
     expandedIndex.value = -1
-    const coords = getCityCoords(city)
-    if (coords) {
-      const hourly = await getHourlyForecast(coords.lat, coords.lon)
-      if (hourly.length > 0) res.hourly = hourly
-    }
     applyWeatherData(res)
     setCache(res, city)
   } else if (!weather.value) {
@@ -159,18 +130,15 @@ onShow(async () => {
   if (saved) {
     currentCity.value = saved
   } else {
-    const detected = await detectCity()
-    if (detected) {
-      currentCity.value = detected
-      uni.setStorageSync("selected_city", detected)
-    }
-  }
-
-  const cid = getCityId(currentCity.value)
-  if (!cid) {
-    loading.value = false
-    failed.value = true
-    return
+    currentCity.value = "北京"
+    uni.setStorageSync("selected_city", "北京")
+    detectCity().then((detected) => {
+      if (detected && detected !== currentCity.value) {
+        currentCity.value = detected
+        uni.setStorageSync("selected_city", detected)
+        fetchAndUpdate(currentCity.value)
+      }
+    })
   }
 
   const cache = getCache()
@@ -189,16 +157,13 @@ onShow(async () => {
     loading.value = false
   }
 
-  await fetchAndUpdate(cid, currentCity.value)
+  await fetchAndUpdate(currentCity.value)
   loading.value = false
 })
 
 onPullDownRefresh(async () => {
   refreshing.value = true
-  const cid = getCityId(currentCity.value)
-  if (cid) {
-    await fetchAndUpdate(cid, currentCity.value)
-  }
+  await fetchAndUpdate(currentCity.value)
   refreshing.value = false
   uni.stopPullDownRefresh()
 })
@@ -221,8 +186,6 @@ async function locateMe() {
     if (result) {
       currentCity.value = result.placeName
       uni.setStorageSync("selected_city", result.placeName)
-      const hourly = await getHourlyForecast(coords.lat, coords.lon)
-      if (hourly.length > 0) result.weather.hourly = hourly
       applyWeatherData(result.weather)
       setCache(result.weather, result.placeName)
     } else {

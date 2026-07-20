@@ -55,6 +55,15 @@ export function getCityCoords(name: string): { lat: number; lon: number } | null
   return CITY_COORDS[name] || null
 }
 
+export function nearestCity(lat: number, lon: number): string {
+  let min = Infinity, best = "北京"
+  for (const [name, coords] of Object.entries(CITY_COORDS)) {
+    const d = Math.sqrt((lat - coords.lat) ** 2 + (lon - coords.lon) ** 2)
+    if (d < min) { min = d; best = name }
+  }
+  return best
+}
+
 export interface ForecastDay {
   day: string
   date: string
@@ -87,6 +96,11 @@ export interface CurrentWeather {
   uvIndex: string
   forecast: ForecastDay[]
   hourly: HourlyItem[]
+}
+
+export interface CoordsWeather {
+  weather: CurrentWeather
+  placeName: string
 }
 
 function translateWeather(desc: string): string {
@@ -133,29 +147,12 @@ function windLevel(kmh: string): string {
   return "12级 飓风"
 }
 
-function forecastWeather(hours: any[]): string {
-  if (!hours || hours.length === 0) return ""
-  const noon = hours[Math.min(Math.floor(hours.length / 2), hours.length - 1)]
-  const desc = noon?.weatherDesc?.[0]?.value ?? ""
-  return translateWeather(desc)
-}
-
-const WIND_DIR: Record<string, string> = {
-  "N": "北风", "NNE": "东北风", "NE": "东北风", "ENE": "东北风",
-  "E": "东风", "ESE": "东南风", "SE": "东南风", "SSE": "东南风",
-  "S": "南风", "SSW": "西南风", "SW": "西南风", "WSW": "西南风",
-  "W": "西风", "WNW": "西北风", "NW": "西北风", "NNW": "西北风",
-}
-
-function req(url: string): Promise<any> {
-  return new Promise((resolve) => {
-    uni.request({
-      url,
-      timeout: 5000,
-      success(res) { resolve(res) },
-      fail() { resolve(null) },
-    })
-  })
+const OM_WX: Record<number, string> = {
+  0: "晴", 1: "晴", 2: "多云", 3: "阴",
+  45: "雾", 48: "雾凇", 51: "毛毛雨", 53: "小雨", 55: "中雨",
+  61: "小雨", 63: "中雨", 65: "大雨", 71: "小雪", 73: "中雪",
+  75: "大雪", 77: "雪", 80: "阵雨", 81: "阵雨", 82: "大阵雨",
+  85: "小阵雪", 86: "大阵雪", 95: "雷阵雨", 96: "雷阵雨+冰雹", 99: "雷阵雨+冰雹",
 }
 
 function dayName(dateStr: string): string {
@@ -169,117 +166,131 @@ function dayName(dateStr: string): string {
   return days[d.getDay()]
 }
 
-export interface CoordsWeather {
-  weather: CurrentWeather
-  placeName: string
+function degToDir(deg: number): string {
+  const dirs = ["北风", "东北风", "东风", "东南风", "南风", "西南风", "西风", "西北风"]
+  const i = Math.round(deg / 45) % 8
+  return dirs[i]
+}
+
+function extractTime(iso: string): string {
+  const parts = iso.split("T")
+  if (parts.length >= 2) return parts[1].substring(0, 5)
+  return "--"
+}
+
+function parseHourTime(iso: string): number {
+  const match = iso.match(/T(\d{2}):/)
+  return match ? parseInt(match[1]) : 0
+}
+
+async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
+  const params = [
+    `latitude=${lat}`,
+    `longitude=${lon}`,
+    "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index",
+    "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max",
+    "hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m",
+    "timezone=auto",
+    "forecast_days=4",
+  ]
+  const url = `https://api.open-meteo.com/v1/forecast?${params.join("&")}`
+
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    try {
+      const res = await new Promise<any>((resolve) => {
+        uni.request({
+          url,
+          timeout: 10000,
+          success(r) { resolve(r) },
+          fail() { resolve(null) },
+        })
+      })
+      if (res?.data?.current) return res.data
+    } catch { /* retry */ }
+    if (attempt < 2) {
+      await new Promise(r => setTimeout(r, 1500))
+    }
+  }
+  return null
+}
+
+function parseWeatherData(data: any): CurrentWeather {
+  const cur = data.current
+  const daily = data.daily
+  const hourly = data.hourly
+
+  const wcode: number = cur.weather_code ?? 0
+  const weatherDesc = OM_WX[wcode] || translateWeather(String(wcode))
+
+  const now = new Date()
+  const todayDate = daily?.time?.[0] || now.toISOString().slice(0, 10)
+  const currentHour = now.getHours()
+
+  const forecast: ForecastDay[] = []
+  if (daily?.time) {
+    for (let i = 1; i < Math.min(daily.time.length, 4); i++) {
+      const fc = daily.weather_code?.[i] ?? 0
+      forecast.push({
+        day: dayName(daily.time[i]),
+        date: daily.time[i],
+        weather: OM_WX[fc] || translateWeather(String(fc)),
+        high: String(daily.temperature_2m_max?.[i] ?? "--"),
+        low: String(daily.temperature_2m_min?.[i] ?? "--"),
+      })
+    }
+  }
+
+  const hourlyItems: HourlyItem[] = []
+  if (hourly?.time) {
+    for (let i = 0; i < hourly.time.length; i++) {
+      const iso = hourly.time[i] as string
+      const dateStr = iso.slice(0, 10)
+      const hh = parseHourTime(iso)
+      if (dateStr !== todayDate || hh < currentHour) continue
+
+      const hcode = hourly.weather_code?.[i] ?? 0
+      hourlyItems.push({
+        time: hh + ":00",
+        temp: String(hourly.temperature_2m?.[i] ?? "--"),
+        weather: OM_WX[hcode] || translateWeather(String(hcode)),
+        rainChance: String(hourly.precipitation_probability?.[i] ?? 0),
+        windDir: degToDir(hourly.wind_direction_10m?.[i] ?? 0),
+        windScale: String(Math.round((hourly.wind_speed_10m?.[i] ?? 0) / 1.852)),
+      })
+    }
+  }
+
+  return {
+    temp: String(cur.temperature_2m ?? "--"),
+    feelsLike: String(cur.apparent_temperature ?? "--"),
+    humidity: String(cur.relative_humidity_2m ?? "--"),
+    windDir: degToDir(cur.wind_direction_10m ?? 0),
+    windScale: String(cur.wind_speed_10m ?? "--"),
+    windLevel: windLevel(String(cur.wind_speed_10m)),
+    weather: weatherDesc,
+    high: String(daily?.temperature_2m_max?.[0] ?? "--"),
+    low: String(daily?.temperature_2m_min?.[0] ?? "--"),
+    sunrise: daily?.sunrise?.[0] ? extractTime(daily.sunrise[0]) : "--",
+    sunset: daily?.sunset?.[0] ? extractTime(daily.sunset[0]) : "--",
+    uvIndex: String(cur.uv_index ?? "--"),
+    forecast,
+    hourly: hourlyItems,
+  }
+}
+
+export async function getWeather(lat: number, lon: number): Promise<CurrentWeather | null> {
+  const data = await fetchOpenMeteo(lat, lon)
+  if (!data) return null
+  return parseWeatherData(data)
 }
 
 export async function getWeatherByCoords(lat: number, lon: number): Promise<CoordsWeather | null> {
-  const res = await req(`https://wttr.in/${lat},${lon}?format=j1`)
-  const data = (res as any)?.data
-  if (!data?.current_condition?.[0]) return null
-
-  const cur = data.current_condition[0]
-  const avg = data.weather?.[0]
-  const astro = avg?.astronomy?.[0]
-  const desc = cur.weatherDesc?.[0]?.value ?? ""
-
-  const nearest = data.nearest_area?.[0]
-  const areaName = nearest?.areaName?.[0]?.value || nearest?.region?.[0]?.value || ""
-  const country = nearest?.country?.[0]?.value || ""
-  let placeName = areaName || ""
-  if (placeName && country && country !== areaName) {
-    placeName = areaName + "，" + country
-  }
-  if (!placeName) {
-    placeName = lat.toFixed(1) + "°N," + lon.toFixed(1) + "°E"
-  }
-
-  const forecast: ForecastDay[] = (data.weather || []).slice(1, 4).map((w: any) => ({
-    day: dayName(w.date),
-    date: w.date,
-    weather: forecastWeather(w.hourly),
-    high: w.maxtempC ?? "--",
-    low: w.mintempC ?? "--",
-  }))
-
-  const hourly: HourlyItem[] = ((avg?.hourly) || []).map((h: any) => ({
-    time: String(parseInt(h.time || "0") / 100).padStart(2, "0") + ":00",
-    temp: h.tempC ?? "--",
-    weather: translateWeather(h.weatherDesc?.[0]?.value ?? ""),
-    rainChance: h.chanceofrain ?? "0",
-    windDir: WIND_DIR[h.winddir16Point] || h.winddir16Point || "",
-    windScale: h.windspeedKmph ?? "0",
-  }))
-
+  const data = await fetchOpenMeteo(lat, lon)
+  if (!data) return null
   return {
-    weather: {
-      temp: cur.temp_C,
-      feelsLike: cur.FeelsLikeC ?? "--",
-      humidity: cur.humidity,
-      windDir: WIND_DIR[cur.winddir16Point] || cur.winddir16Point,
-      windScale: cur.windspeedKmph,
-      windLevel: windLevel(cur.windspeedKmph),
-      weather: translateWeather(desc),
-      high: avg?.maxtempC ?? "--",
-      low: avg?.mintempC ?? "--",
-      sunrise: astro?.sunrise ?? "--",
-      sunset: astro?.sunset ?? "--",
-      uvIndex: cur.uvIndex ?? "--",
-      forecast,
-      hourly,
-    },
-    placeName,
+    weather: parseWeatherData(data),
+    placeName: nearestCity(lat, lon),
   }
-}
-
-export async function getWeather(cityEn: string): Promise<CurrentWeather | null> {
-  const res = await req(`https://wttr.in/${encodeURIComponent(cityEn)}?format=j1`)
-  const data = (res as any)?.data
-  if (!data?.current_condition?.[0]) return null
-  const cur = data.current_condition[0]
-  const avg = data.weather?.[0]
-  const astro = avg?.astronomy?.[0]
-  const desc = cur.weatherDesc?.[0]?.value ?? ""
-  const forecast: ForecastDay[] = (data.weather || []).slice(1, 4).map((w: any) => ({
-    day: dayName(w.date),
-    date: w.date,
-    weather: forecastWeather(w.hourly),
-    high: w.maxtempC ?? "--",
-    low: w.mintempC ?? "--",
-  }))
-  const hourly: HourlyItem[] = ((avg?.hourly) || []).map((h: any) => ({
-    time: String(parseInt(h.time || "0") / 100).padStart(2, "0") + ":00",
-    temp: h.tempC ?? "--",
-    weather: translateWeather(h.weatherDesc?.[0]?.value ?? ""),
-    rainChance: h.chanceofrain ?? "0",
-    windDir: WIND_DIR[h.winddir16Point] || h.winddir16Point || "",
-    windScale: h.windspeedKmph ?? "0",
-  }))
-  return {
-    temp: cur.temp_C,
-    feelsLike: cur.FeelsLikeC ?? "--",
-    humidity: cur.humidity,
-    windDir: WIND_DIR[cur.winddir16Point] || cur.winddir16Point,
-    windScale: cur.windspeedKmph,
-    windLevel: windLevel(cur.windspeedKmph),
-    weather: translateWeather(desc),
-    high: avg?.maxtempC ?? "--",
-    low: avg?.mintempC ?? "--",
-    sunrise: astro?.sunrise ?? "--",
-    sunset: astro?.sunset ?? "--",
-    uvIndex: cur.uvIndex ?? "--",
-    forecast,
-    hourly,
-  }
-}
-
-const OM_WX: Record<number, string> = {
-  0: "晴", 1: "晴", 2: "多云", 3: "阴",
-  45: "雾", 48: "雾凇", 51: "毛毛雨", 53: "小雨", 55: "中雨",
-  61: "小雨", 63: "中雨", 65: "大雨", 71: "小雪", 73: "中雪",
-  75: "大雪", 77: "雪", 80: "阵雨", 81: "阵雨", 82: "大阵雨",
-  85: "小阵雪", 86: "大阵雪", 95: "雷阵雨", 96: "雷阵雨+冰雹", 99: "雷阵雨+冰雹",
 }
 
 export async function getHourlyForecast(lat: number, lon: number, date?: string): Promise<HourlyItem[]> {
@@ -318,10 +329,4 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
   } catch {
     return []
   }
-}
-
-function degToDir(deg: number): string {
-  const dirs = ["北风", "东北风", "东风", "东南风", "南风", "西南风", "西风", "西北风"]
-  const i = Math.round(deg / 45) % 8
-  return dirs[i]
 }
