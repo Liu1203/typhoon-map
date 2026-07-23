@@ -64,6 +64,31 @@ function autoIntervalByScale(s: number): number {
   return 12
 }
 
+function calcBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLon = toRad(lon2 - lon1)
+  const y = Math.sin(dLon) * Math.cos(toRad(lat2))
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon)
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360
+}
+
+const COMPASS_DIRS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
+
+function bearingToDirection(b: number): string {
+  return COMPASS_DIRS[Math.round(b / 22.5) % 16]
+}
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
 function formatTime(t: any): string {
   if (t === null || t === undefined || t === "") return ""
   const s = String(t).trim()
@@ -85,7 +110,7 @@ function onMapTap(e: any) {
   if (currentPos.value) {
     const dlat = currentPos.value.lat - lat
     const dlng = currentPos.value.lon - lng
-    if (Math.sqrt(dlat * dlat + dlng * dlng) < 0.15) {
+    if (Math.sqrt(dlat * dlat + dlng * dlng) < 0.4) {
       selectedPoint.value = { point: currentPos.value, type: "history" }
       selectedCircleIdx = -1
       return
@@ -109,7 +134,7 @@ function onMapTap(e: any) {
     const dist = dlat * dlat + dlng * dlng
     if (dist < bestDist) { bestDist = dist; bestIdx = i; bestType = "forecast" }
   }
-  if (bestIdx >= 0 && Math.sqrt(bestDist) < 0.25) {
+  if (bestIdx >= 0 && Math.sqrt(bestDist) < 0.6) {
     const pt = bestType === "history" ? hist[bestIdx] : fc[bestIdx]
     selectedPoint.value = { point: pt, type: bestType }
     selectedCircleIdx = bestType === "history" ? bestIdx : bestIdx + hist.length
@@ -119,6 +144,14 @@ function onMapTap(e: any) {
 function onMapScaleChanged(e: any) {
   currentScale.value = e.detail.scale
   nodeInterval.value = autoIntervalByScale(e.detail.scale)
+}
+
+function onMarkerTap(e: any) {
+  const id = e.detail.markerId
+  if (id === 1 && currentPos.value) {
+    selectedPoint.value = { point: currentPos.value, type: "history" }
+    selectedCircleIdx = -1
+  }
 }
 
 onMounted(async () => {
@@ -245,14 +278,24 @@ const mapMarkers = computed(() => {
   const pos = currentPos.value
   const result: any[] = []
 
+  const labelColor = gradeColor(pos.grade)
   result.push({
     id: 1,
-    latitude: pos.lat,
-    longitude: pos.lon,
+    latitude: pos.lat, longitude: pos.lon,
     iconPath: `/static/typhoon-marker-${pos.grade}.png`,
-    width: 80,
-    height: 80,
+    width: 72, height: 72,
     anchor: { x: 0.5, y: 0.5 },
+    zIndex: 900,
+    label: {
+      content: `${pos.windSpeed}m/s`,
+      color: "#ffffff",
+      fontSize: 10,
+      x: 0, y: -44,
+      bgColor: labelColor,
+      borderRadius: 8,
+      padding: 3,
+      borderWidth: 0,
+    },
   })
 
   const histIdx = sampleNodes(detail.value.history, nodeInterval.value)
@@ -261,12 +304,11 @@ const mapMarkers = computed(() => {
     const p = detail.value.history[i]
     result.push({
       id: 100 + i,
-      latitude: p.lat,
-      longitude: p.lon,
+      latitude: p.lat, longitude: p.lon,
       iconPath: `/static/dot-${p.grade}.png`,
-      width: 64,
-      height: 64,
+      width: 48, height: 48,
       anchor: { x: 0.5, y: 0.5 },
+      zIndex: 100,
     })
   }
 
@@ -275,12 +317,12 @@ const mapMarkers = computed(() => {
     const p = detail.value.forecast[i]
     result.push({
       id: 200 + i,
-      latitude: p.lat,
-      longitude: p.lon,
+      latitude: p.lat, longitude: p.lon,
       iconPath: `/static/dot-${p.grade}.png`,
-      width: 50,
-      height: 50,
+      width: 36, height: 36,
       anchor: { x: 0.5, y: 0.5 },
+      alpha: 0.55,
+      zIndex: 80,
     })
   }
 
@@ -304,8 +346,13 @@ const polylines = computed(() => {
           const segPts = pts.slice(start, i + 1).filter(p => p.lat !== 0 || p.lon !== 0).map(p => ({ latitude: p.lat, longitude: p.lon }))
           if (segPts.length >= 2) {
             const color = gradeColor(pts[start].grade)
-            lines.push({ points: segPts, color: hexToRgba(color, 0.25), width: 18, ...(dotted ? { dottedLine: true } : {}) })
-            lines.push({ points: segPts, color: color, width: 8, ...(dotted ? { dottedLine: true } : {}) })
+            if (dotted) {
+              lines.push({ points: segPts, color: hexToRgba(color, 0.18), width: 12, dottedLine: true, arrowLine: false })
+              lines.push({ points: segPts, color: color, width: 4, dottedLine: true, arrowLine: false })
+            } else {
+              lines.push({ points: segPts, color: hexToRgba(color, 0.25), width: 18 })
+              lines.push({ points: segPts, color: color, width: 8 })
+            }
           }
         }
         start = i
@@ -319,20 +366,9 @@ const polylines = computed(() => {
     const last = hist[hist.length - 1]
     const first = fc[0]
     const connColor = gradeColor(last.grade)
-    // 过滤无效坐标，跳过跨日界线的长连线
     if (!(first.lat === 0 && first.lon === 0) && Math.abs(last.lon - first.lon) <= 180) {
-      lines.push({
-        points: [{ latitude: last.lat, longitude: last.lon }, { latitude: first.lat, longitude: first.lon }],
-        color: hexToRgba(connColor, 0.25),
-        width: 18,
-        dottedLine: true,
-      })
-      lines.push({
-        points: [{ latitude: last.lat, longitude: last.lon }, { latitude: first.lat, longitude: first.lon }],
-        color: connColor,
-        width: 8,
-        dottedLine: true,
-      })
+      lines.push({ points: [{ latitude: last.lat, longitude: last.lon }, { latitude: first.lat, longitude: first.lon }], color: hexToRgba(connColor, 0.18), width: 12, dottedLine: true, arrowLine: false })
+      lines.push({ points: [{ latitude: last.lat, longitude: last.lon }, { latitude: first.lat, longitude: first.lon }], color: connColor, width: 4, dottedLine: true, arrowLine: false })
     }
   }
 
@@ -356,6 +392,24 @@ const selectedCircle = computed(() => {
   if (!p) return []
   const color = gradeColor(p.grade)
   return [{ latitude: p.lat, longitude: p.lon, radius: 24, color: "#ffffff", fillColor: color, strokeWidth: 4 }]
+})
+
+const selectedPointExtra = computed(() => {
+  if (!selectedPoint.value || !detail.value) return null
+  const { point, type } = selectedPoint.value
+  const arr = type === "history" ? detail.value.history : detail.value.forecast
+  const idx = arr.indexOf(point)
+  if (idx <= 0) return null
+  const prev = arr[idx - 1]
+  const bearing = calcBearing(prev.lat, prev.lon, point.lat, point.lon)
+  const dir = bearingToDirection(bearing)
+  const dist = haversineKm(prev.lat, prev.lon, point.lat, point.lon)
+  const hours = timeDiffHours(point.time, prev.time)
+  let speed = ""
+  if (hours > 0 && dist > 0) {
+    speed = `${(dist / hours).toFixed(1)} km/h`
+  }
+  return { direction: dir, distance: dist.toFixed(0), speed }
 })
 
 const info = computed(() => {
@@ -438,6 +492,7 @@ const listExpanded = ref(true)
         :polyline="polylines"
         :circles="circlesList"
         @tap="onMapTap"
+        @markertap="onMarkerTap"
         @scalechanged="onMapScaleChanged"
         enable-zoom
         enable-scroll
@@ -469,9 +524,18 @@ const listExpanded = ref(true)
       </view>
 
       <view v-if="detail" class="map-legend">
-        <view class="legend-item" v-for="(lbl, grade) in {'TD':'热带低压','TS':'热带风暴','STS':'强热带风暴','TY':'台风','STY':'强台风','SuperTY':'超强台风'}" :key="grade">
+        <view class="legend-row" v-for="(lbl, grade) in {'TD':'热带低压','TS':'热带风暴','STS':'强热带风暴','TY':'台风','STY':'强台风','SuperTY':'超强台风'}" :key="grade">
           <view class="legend-dot" :style="{ background: GRADE_COLORS[grade] || '#999' }" />
           <text class="legend-text">{{ lbl }}</text>
+        </view>
+        <view class="legend-sep" />
+        <view class="legend-row">
+          <view class="legend-line l-solid" />
+          <text class="legend-text">实况</text>
+        </view>
+        <view class="legend-row">
+          <view class="legend-line l-dashed" />
+          <text class="legend-text">预报</text>
         </view>
       </view>
     </view>
@@ -498,8 +562,29 @@ const listExpanded = ref(true)
           <text class="point-stat-value">{{ selectedPoint.point.lat.toFixed(1) }}°N {{ selectedPoint.point.lon.toFixed(1) }}°E</text>
         </view>
       </view>
-      <view :class="['point-type-tag', 'pt-' + selectedPoint.type]">
-        <text>{{ selectedPoint.type === 'history' ? '实况路径' : '预报路径' }}</text>
+      <view v-if="selectedPointExtra" class="point-card-motion">
+        <text class="motion-label">{{ selectedPoint.type === 'history' ? '实况' : '预报' }}</text>
+        <view class="motion-items">
+          <view class="motion-item">
+            <text class="motion-key">移动方向</text>
+            <text class="motion-value">{{ selectedPointExtra.direction }}</text>
+          </view>
+          <view class="motion-divider" />
+          <view class="motion-item">
+            <text class="motion-key">移速</text>
+            <text class="motion-value">{{ selectedPointExtra.speed || '-' }}</text>
+          </view>
+          <view class="motion-divider" />
+          <view class="motion-item">
+            <text class="motion-key">移距</text>
+            <text class="motion-value">{{ selectedPointExtra.distance }}km</text>
+          </view>
+        </view>
+      </view>
+      <view v-else class="point-card-motion">
+        <view :class="['point-type-tag', 'pt-' + selectedPoint.type]">
+          <text>{{ selectedPoint.type === 'history' ? '实况路径' : '预报路径' }}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -698,14 +783,21 @@ const listExpanded = ref(true)
 .map-legend {
   position: absolute; z-index: 5;
   left: var(--spacing-md); bottom: var(--spacing-xl);
-  display: flex; flex-wrap: wrap; gap: 4px; max-width: 70%;
+  display: flex; flex-direction: column; gap: 1px;
+  background: rgba(255,255,255,0.9);
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
 }
-.legend-item {
-  display: flex; align-items: center; gap: 3px;
-  background: rgba(255,255,255,0.9); padding: 3px 8px; border-radius: var(--radius-sm);
+.legend-row {
+  display: flex; align-items: center; gap: 4px;
+  padding: 1px 0;
 }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .legend-text { font-size: 9px; color: #566; white-space: nowrap; }
+.legend-sep { height: 1px; background: #e8e8e8; margin: 2px 0; }
+.legend-line { width: 14px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+.l-solid { background: #566; }
+.l-dashed { background: repeating-linear-gradient(90deg, #566 0px, #566 3px, transparent 3px, transparent 5px); }
 
 .point-card {
   background: var(--color-paper);
@@ -720,6 +812,25 @@ const listExpanded = ref(true)
 .point-stat { display: flex; flex-direction: column; gap: 1px; }
 .point-stat-label { font-size: var(--font-size-xs); color: var(--color-ash); }
 .point-stat-value { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-ink); }
+.point-card-motion {
+  display: flex; align-items: center; gap: var(--spacing-md);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-paper-border);
+}
+.motion-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-ash);
+  flex-shrink: 0;
+}
+.motion-items { display: flex; align-items: center; gap: 0; }
+.motion-item { display: flex; align-items: center; gap: 3px; }
+.motion-key {
+  font-size: var(--font-size-xs);
+  color: var(--color-ash);
+}
+.motion-value { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-ink); }
+.motion-divider { width: 1px; height: 14px; background: var(--color-paper-border); margin: 0 var(--spacing-sm); }
 .point-type-tag { align-self: flex-start; padding: 2px 10px; border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); }
 .pt-history { background: var(--color-jade); color: #fff; }
 .pt-forecast { background: var(--color-gold); color: #fff; }
