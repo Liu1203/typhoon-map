@@ -1,32 +1,32 @@
-/* ===== 清清天气 - 中国风设计令牌 ===== */
+/* ===== 清清天气 - 清新淡雅设计令牌 ===== */
 
 :root {
-  --color-primary: #C0392B;
-  --color-primary-light: #E8734A;
-  --color-primary-dark: #8B1A1A;
-  --color-gold: #D4A853;
-  --color-gold-light: #F0D78C;
-  --color-gold-dark: #A07D32;
-  --color-jade: #5B8C7A;
-  --color-jade-light: #7DB5A0;
-  --color-ink: #2C2C2C;
-  --color-ink-soft: #555555;
-  --color-ink-light: #8C8C8C;
-  --color-paper: #FBF7F0;
-  --color-paper-dark: #F0EAD8;
-  --color-paper-border: #E5DDCC;
-  --color-cloud: #ECE5D8;
-  --color-ash: #C8C0B0;
+  --color-primary: #5B8FC0;
+  --color-primary-light: #8BB8DD;
+  --color-primary-dark: #3D6A94;
+  --color-gold: #D4A550;
+  --color-gold-light: #E8CF8A;
+  --color-gold-dark: #A07D38;
+  --color-jade: #6DAF98;
+  --color-jade-light: #8DCFB8;
+  --color-ink: #2C3E50;
+  --color-ink-soft: #5A6E80;
+  --color-ink-light: #8B9CAD;
+  --color-paper: #FFFFFF;
+  --color-paper-dark: #EDF2F8;
+  --color-paper-border: #DDE4ED;
+  --color-cloud: #E8EEF5;
+  --color-ash: #B0BDCC;
 
-  --color-bg: #F5F0E8;
-  --color-bg-card: #FBF7F0;
-  --color-bg-overlay: rgba(44, 44, 44, 0.45);
+  --color-bg: #F0F5FA;
+  --color-bg-card: #FFFFFF;
+  --color-bg-overlay: rgba(44, 62, 80, 0.45);
 
   --color-white: #FFFFFF;
-  --color-danger: #C0392B;
-  --color-warning: #E67E22;
-  --color-info: #5B8C7A;
-  --color-success: #659A6E;
+  --color-danger: #E5606E;
+  --color-warning: #F0A050;
+  --color-info: #6DAF98;
+  --color-success: #6DBF88;
 
   --font-family-base: "PingFang SC", "Noto Serif SC", "Source Han Serif SC", "STSong", "SimSun", "KaiTi", system-ui, -apple-system, sans-serif;
   --font-family-number: "DIN Alternate", "Menlo", "Monaco", "Courier New", monospace;

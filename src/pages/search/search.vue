@@ -9,9 +9,10 @@ function selectCity(name: string) {
 
 <template>
   <view class="container">
-    <view class="city-list">
-      <view v-for="city in cityList" :key="city" class="city-item" @tap="selectCity(city)">
-        <text class="city-pin">{{ city }}</text>
+    <text class="title">选择城市</text>
+    <view class="city-grid">
+      <view v-for="city in cityList" :key="city" class="city-tag" @tap="selectCity(city)">
+        <text>{{ city }}</text>
       </view>
     </view>
   </view>
@@ -19,36 +20,39 @@ function selectCity(name: string) {
 
 <style scoped>
 .container {
-  padding: var(--spacing-md);
+  padding: var(--spacing-lg);
   min-height: 100vh;
   background: var(--color-bg);
 }
 
-.city-list {
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink);
+  display: block;
+  margin-bottom: var(--spacing-lg);
+}
+
+.city-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.city-tag {
+  padding: var(--spacing-sm) var(--spacing-lg);
   background: var(--color-paper);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-full);
   border: 1px solid var(--color-paper-border);
-}
-
-.city-item {
-  padding: var(--spacing-md) var(--spacing-xl);
-  border-bottom: 1px solid var(--color-paper-border);
-  transition: background var(--transition-fast);
-}
-
-.city-item:last-child {
-  border-bottom: none;
-}
-
-.city-item:active {
-  background: var(--color-paper-dark);
-}
-
-.city-pin {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: var(--color-ink);
   font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+}
+
+.city-tag:active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
 }
 </style>

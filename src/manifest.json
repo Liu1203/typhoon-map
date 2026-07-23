@@ -1,8 +1,8 @@
 {
   "name": "清清天气",
   "appid": "__UNI__E35C807",
-  "versionName": "1.0.0",
-  "versionCode": "100",
+  "versionName": "1.0.4",
+  "versionCode": "104",
   "description": "简洁天气查询工具",
   "uniStatistics": {
     "enable": false
@@ -41,7 +41,22 @@
       "android": {
         "permissions": ["<uses-permission android:name=\"android.permission.INTERNET\"/>"]
       },
-      "ios": {}
+      "ios": {},
+      "icons": {
+        "android": {
+          "hdpi": "static/app-icon.png",
+          "xhdpi": "static/app-icon.png",
+          "xxhdpi": "static/app-icon.png"
+        },
+        "ios": {
+          "appstore": "static/app-icon.png",
+          "iphone": {
+            "iphone6": "static/app-icon.png",
+            "iphone7": "static/app-icon.png",
+            "iphone8": "static/app-icon.png"
+          }
+        }
+      }
     }
   }
 }

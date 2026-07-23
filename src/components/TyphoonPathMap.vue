@@ -14,8 +14,8 @@ const emit = defineEmits<{
 
 const PAD = 60
 const GRADES: Record<string, string> = {
-  TD: "#66BB6A", TS: "#FFCA28", STS: "#FF9800",
-  TY: "#EF5350", STY: "#AB47BC", SuperTY: "#EC407A",
+  TD: "#5DADE2", TS: "#F4D03F", STS: "#E67E22",
+  TY: "#E74C3C", STY: "#8E44AD", SuperTY: "#FF1493",
 }
 function gc(g: string) { return GRADES[g] || "#90A4AE" }
 
@@ -48,7 +48,7 @@ function buildSvg(): string {
   const H = props.history, F = props.forecast, CP = props.currentPos
   let parts: string[] = []
   if (!H.length && !F.length) {
-    return '<rect width="100%" height="100%" fill="#1a1a2e"/><text x="50%" y="50%" text-anchor="middle" fill="#666" font-size="14">暂无可追踪台风</text>'
+    return '<rect width="100%" height="100%" fill="#F0F5FA"/><text x="50%" y="50%" text-anchor="middle" fill="#8B9CAD" font-size="14">暂无可追踪台风</text>'
   }
 
   function segs(pts: TyphoonPoint[], dash: string) {
@@ -80,8 +80,8 @@ function buildSvg(): string {
   }
 
   if (CP) {
-    dot(CP.lat, CP.lon, 16, "none", gc(CP.grade), 2, 'opacity="0.4" class="pulse"')
-    dot(CP.lat, CP.lon, 12, "#fff")
+    dot(CP.lat, CP.lon, 18, "none", gc(CP.grade), 2, 'opacity="0.4" class="pulse"')
+    dot(CP.lat, CP.lon, 13, "#fff")
     dot(CP.lat, CP.lon, 10, gc(CP.grade))
   }
 
@@ -90,13 +90,13 @@ function buildSvg(): string {
       const p = pts[i]
       if (CP && p === CP) continue
       if (skipLast && i === pts.length - 1) continue
-      dot(p.lat, p.lon, 4, gc(p.grade))
+      dot(p.lat, p.lon, 7, gc(p.grade), "#fff", 2)
     }
   }
   wayPts(H, !!CP)
   wayPts(F, false)
 
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="background:#1a1a2e">' +
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="background:#F0F5FA">' +
     parts.join("") +
     '<style>.pulse{animation:p 2s ease-out infinite}@keyframes p{0%{transform:scale(.8);opacity:.6}to{transform:scale(1.5);opacity:0}}circle{cursor:pointer}</style></svg>'
 }
@@ -159,7 +159,7 @@ function onTap(e: any) {
   height: 100%;
   position: relative;
   overflow: hidden;
-  background: #1a1a2e;
+  background: var(--color-bg);
 }
 .svg-inner {
   width: 100%;

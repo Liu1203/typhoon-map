@@ -7,6 +7,14 @@ import SkeletonLoader from "@/components/SkeletonLoader.vue"
 
 const locateError = ref("")
 
+const showBrand = ref(true)
+
+function showBrandOff() {
+  if (showBrand.value) {
+    showBrand.value = false
+  }
+}
+
 async function detectCity(): Promise<string | null> {
   return new Promise((resolve) => {
     let settled = false
@@ -99,6 +107,7 @@ function setCache(data: CurrentWeather, city: string) {
 
 function applyWeatherData(res: CurrentWeather) {
   weather.value = res
+  showBrandOff()
   const lightBg = isLightBg(res.weather)
   uni.setNavigationBarColor({ frontColor: lightBg ? '#000000' : '#ffffff', backgroundColor: '#000000' })
   updateTime.value = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
@@ -219,30 +228,41 @@ function goSearch() {
 }
 
 function weatherBg(w: string): string {
-  if (w.includes("雷")) return "linear-gradient(175deg, #2C2C2C 0%, #4A4440 30%, #6B6058 100%)"
-  if (w.includes("雪") || w.includes("冰雹")) return "linear-gradient(175deg, #D8D3C8 0%, #E8E3D8 40%, #F5F0E8 100%)"
-  if (w.includes("雾") || w.includes("霾")) return "linear-gradient(175deg, #B8B0A0 0%, #D0C8B8 50%, #E8E0D0 100%)"
-  if (w.includes("大") && w.includes("雨")) return "linear-gradient(175deg, #3A4248 0%, #586068 40%, #7A8288 100%)"
-  if (w.includes("雨") || w.includes("阵雨")) return "linear-gradient(175deg, #4A5658 0%, #708080 50%, #98A8A8 100%)"
-  if (w.includes("阴")) return "linear-gradient(175deg, #8A8680 0%, #B0A898 50%, #D0C8B8 100%)"
-  if (w.includes("多云")) return "linear-gradient(175deg, #7A8A98 0%, #A0B0B8 40%, #C8D4D8 100%)"
-  if (w.includes("晴")) return "linear-gradient(175deg, #5A8A98 0%, #80B0B8 35%, #B8D4D8 100%)"
-  return "linear-gradient(175deg, #5A8A98 0%, #80B0B8 35%, #B8D4D8 100%)"
+  if (w.includes("雷")) return "linear-gradient(175deg, #3A4458 0%, #566076 40%, #788098 100%)"
+  if (w.includes("大") && w.includes("阵")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
+  if (w.includes("暴") && w.includes("雨")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
+  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return "linear-gradient(175deg, #C8D8E8 0%, #DDE8F2 40%, #EDF3FA 100%)"
+  if (w.includes("雾") || w.includes("霾")) return "linear-gradient(175deg, #B8C4D0 0%, #D0DAE4 50%, #E4EBF2 100%)"
+  if (w.includes("大") && w.includes("雨")) return "linear-gradient(175deg, #587080 0%, #7890A0 40%, #98AEBE 100%)"
+  if (w.includes("阵雨")) return "linear-gradient(175deg, #688088 0%, #889EA8 50%, #A8BCC6 100%)"
+  if (w.includes("中") && w.includes("雨")) return "linear-gradient(175deg, #6E8890 0%, #8EA4AE 50%, #AEC0C8 100%)"
+  if (w.includes("小") && w.includes("雨")) return "linear-gradient(175deg, #789098 0%, #98ACB4 50%, #B6C8CE 100%)"
+  if (w.includes("毛毛")) return "linear-gradient(175deg, #7C969E 0%, #9EB0B8 50%, #BCCAD0 100%)"
+  if (w.includes("雨")) return "linear-gradient(175deg, #789098 0%, #98AEB6 50%, #B8CAD0 100%)"
+  if (w.includes("阴")) return "linear-gradient(175deg, #98ACB6 0%, #B8C8D2 50%, #D4E0E8 100%)"
+  if (w.includes("多云")) return "linear-gradient(175deg, #78A8C0 0%, #A0C4D8 40%, #CCE0EC 100%)"
+  if (w.includes("晴")) return "linear-gradient(175deg, #6DB4E0 0%, #98CAE8 35%, #C4E0F2 100%)"
+  return "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)"
 }
 
 function weatherAccent(w: string): string {
-  if (w.includes("雷")) return "#D4A853"
-  if (w.includes("雪") || w.includes("冰雹")) return "#8B9DAF"
-  if (w.includes("雾") || w.includes("霾")) return "#A09888"
-  if (w.includes("雨")) return "#5B8C7A"
-  if (w.includes("阴")) return "#8C8278"
-  if (w.includes("多云")) return "#D4A853"
-  if (w.includes("晴")) return "#C0784A"
-  return "#C0784A"
+  if (w.includes("雷")) return "#D4A550"
+  if (w.includes("大") && w.includes("阵")) return "#688898"
+  if (w.includes("暴") && w.includes("雨")) return "#608090"
+  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return "#8B9DAF"
+  if (w.includes("雾") || w.includes("霾")) return "#8EA0B0"
+  if (w.includes("大") && w.includes("雨")) return "#5A8A90"
+  if (w.includes("阵雨")) return "#6DAF98"
+  if (w.includes("毛毛")) return "#8DCFB8"
+  if (w.includes("雨")) return "#6DAF98"
+  if (w.includes("阴")) return "#8898A8"
+  if (w.includes("多云")) return "#D4A550"
+  if (w.includes("晴")) return "#E09050"
+  return "#E09050"
 }
 
 function isLightBg(w: string): boolean {
-  return w.includes("雪") || w.includes("雾") || w.includes("霾")
+  return w.includes("雪") || w.includes("雾") || w.includes("霾") || w.includes("阴") || w.includes("毛毛")
 }
 
 function hourNum(t: string): number {
@@ -271,8 +291,12 @@ function hourLabel(t: string): string {
 </script>
 
 <template>
-  <view class="container" :class="{ 'light-bg': weather && isLightBg(weather.weather) }" :style="{ background: weather ? weatherBg(weather.weather) : 'linear-gradient(175deg, #5A8A98 0%, #80B0B8 35%, #B8D4D8 100%)', paddingTop: (statusBarHeight + 12) + 'px' }">
-    <SkeletonLoader v-if="loading && !weather" />
+  <view class="container" :class="{ 'light-bg': weather && isLightBg(weather.weather) }"   :style="{ background: weather ? weatherBg(weather.weather) : 'linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)', paddingTop: (statusBarHeight + 12) + 'px' }">
+    <view v-if="showBrand && loading" class="brand-screen">
+      <text class="brand-name">清清天气</text>
+      <text class="brand-slogan">知冷暖 · 观风雨</text>
+    </view>
+    <SkeletonLoader v-if="!showBrand && loading && !weather" />
 
     <template v-else-if="weather">
       <view class="header-section anim-fade-in-down">
@@ -706,7 +730,7 @@ function hourLabel(t: string): string {
 }
 
 .forecast-icon-wrap {
-  width: 32px;
+  width: 48px;
   display: flex;
   justify-content: center;
 }
@@ -803,18 +827,24 @@ function hourLabel(t: string): string {
 }
 
 .hourly-time {
+  position: relative;
+  z-index: 1;
   font-size: var(--font-size-xs);
   color: var(--color-ink-light);
   font-weight: var(--font-weight-semibold);
 }
 
 .hourly-temp {
+  position: relative;
+  z-index: 1;
   font-size: var(--font-size-md);
   color: var(--color-ink);
   font-weight: var(--font-weight-semibold);
 }
 
 .hourly-desc {
+  position: relative;
+  z-index: 1;
   font-size: 10px;
   color: var(--color-ink-soft);
   text-align: center;
@@ -823,11 +853,15 @@ function hourLabel(t: string): string {
 }
 
 .hourly-wind {
+  position: relative;
+  z-index: 1;
   font-size: 10px;
   color: var(--color-ash);
 }
 
 .rain-tag {
+  position: relative;
+  z-index: 1;
   padding: 2px 8px;
   border-radius: var(--radius-full);
   font-size: 10px;
@@ -873,8 +907,8 @@ function hourLabel(t: string): string {
   flex-shrink: 0;
 }
 
-.typhoon-entry .entry-icon-wrap { background: rgba(192,57,43,0.1); }
-.quake-entry .entry-icon-wrap { background: rgba(91,140,122,0.1); }
+.typhoon-entry .entry-icon-wrap { background: rgba(91,143,192,0.1); }
+.quake-entry .entry-icon-wrap { background: rgba(109,175,152,0.1); }
 
 .entry-icon { font-size: 22px; }
 
@@ -938,4 +972,27 @@ function hourLabel(t: string): string {
 }
 
 .retry-btn:active { transform: scale(0.96); }
+
+.brand-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 70vh;
+  gap: var(--spacing-md);
+}
+
+.brand-name {
+  font-size: 36px;
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+  letter-spacing: 0.12em;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.12);
+}
+
+.brand-slogan {
+  font-size: var(--font-size-md);
+  color: rgba(255,255,255,0.75);
+  letter-spacing: 0.2em;
+}
 </style>

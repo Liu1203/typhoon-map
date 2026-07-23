@@ -11,11 +11,15 @@ const props = withDefaults(defineProps<{
 const type = computed(() => {
   const w = props.weather
   if (w.includes("雷")) return "thunder"
-  if (w.includes("雪") || w.includes("冰雹")) return "snow"
+  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return "snow"
+  if (w.includes("大") && w.includes("阵")) return "storm"
+  if (w.includes("暴") && w.includes("雨")) return "storm"
   if (w.includes("大") && w.includes("雨")) return "heavyrain"
   if (w.includes("中") && w.includes("雨")) return "rain"
   if (w.includes("小") && w.includes("雨")) return "lightrain"
-  if (w.includes("雨") || w.includes("阵雨") || w.includes("毛毛")) return "rain"
+  if (w.includes("毛毛")) return "drizzle"
+  if (w.includes("阵雨")) return "shower"
+  if (w.includes("雨")) return "rain"
   if (w.includes("雾") || w.includes("霾")) return "fog"
   if (w.includes("阴")) return "overcast"
   if (w.includes("多云")) return "partlycloudy"
@@ -61,6 +65,18 @@ const scale = computed(() => props.size / 56)
       </view>
     </view>
 
+    <!-- 毛毛雨 -->
+    <view v-else-if="type === 'drizzle'" class="icon rain drizzle">
+      <view class="cloud-wrap">
+        <view class="cloud-body"></view>
+        <view class="cloud-bump bl"></view>
+        <view class="cloud-bump bc"></view>
+        <view class="cloud-bump br"></view>
+      </view>
+      <view class="curtain c1"></view>
+      <view class="drops" v-for="i in 4" :key="i" :style="{ '--d': i * 0.35 + 's', '--x': (i - 2.5) * 6 + 'px' }"></view>
+    </view>
+
     <!-- 小雨 -->
     <view v-else-if="type === 'lightrain'" class="icon rain light">
       <view class="cloud-wrap">
@@ -69,7 +85,8 @@ const scale = computed(() => props.size / 56)
         <view class="cloud-bump bc"></view>
         <view class="cloud-bump br"></view>
       </view>
-      <view class="drops" v-for="i in 3" :key="i" :style="{ '--d': i * 0.2 + 's', '--x': (i - 2) * 7 + 'px' }"></view>
+      <view class="curtain c1"></view>
+      <view class="drops" v-for="i in 4" :key="i" :style="{ '--d': i * 0.22 + 's', '--x': (i - 2.5) * 6 + 'px' }"></view>
     </view>
 
     <!-- 中雨 -->
@@ -80,7 +97,22 @@ const scale = computed(() => props.size / 56)
         <view class="cloud-bump bc"></view>
         <view class="cloud-bump br"></view>
       </view>
-      <view class="drops" v-for="i in 5" :key="i" :style="{ '--d': i * 0.15 + 's', '--x': (i - 3) * 5.5 + 'px' }"></view>
+      <view class="curtain c1"></view>
+      <view class="curtain c2"></view>
+      <view class="drops" v-for="i in 5" :key="i" :style="{ '--d': i * 0.18 + 's', '--x': (i - 3) * 5 + 'px' }"></view>
+    </view>
+
+    <!-- 阵雨 -->
+    <view v-else-if="type === 'shower'" class="icon rain shower">
+      <view class="cloud-wrap">
+        <view class="cloud-body"></view>
+        <view class="cloud-bump bl"></view>
+        <view class="cloud-bump bc"></view>
+        <view class="cloud-bump br"></view>
+      </view>
+      <view class="curtain c1"></view>
+      <view class="drops" v-for="i in 5" :key="i" :style="{ '--d': i * 0.3 + 's', '--x': (i - 3) * 6 + 'px' }"></view>
+      <view class="splash" v-for="i in 2" :key="'s'+i" :style="{ '--x': (i - 1.5) * 10 + 'px', '--d': i * 1.2 + 's' }"></view>
     </view>
 
     <!-- 大雨 -->
@@ -91,7 +123,27 @@ const scale = computed(() => props.size / 56)
         <view class="cloud-bump bc"></view>
         <view class="cloud-bump br"></view>
       </view>
-      <view class="drops" v-for="i in 7" :key="i" :style="{ '--d': i * 0.12 + 's', '--x': (i - 4) * 4.5 + 'px' }"></view>
+      <view class="curtain c1"></view>
+      <view class="curtain c2"></view>
+      <view class="curtain c3"></view>
+      <view class="drops" v-for="i in 7" :key="i" :style="{ '--d': i * 0.13 + 's', '--x': (i - 4) * 4.5 + 'px' }"></view>
+      <view class="splash" v-for="i in 3" :key="'s'+i" :style="{ '--x': (i - 2) * 9 + 'px', '--d': i * 0.9 + 's' }"></view>
+    </view>
+
+    <!-- 大阵雨 / 暴风雨 -->
+    <view v-else-if="type === 'storm'" class="icon rain storm">
+      <view class="cloud-wrap dark">
+        <view class="cloud-body"></view>
+        <view class="cloud-bump bl"></view>
+        <view class="cloud-bump bc"></view>
+        <view class="cloud-bump br"></view>
+      </view>
+      <view class="curtain c1"></view>
+      <view class="curtain c2"></view>
+      <view class="curtain c3"></view>
+      <view class="curtain c4"></view>
+      <view class="drops" v-for="i in 8" :key="i" :style="{ '--d': i * 0.1 + 's', '--x': (i - 4.5) * 4 + 'px' }"></view>
+      <view class="splash" v-for="i in 4" :key="'s'+i" :style="{ '--x': (i - 2.5) * 8 + 'px', '--d': i * 0.7 + 's' }"></view>
     </view>
 
     <!-- 雷阵雨 -->
@@ -102,10 +154,14 @@ const scale = computed(() => props.size / 56)
         <view class="cloud-bump bc"></view>
         <view class="cloud-bump br"></view>
       </view>
+      <view class="curtain c1"></view>
+      <view class="curtain c2"></view>
       <view class="bolt-wrap">
         <view class="bolt-main"></view>
       </view>
       <view class="bolt-glow"></view>
+      <view class="drops" v-for="i in 5" :key="i" :style="{ '--d': i * 0.18 + 's', '--x': (i - 3) * 5 + 'px' }"></view>
+      <view class="splash" v-for="i in 2" :key="'s'+i" :style="{ '--x': (i - 1.5) * 10 + 'px', '--d': i * 1.2 + 's' }"></view>
     </view>
 
     <!-- 雪 -->
@@ -160,7 +216,7 @@ const scale = computed(() => props.size / 56)
 }
 .cloud-wrap.dark .cloud-body,
 .cloud-wrap.dark .cloud-bump {
-  background: linear-gradient(180deg, #C8C0B4 0%, #A09888 100%);
+  background: linear-gradient(180deg, #C0C8D4 0%, #98A3B0 100%);
 }
 .cloud-wrap.back {
   opacity: 0.55;
@@ -179,16 +235,16 @@ const scale = computed(() => props.size / 56)
   height: 55%;
   bottom: 0;
   left: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #F2EDE4 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #E8EEF5 100%);
   border-radius: 20px 20px 14px 14px;
-  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.05));
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.04));
 }
 
 /* 三个圆顶 */
 .cloud-bump {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff 0%, #F2EDE4 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #E8EEF5 100%);
 }
 
 /* 左顶：小 */
@@ -219,7 +275,7 @@ const scale = computed(() => props.size / 56)
 /* 阴天后层云更深 */
 .overcast .cloud-wrap.back .cloud-body,
 .overcast .cloud-wrap.back .cloud-bump {
-  background: linear-gradient(180deg, #C0B8A8 0%, #988F80 100%);
+  background: linear-gradient(180deg, #B8C4D0 0%, #90A0AE 100%);
 }
 
 @keyframes driftFront {
@@ -293,24 +349,96 @@ const scale = computed(() => props.size / 56)
   position: absolute;
   width: 2px;
   height: 12px;
-  background: linear-gradient(180deg, transparent 0%, #7DB5A0 30%, #5B8C7A 100%);
-  bottom: -4px;
+  background: linear-gradient(180deg, transparent 0%, #8DCFB8 30%, #6DAF98 100%);
+  bottom: 0;
   left: 50%;
   transform: translateX(calc(var(--x) - 50%));
   border-radius: 1px 1px 3px 3px;
   animation: fall var(--d) linear infinite;
   opacity: 0.85;
+  pointer-events: none;
 }
 
-.rain.light .drops { height: 10px; }
-.rain.medium .drops { height: 12px; }
-.rain.heavy .drops { height: 14px; background: linear-gradient(180deg, transparent 0%, #5B8C7A 30%, #3D6B5A 100%); width: 2.5px; }
+.rain.drizzle .drops { height: 7px; width: 1.5px; background: linear-gradient(180deg, transparent 0%, #A8D4C8 40%, #8ABAA8 100%); opacity: 0.7; }
+.rain.light .drops { height: 10px; width: 2px; }
+.rain.medium .drops { height: 12px; width: 2px; }
+.rain.shower .drops { height: 16px; width: 2.5px; background: linear-gradient(180deg, transparent 0%, #78C4A8 30%, #58A088 100%); animation: shuffle var(--d) ease-in-out infinite; }
+.rain.heavy .drops { height: 14px; width: 2.5px; background: linear-gradient(180deg, transparent 0%, #6DAF98 30%, #4A9078 100%); }
+.rain.storm .drops { height: 15px; width: 3px; background: linear-gradient(180deg, transparent 0%, #58A088 30%, #3D7860 100%); }
+.thunder .drops { height: 12px; width: 2px; }
+
+/* 雨幕 - 斜向半透明雨线 */
+.curtain {
+  position: absolute;
+  bottom: 0;
+  left: 5px;
+  right: 5px;
+  height: 16px;
+  background: repeating-linear-gradient(
+    -20deg,
+    transparent,
+    transparent 4px,
+    rgba(109,175,152,0.18) 4px,
+    rgba(109,175,152,0.18) 5px
+  );
+  mask-image: linear-gradient(0deg, transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0) 100%);
+  -webkit-mask-image: linear-gradient(0deg, transparent 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0) 100%);
+  animation: curtainScroll 1.2s linear infinite;
+  opacity: 0;
+  pointer-events: none;
+}
+.curtain.c1 { opacity: 1; left: 6px; right: 6px; }
+.curtain.c2 { opacity: 1; left: 10px; right: 10px; animation-delay: 0.4s; }
+.curtain.c3 { opacity: 1; left: 14px; right: 14px; animation-delay: 0.8s; }
+.curtain.c4 { opacity: 1; left: 18px; right: 18px; animation-delay: 0.2s; }
+
+.rain.storm .curtain,
+.thunder .curtain { background: repeating-linear-gradient(-20deg, transparent, transparent 3px, rgba(88,160,136,0.22) 3px, rgba(88,160,136,0.22) 4px); }
+
+@keyframes curtainScroll {
+  0% { transform: translateY(-4px); }
+  100% { transform: translateY(6px); }
+}
+
+/* 溅射效果 */
+.splash {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: rgba(109,175,152,0.5);
+  border-radius: 50%;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(calc(var(--x) - 50%)) scale(0);
+  animation: splat var(--d) ease-out infinite;
+  pointer-events: none;
+}
+
+.rain.storm .splash { width: 4px; height: 4px; background: rgba(88,160,136,0.6); }
+.thunder .splash { background: rgba(109,175,152,0.45); }
+
+@keyframes splat {
+  0% { transform: translateX(calc(var(--x) - 50%)) translateY(-2px) scale(0); opacity: 0; }
+  40% { transform: translateX(calc(var(--x) - 50%)) translateY(0) scale(1.5); opacity: 0.7; }
+  100% { transform: translateX(calc(var(--x) - 50%)) translateY(2px) scale(0.5); opacity: 0; }
+}
+
+@keyframes shuffle {
+  0%, 100% { transform: translateX(calc(var(--x) - 50%)) translateY(-14px); opacity: 0; }
+  15% { opacity: 0.9; }
+  40% { opacity: 0.9; transform: translateX(calc(var(--x) - 50% + 2px)) translateY(10px); }
+  55% { opacity: 0.6; transform: translateX(calc(var(--x) - 50% - 2px)) translateY(18px); }
+  85% { opacity: 0.3; }
+  100% { transform: translateX(calc(var(--x) - 50%)) translateY(28px); opacity: 0; }
+}
+
+.rain.shower .drops { animation: shuffle var(--d) ease-in-out infinite; }
 
 @keyframes fall {
   0% { transform: translateX(calc(var(--x) - 50%)) translateY(-16px); opacity: 0; }
   8% { opacity: 0.85; }
   92% { opacity: 0.85; }
-  100% { transform: translateX(calc(var(--x) - 50%)) translateY(26px); opacity: 0; }
+  100% { transform: translateX(calc(var(--x) - 50%)) translateY(28px); opacity: 0; }
 }
 
 /* ===== 雷阵雨 - 经典锯齿闪电 ===== */
@@ -321,6 +449,7 @@ const scale = computed(() => props.size / 56)
   transform: translateX(-50%);
   width: 18px;
   height: 30px;
+  pointer-events: none;
 }
 .thunder .bolt-main {
   position: absolute;
@@ -395,7 +524,7 @@ const scale = computed(() => props.size / 56)
   position: absolute;
   width: 42px;
   height: 3px;
-  background: linear-gradient(90deg, transparent 0%, rgba(160,150,135,0.55) 50%, transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(160,168,180,0.55) 50%, transparent 100%);
   border-radius: 1.5px;
   left: 50%;
   transform: translateX(-50%) translateY(var(--y));

@@ -36,8 +36,8 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "天气查询",
-    "navigationBarBackgroundColor": "#FBF7F0",
-    "backgroundColor": "#F5F0E8",
+    "navigationBarBackgroundColor": "#FFFFFF",
+    "backgroundColor": "#F0F5FA",
     "animationType": "fade-in",
     "animationDuration": 300
   }

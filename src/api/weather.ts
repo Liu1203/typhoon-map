@@ -223,7 +223,7 @@ function parseWeatherData(data: any): CurrentWeather {
   const weatherDesc = OM_WX[wcode] || translateWeather(String(wcode))
 
   const now = new Date()
-  const todayDate = daily?.time?.[0] || now.toISOString().slice(0, 10)
+  const todayDate = daily?.time?.[0] || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
   const currentHour = now.getHours()
 
   const forecast: ForecastDay[] = []

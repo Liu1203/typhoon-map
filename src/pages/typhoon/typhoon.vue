@@ -21,6 +21,7 @@ const nodeInterval = ref<number>(6)
 const currentScale = ref<number>(4)
 
 const selectedPoint = ref<{ point: TyphoonPoint; type: "history" | "forecast" } | null>(null)
+let selectedCircleIdx = -1
 
 function timeDiffHours(a: any, b: any): number {
   if (typeof a === "string" && a.length === 12 && typeof b === "string" && b.length === 12) {
@@ -76,18 +77,42 @@ function displayName(t: TyphoonItem): string {
   return t.nameCn || t.nameEn || t.tcNum || "未知"
 }
 
-function onMapMarkerTap(e: any) {
-  const id = e.detail.markerId
-  let pt: TyphoonPoint | undefined
-  if (id === 1) {
-    pt = currentPos.value ?? undefined
-    if (pt) selectedPoint.value = { point: pt, type: "history" }
-  } else if (id >= 100 && id < 200) {
-    pt = detail.value?.history[id - 100]
-    if (pt) selectedPoint.value = { point: pt, type: "history" }
-  } else if (id >= 200) {
-    pt = detail.value?.forecast[id - 200]
-    if (pt) selectedPoint.value = { point: pt, type: "forecast" }
+function onMapTap(e: any) {
+  const lat = e.detail.latitude
+  const lng = e.detail.longitude
+  if (lat === undefined || lng === undefined || !detail.value) return
+
+  if (currentPos.value) {
+    const dlat = currentPos.value.lat - lat
+    const dlng = currentPos.value.lon - lng
+    if (Math.sqrt(dlat * dlat + dlng * dlng) < 0.15) {
+      selectedPoint.value = { point: currentPos.value, type: "history" }
+      selectedCircleIdx = -1
+      return
+    }
+  }
+
+  const hist = detail.value.history
+  const fc = detail.value.forecast
+  let bestIdx = -1
+  let bestType: "history" | "forecast" = "history"
+  let bestDist = Infinity
+  for (let i = 0; i < hist.length; i++) {
+    const dlat = hist[i].lat - lat
+    const dlng = hist[i].lon - lng
+    const dist = dlat * dlat + dlng * dlng
+    if (dist < bestDist) { bestDist = dist; bestIdx = i; bestType = "history" }
+  }
+  for (let i = 0; i < fc.length; i++) {
+    const dlat = fc[i].lat - lat
+    const dlng = fc[i].lon - lng
+    const dist = dlat * dlat + dlng * dlng
+    if (dist < bestDist) { bestDist = dist; bestIdx = i; bestType = "forecast" }
+  }
+  if (bestIdx >= 0 && Math.sqrt(bestDist) < 0.25) {
+    const pt = bestType === "history" ? hist[bestIdx] : fc[bestIdx]
+    selectedPoint.value = { point: pt, type: bestType }
+    selectedCircleIdx = bestType === "history" ? bestIdx : bestIdx + hist.length
   }
 }
 
@@ -150,6 +175,7 @@ async function select(t: TyphoonItem) {
   selected.value = t
   detail.value = null
   fetching.value = true
+  selectedCircleIdx = -1
   detail.value = await getTyphoonDetail(t.id)
   fetching.value = false
   listExpanded.value = false
@@ -209,8 +235,8 @@ const pulseCircles = computed(() => {
   const p = currentPos.value
   const color = gradeColor(p.grade)
   return [
-    { latitude: p.lat, longitude: p.lon, radius: 30, color: hexToRgba(color, 0.35), fillColor: hexToRgba(color, 0.08), strokeWidth: 2 },
-    { latitude: p.lat, longitude: p.lon, radius: 18, color: hexToRgba(color, 0.5), fillColor: hexToRgba(color, 0.15), strokeWidth: 3 },
+    { latitude: p.lat, longitude: p.lon, radius: 36, color: hexToRgba(color, 0.35), fillColor: hexToRgba(color, 0.1), strokeWidth: 2 },
+    { latitude: p.lat, longitude: p.lon, radius: 20, color: hexToRgba(color, 0.55), fillColor: hexToRgba(color, 0.18), strokeWidth: 3 },
   ]
 })
 
@@ -224,8 +250,8 @@ const mapMarkers = computed(() => {
     latitude: pos.lat,
     longitude: pos.lon,
     iconPath: `/static/typhoon-marker-${pos.grade}.png`,
-    width: 56,
-    height: 56,
+    width: 80,
+    height: 80,
     anchor: { x: 0.5, y: 0.5 },
   })
 
@@ -238,8 +264,8 @@ const mapMarkers = computed(() => {
       latitude: p.lat,
       longitude: p.lon,
       iconPath: `/static/dot-${p.grade}.png`,
-      width: 32,
-      height: 32,
+      width: 64,
+      height: 64,
       anchor: { x: 0.5, y: 0.5 },
     })
   }
@@ -252,8 +278,8 @@ const mapMarkers = computed(() => {
       latitude: p.lat,
       longitude: p.lon,
       iconPath: `/static/dot-${p.grade}.png`,
-      width: 32,
-      height: 32,
+      width: 50,
+      height: 50,
       anchor: { x: 0.5, y: 0.5 },
     })
   }
@@ -278,8 +304,8 @@ const polylines = computed(() => {
           const segPts = pts.slice(start, i + 1).filter(p => p.lat !== 0 || p.lon !== 0).map(p => ({ latitude: p.lat, longitude: p.lon }))
           if (segPts.length >= 2) {
             const color = gradeColor(pts[start].grade)
-            lines.push({ points: segPts, color: hexToRgba(color, 0.25), width: 14, ...(dotted ? { dottedLine: true } : {}) })
-            lines.push({ points: segPts, color: color, width: 6, ...(dotted ? { dottedLine: true } : {}) })
+            lines.push({ points: segPts, color: hexToRgba(color, 0.25), width: 18, ...(dotted ? { dottedLine: true } : {}) })
+            lines.push({ points: segPts, color: color, width: 8, ...(dotted ? { dottedLine: true } : {}) })
           }
         }
         start = i
@@ -298,13 +324,13 @@ const polylines = computed(() => {
       lines.push({
         points: [{ latitude: last.lat, longitude: last.lon }, { latitude: first.lat, longitude: first.lon }],
         color: hexToRgba(connColor, 0.25),
-        width: 14,
+        width: 18,
         dottedLine: true,
       })
       lines.push({
         points: [{ latitude: last.lat, longitude: last.lon }, { latitude: first.lat, longitude: first.lon }],
         color: connColor,
-        width: 6,
+        width: 8,
         dottedLine: true,
       })
     }
@@ -312,6 +338,24 @@ const polylines = computed(() => {
 
   addSegs(fc, true)
   return lines
+})
+
+const circlesList = computed(() => [...pulseCircles.value, ...selectedCircle.value])
+
+const selectedCircle = computed(() => {
+  if (!detail.value || selectedCircleIdx < 0) return []
+  const hist = detail.value.history
+  const fc = detail.value.forecast
+  let p: TyphoonPoint | null = null
+  if (selectedCircleIdx < hist.length) {
+    p = hist[selectedCircleIdx]
+  } else {
+    const fi = selectedCircleIdx - hist.length
+    if (fi < fc.length) p = fc[fi]
+  }
+  if (!p) return []
+  const color = gradeColor(p.grade)
+  return [{ latitude: p.lat, longitude: p.lon, radius: 24, color: "#ffffff", fillColor: color, strokeWidth: 4 }]
 })
 
 const info = computed(() => {
@@ -392,14 +436,18 @@ const listExpanded = ref(true)
         :scale="scale"
         :markers="mapMarkers"
         :polyline="polylines"
-        :circles="pulseCircles"
-        @markertap="onMapMarkerTap"
+        :circles="circlesList"
+        @tap="onMapTap"
         @scalechanged="onMapScaleChanged"
         enable-zoom
         enable-scroll
         enable-rotate
         style="width:100%;height:100%"
       />
+
+      <view v-if="currentPos && !showEmptyOverlay" class="typhoon-spin-wrap">
+        <view class="typhoon-spin-icon">🌀</view>
+      </view>
 
       <view v-if="showEmptyOverlay" class="map-empty">
         <view class="map-empty-card">
@@ -462,7 +510,7 @@ const listExpanded = ref(true)
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #1a1a2e;
+  background: var(--color-bg);
 }
 
 .top-bar {
@@ -609,6 +657,26 @@ const listExpanded = ref(true)
   font-size: var(--font-size-sm);
 }
 
+.typhoon-spin-wrap {
+  position: absolute;
+  z-index: 6;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.typhoon-spin-icon {
+  font-size: 72px;
+  line-height: 1;
+  animation: typhoon-spin 2s linear infinite;
+}
+
+@keyframes typhoon-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .map-fetching {
   position: absolute; z-index: 3; inset: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -634,10 +702,10 @@ const listExpanded = ref(true)
 }
 .legend-item {
   display: flex; align-items: center; gap: 3px;
-  background: rgba(26,26,46,0.8); padding: 3px 8px; border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.9); padding: 3px 8px; border-radius: var(--radius-sm);
 }
 .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.legend-text { font-size: 9px; color: #ddd; white-space: nowrap; }
+.legend-text { font-size: 9px; color: #566; white-space: nowrap; }
 
 .point-card {
   background: var(--color-paper);
