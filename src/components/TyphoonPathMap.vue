@@ -14,8 +14,8 @@ const emit = defineEmits<{
 
 const PAD = 60
 const GRADES: Record<string, string> = {
-  TD: "#5DADE2", TS: "#F4D03F", STS: "#E67E22",
-  TY: "#E74C3C", STY: "#8E44AD", SuperTY: "#FF1493",
+  TD: "#6BA3D4", TS: "#E8C84A", STS: "#E08A3C",
+  TY: "#D95B4F", STY: "#8B6BB8", SuperTY: "#E85A9B",
 }
 function gc(g: string) { return GRADES[g] || "#90A4AE" }
 

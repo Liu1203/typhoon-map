@@ -1,8 +1,8 @@
 {
   "name": "清清天气",
   "appid": "__UNI__E35C807",
-  "versionName": "1.0.4",
-  "versionCode": "104",
+  "versionName": "1.0.7",
+  "versionCode": "107",
   "description": "简洁天气查询工具",
   "uniStatistics": {
     "enable": false
