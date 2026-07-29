@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
-import { CACHE } from "@/config"
 import { UNITS_DEFAULT, type UnitSettings } from "@/utils/weather"
-import manifest from "@/manifest.json"
+import { loadDarkMode } from "@/utils/theme"
 
 const darkMode = ref(false)
 const units = ref<UnitSettings>({ ...UNITS_DEFAULT })
@@ -15,13 +14,7 @@ const refreshOptions = [
 ]
 
 onMounted(() => {
-  const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
-  if (stored === "1") darkMode.value = true
-  else if (stored === "0") darkMode.value = false
-  else {
-    const sys = uni.getSystemInfoSync()
-    darkMode.value = sys.theme === "dark"
-  }
+  darkMode.value = loadDarkMode()
   try {
     const raw = uni.getStorageSync("unit_settings") as string
     if (raw) units.value = { ...UNITS_DEFAULT, ...JSON.parse(raw) }
@@ -34,7 +27,7 @@ onMounted(() => {
 
 function toggleDark() {
   darkMode.value = !darkMode.value
-  uni.setStorageSync(CACHE.DARK_MODE_KEY, darkMode.value ? "1" : "0")
+  uni.setStorageSync("dark_mode", darkMode.value ? "1" : "0")
 }
 
 function setTemp(val: string) {

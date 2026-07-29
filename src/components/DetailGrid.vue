@@ -58,6 +58,13 @@ defineProps<{
       <text class="detail-value">{{ weather.aqi }} {{ weather.aqiLabel }}</text>
     </view>
   </view>
+  <view class="aqi-detail" v-if="weather.aqiDetail && (weather.aqiDetail.pm25 || weather.aqiDetail.pm10)">
+    <view class="aqi-chip" v-if="weather.aqiDetail.pm25"><text class="aqi-label">PM2.5</text><text class="aqi-val">{{ weather.aqiDetail.pm25 }}</text></view>
+    <view class="aqi-chip" v-if="weather.aqiDetail.pm10"><text class="aqi-label">PM10</text><text class="aqi-val">{{ weather.aqiDetail.pm10 }}</text></view>
+    <view class="aqi-chip" v-if="weather.aqiDetail.no2"><text class="aqi-label">NO₂</text><text class="aqi-val">{{ weather.aqiDetail.no2 }}</text></view>
+    <view class="aqi-chip" v-if="weather.aqiDetail.o3"><text class="aqi-label">O₃</text><text class="aqi-val">{{ weather.aqiDetail.o3 }}</text></view>
+    <view class="aqi-chip" v-if="weather.aqiDetail.so2"><text class="aqi-label">SO₂</text><text class="aqi-val">{{ weather.aqiDetail.so2 }}</text></view>
+  </view>
 </template>
 
 <style scoped>
@@ -83,6 +90,31 @@ defineProps<{
 .detail-value {
   display: block;
   font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+}
+.aqi-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-sm);
+  justify-content: center;
+}
+.aqi-chip {
+  background: rgba(255,255,255,0.15);
+  border-radius: var(--radius-sm);
+  padding: 2px 10px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.aqi-label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.65);
+}
+.aqi-val {
+  font-size: 11px;
   font-weight: var(--font-weight-semibold);
   color: #fff;
 }

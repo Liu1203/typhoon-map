@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
-import { matchCity } from "@/api/weather"
-import { CACHE } from "@/config"
+import { matchCity, groupCitiesByPinyin } from "@/api/weather"
+import { loadDarkMode } from "@/utils/theme"
 
 const darkMode = ref(false)
 const query = ref("")
@@ -10,13 +10,7 @@ const favCities = ref<string[]>([])
 const FAV_KEY = "fav_cities"
 
 onMounted(() => {
-  const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
-  if (stored === "1") darkMode.value = true
-  else if (stored === "0") darkMode.value = false
-  else {
-    const sys = uni.getSystemInfoSync()
-    darkMode.value = sys.theme === "dark"
-  }
+  darkMode.value = loadDarkMode()
   try {
     const raw = uni.getStorageSync(FAV_KEY) as string
     if (raw) favCities.value = JSON.parse(raw)
@@ -28,6 +22,9 @@ const filteredCities = computed(() => {
   if (!q) return matchCity("")
   return matchCity(q)
 })
+
+const cityGroups = computed(() => groupCitiesByPinyin())
+const alphabet = computed(() => Object.keys(cityGroups.value))
 
 function onInput(e: any) {
   query.value = e.detail?.value || e.target?.value || ""
@@ -52,6 +49,13 @@ function toggleFav(name: string) {
 function isFav(name: string): boolean {
   return favCities.value.includes(name)
 }
+
+function scrollToLetter(letter: string) {
+  const el = uni.createSelectorQuery().select("#section-" + letter)
+  if (el) {
+    uni.pageScrollTo({ selector: "#section-" + letter, duration: 200 })
+  }
+}
 </script>
 
 <template>
@@ -72,15 +76,31 @@ function isFav(name: string): boolean {
       </view>
     </view>
 
-    <view class="city-grid" v-if="filteredCities.length > 0">
+    <view class="city-grid" v-if="query && filteredCities.length > 0">
       <view v-for="city in filteredCities" :key="city" class="city-tag" :class="{ isFav: isFav(city) }" @tap="selectCity(city)">
         <text>{{ city }}</text>
         <text class="fav-star" :class="{ filled: isFav(city) }" @tap.stop="toggleFav(city)">{{ isFav(city) ? '★' : '☆' }}</text>
       </view>
     </view>
-    <view v-else class="empty-state">
-      <text v-if="query" class="empty-text">未找到 "{{ query }}" 相关城市</text>
-      <text v-else class="empty-text">输入城市名称搜索</text>
+
+    <scroll-view class="city-sections" scroll-y :scroll-into-view="''" v-else-if="!query && alphabet.length > 0">
+      <view v-for="letter in alphabet" :key="letter" :id="'section-' + letter" class="city-section">
+        <text class="section-letter">{{ letter }}</text>
+        <view class="section-cities">
+          <view v-for="city in cityGroups[letter]" :key="city" class="section-city" @tap="selectCity(city)">
+            <text>{{ city }}</text>
+            <text class="fav-star" :class="{ filled: isFav(city) }" @tap.stop="toggleFav(city)">{{ isFav(city) ? '★' : '☆' }}</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view v-if="query && filteredCities.length === 0" class="empty-state">
+      <text class="empty-text">未找到 "{{ query }}" 相关城市</text>
+    </view>
+
+    <view v-if="!query && alphabet.length > 0" class="alphabet-sidebar">
+      <view v-for="letter in alphabet" :key="letter" class="alpha-item" @tap="scrollToLetter(letter)">{{ letter }}</view>
     </view>
   </view>
 </template>
@@ -90,6 +110,7 @@ function isFav(name: string): boolean {
   padding: var(--spacing-lg);
   min-height: 100vh;
   background: var(--color-bg);
+  position: relative;
 }
 .search-row {
   display: flex;
@@ -186,6 +207,72 @@ function isFav(name: string): boolean {
 }
 .city-tag.isFav {
   border-color: var(--color-gold);
+}
+.city-sections {
+  height: calc(100vh - 150px);
+  padding-bottom: var(--spacing-4xl);
+}
+.city-section {
+  margin-bottom: var(--spacing-md);
+}
+.section-letter {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  margin-bottom: var(--spacing-xs);
+}
+.section-cities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+.section-city {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--color-paper);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-paper-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-medium);
+}
+.section-city:active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+.section-city:active .fav-star {
+  color: #fff;
+}
+.alphabet-sidebar {
+  position: fixed;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+.alpha-item {
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-primary);
+  width: 20px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  border-radius: 4px;
+}
+.alpha-item:active {
+  background: var(--color-primary);
+  color: #fff;
 }
 .empty-state {
   display: flex;

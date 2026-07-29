@@ -12,14 +12,16 @@ const props = withDefaults(defineProps<{
   sunrise: "06:00",
   sunset: "18:00",
 })
+
+const nowHour = new Date().getHours()
 </script>
 
 <template>
   <view class="hourly-scroll-wrap">
     <scroll-view scroll-x class="hourly-scroll" :show-scrollbar="false">
       <view class="hourly-list">
-        <view v-for="(h, i) in hourly" :key="i" class="hourly-item" :class="{ 'is-sun': sunrise && sunHour(sunrise) === hourNum(h.time), 'is-dusk': sunset && sunHour(sunset) === hourNum(h.time) }">
-          <text class="hourly-time">{{ hourLabel(h.time) }}</text>
+        <view v-for="(h, i) in hourly" :key="i" class="hourly-item" :class="{ 'is-sun': sunrise && sunHour(sunrise) === hourNum(h.time), 'is-dusk': sunset && sunHour(sunset) === hourNum(h.time), 'is-now': hourNum(h.time) === nowHour }">
+          <text class="hourly-time">{{ hourNum(h.time) === nowHour ? '现在' : hourLabel(h.time) }}</text>
           <WeatherIcon :weather="h.weather" :size="26" />
           <text class="hourly-temp">{{ h.temp }}°</text>
           <text class="hourly-desc">{{ h.weather }}</text>
@@ -73,6 +75,17 @@ const props = withDefaults(defineProps<{
 .hourly-item.is-dusk {
   background: rgba(139,109,175,0.08);
   border-color: rgba(139,109,175,0.2);
+}
+.hourly-item.is-now {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.hourly-item.is-now .hourly-time,
+.hourly-item.is-now .hourly-temp,
+.hourly-item.is-now .hourly-desc,
+.hourly-item.is-now .hourly-wind,
+.hourly-item.is-now .rain-tag {
+  color: #fff;
 }
 .hourly-time {
   position: relative;

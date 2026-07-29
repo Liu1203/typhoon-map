@@ -4,11 +4,13 @@ import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
 import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, cityList, type CurrentWeather } from "@/api/weather"
 import { TIMEOUT, CACHE } from "@/config"
 import { gradientFor, accentFor, lightFor, getUnitSettings, formatTemp, formatWind } from "@/utils/weather"
+import { loadDarkMode, toggleDarkMode } from "@/utils/theme"
 import WeatherHero from "@/components/WeatherHero.vue"
 import DetailGrid from "@/components/DetailGrid.vue"
 import ForecastCard from "@/components/ForecastCard.vue"
 import HourlyScroll from "@/components/HourlyScroll.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
+import TempTrend from "@/components/TempTrend.vue"
 
 const locateError = ref("")
 const isOffline = ref(false)
@@ -103,28 +105,11 @@ const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 20
 const darkMode = ref(false)
 
 function toggleDark() {
-  const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
-  if (!stored) {
-    darkMode.value = true
-    uni.setStorageSync(CACHE.DARK_MODE_KEY, "1")
-  } else if (stored === "1") {
-    darkMode.value = false
-    uni.setStorageSync(CACHE.DARK_MODE_KEY, "0")
-  } else {
-    uni.removeStorageSync(CACHE.DARK_MODE_KEY)
-    const sys = uni.getSystemInfoSync()
-    darkMode.value = sys.theme === "dark"
-  }
+  darkMode.value = toggleDarkMode()
 }
 
 function initDarkMode() {
-  const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
-  if (stored === "1") darkMode.value = true
-  else if (stored === "0") darkMode.value = false
-  else {
-    const sys = uni.getSystemInfoSync()
-    darkMode.value = sys.theme === "dark"
-  }
+  darkMode.value = loadDarkMode()
 }
 
 function getCache(): CacheEntry | null {
@@ -163,6 +148,7 @@ async function fetchAndUpdate(city: string) {
     expandedIndex.value = -1
     applyWeatherData(res)
     setCache(res, city)
+    if (res.alerts?.length) checkAlertsAndNotify(res.alerts)
   } else if (!weather.value) {
     errorType.value = isOffline.value ? "network" : (Date.now() - start >= TIMEOUT.OPEN_METEO * 3 ? "timeout" : "server")
   } else if (isOffline.value) {
@@ -285,10 +271,14 @@ async function toggleForecast(idx: number) {
   }
 }
 
-function showAlertDetail(alert: import("@/api/weather").AlertItem) {
+function showAllAlerts() {
+  if (!weather.value?.alerts) return
+  const list = weather.value.alerts.map((a, i) =>
+    `${i + 1}. ${a.event}${a.severity ? " (" + a.severity + ")" : ""}\n   时间: ${a.start || "—"} 至 ${a.end || "—"}\n   ${a.description || "暂无详细描述"}`
+  ).join("\n\n")
   uni.showModal({
-    title: alert.event,
-    content: `时间: ${alert.start || "—"} 至 ${alert.end || "—"}\n${alert.severity ? "等级: " + alert.severity + "\n" : ""}${alert.description || "暂无详细描述"}`,
+    title: `天气预警 (${weather.value.alerts.length})`,
+    content: list,
     showCancel: false,
     confirmText: "知道了",
   })
@@ -300,6 +290,29 @@ function goSearch() {
 
 function goSettings() {
   uni.navigateTo({ url: "/pages/settings/settings" })
+}
+
+const ALERT_NOTIFIED_KEY = "alert_notified"
+
+function checkAlertsAndNotify(alerts: import("@/api/weather").AlertItem[]) {
+  if (!alerts.length) return
+  try {
+    const raw = uni.getStorageSync(ALERT_NOTIFIED_KEY) as string
+    const notified: string[] = raw ? JSON.parse(raw) : []
+    for (const a of alerts) {
+      const key = a.event + a.start + a.end
+      if (notified.includes(key)) continue
+      notified.push(key)
+      if (typeof uni.createPushMessage === "function") {
+        uni.createPushMessage({
+          title: "天气预警: " + a.event,
+          content: a.severity ? "[" + a.severity + "] " + (a.description || "").slice(0, 60) : (a.description || "").slice(0, 60),
+        })
+      }
+    }
+    const recent = notified.slice(-50)
+    uni.setStorageSync(ALERT_NOTIFIED_KEY, JSON.stringify(recent))
+  } catch {}
 }
 
 function readRefreshInterval(): number {
@@ -398,7 +411,7 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 </script>
 
 <template>
-  <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }" @touchstart="onTouchStart" @touchend="onTouchEnd">
+    <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode, switching: loading && !!weather }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }" @touchstart="onTouchStart" @touchend="onTouchEnd">
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -428,20 +441,23 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
         <text class="update-time" v-if="updateTime">{{ refreshing ? '刷新中...' : '更新于 ' + updateTime }}</text>
       </view>
 
-      <view v-if="weather.alerts && weather.alerts.length > 0" class="alert-banner anim-fade-in-down" style="animation-delay: 0.05s" @tap="showAlertDetail(weather.alerts[0])">
+      <view v-if="weather.alerts && weather.alerts.length > 0" class="alert-banner anim-fade-in-down" style="animation-delay: 0.05s" @tap="showAllAlerts">
         <text class="alert-icon">⚠</text>
-        <text class="alert-text">{{ weather.alerts[0].event }}</text>
+        <text class="alert-text">{{ weather.alerts[0].event }}{{ weather.alerts.length > 1 ? ' 等' + weather.alerts.length + '条' : '' }}</text>
+        <text class="alert-count" v-if="weather.alerts.length > 1">{{ weather.alerts.length }}</text>
         <text class="alert-arrow">›</text>
       </view>
       <view v-if="isOffline" class="offline-banner">
         <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
       </view>
 
-      <WeatherHero :temp="displayWeather!.temp" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
+      <WeatherHero :temp="displayWeather!.temp" :feelsLike="displayWeather!.feelsLike" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
 
       <DetailGrid :weather="displayWeather!" />
 
       <ForecastCard :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
+
+      <TempTrend :forecast="displayForecast" />
 
       <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="displayHourly.length > 0">
         <view class="section-header">
@@ -627,7 +643,16 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
   border: 1px solid rgba(255, 200, 50, 0.4);
 }
 .alert-icon {
-  font-size: 16px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.alert-count {
+  font-size: 10px;
+  background: rgba(255,255,255,0.25);
+  border-radius: 10px;
+  padding: 1px 6px;
+  color: #fff;
+  font-weight: var(--font-weight-bold);
   flex-shrink: 0;
 }
 .alert-text {
@@ -801,6 +826,12 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 .dark-mode .detail-item { background: rgba(30,36,48,0.6); border-color: rgba(255,255,255,0.06); }
 .dark-mode .card { background: rgba(30,36,48,0.85); border-color: rgba(255,255,255,0.08); box-shadow: 0 2px 16px rgba(0,0,0,0.2); }
 .dark-mode .entry-card { background: rgba(30,36,48,0.85); }
+
+.container.switching > :not(.header-section):not(.alert-banner):not(.offline-banner) {
+  opacity: 0.5;
+  transform: scale(0.97);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
 </style>
 <style>
 ::-webkit-scrollbar { display: none; width: 0; height: 0; }

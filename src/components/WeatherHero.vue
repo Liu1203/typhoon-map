@@ -4,6 +4,7 @@ import WeatherIcon from "./WeatherIcon.vue"
 
 const props = defineProps<{
   temp: string
+  feelsLike: string
   weather: string
   high: string
   low: string
@@ -35,6 +36,7 @@ const daylightPct = computed(() => {
       <WeatherIcon :weather="weather" :size="44" />
       <text class="weather-desc">{{ weather }}</text>
     </view>
+    <text class="feels-like" v-if="feelsLike && feelsLike !== '--'">体感 {{ feelsLike }}°</text>
     <view class="temp-range-row">
       <text class="temp-high">↑ {{ high }}°</text>
       <view class="temp-divider" />
@@ -91,6 +93,13 @@ const daylightPct = computed(() => {
   font-size: var(--font-size-xl);
   color: rgba(255,255,255,0.85);
   font-weight: var(--font-weight-medium);
+}
+.feels-like {
+  font-size: var(--font-size-sm);
+  color: rgba(255,255,255,0.65);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
+  margin-bottom: var(--spacing-sm);
 }
 .temp-range-row {
   display: flex;

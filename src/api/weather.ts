@@ -51,6 +51,18 @@ export function matchCity(q: string): string[] {
   return cityList.filter(c => c.includes(q) || CITY_PINYIN[c]?.includes(up))
 }
 
+export function groupCitiesByPinyin(): Record<string, string[]> {
+  const groups: Record<string, string[]> = {}
+  for (const [name, py] of Object.entries(CITY_PINYIN)) {
+    const letter = py[0]
+    if (!groups[letter]) groups[letter] = []
+    groups[letter].push(name)
+  }
+  const sorted: Record<string, string[]> = {}
+  Object.keys(groups).sort().forEach(k => { sorted[k] = groups[k] })
+  return sorted
+}
+
 export function getCityCoords(name: string): { lat: number; lon: number } | null {
   return CITY_COORDS[name] || null
 }
@@ -113,6 +125,7 @@ export interface CurrentWeather {
   windGust: string
   aqi: string
   aqiLabel: string
+  aqiDetail?: AQIDetail
   forecast: ForecastDay[]
   hourly: HourlyItem[]
   alerts: AlertItem[]
@@ -213,21 +226,38 @@ function parseHourTime(iso: string): number {
   return match ? parseInt(match[1]) : 0
 }
 
-async function fetchAQI(lat: number, lon: number): Promise<{ aqi: number; label: string } | null> {
+export interface AQIDetail {
+  aqi: number
+  label: string
+  pm25?: string
+  pm10?: string
+  no2?: string
+  o3?: string
+  so2?: string
+}
+
+async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
   try {
-    const res = await new Promise<{ data?: { current?: { european_aqi?: number } } } | null>((resolve) => {
+    const res = await new Promise<{ data?: { current?: { european_aqi?: number; pm2_5?: number; pm10?: number; nitrogen_dioxide?: number; ozone?: number; sulphur_dioxide?: number } } } | null>((resolve) => {
       uni.request({
-        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi`,
+        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide`,
         timeout: TIMEOUT.OPEN_METEO_HOURLY,
         success(r) { resolve(r as any) },
         fail() { resolve(null) },
       })
     })
-    const val = res?.data?.current?.european_aqi
-    if (val == null) return null
-    const aqi = Math.round(val)
+    const cur = res?.data?.current
+    if (!cur || cur.european_aqi == null) return null
+    const aqi = Math.round(cur.european_aqi)
     const label = aqi <= 20 ? "优" : aqi <= 40 ? "良" : aqi <= 60 ? "轻度" : aqi <= 80 ? "中度" : aqi <= 100 ? "重度" : "严重"
-    return { aqi, label }
+    return {
+      aqi, label,
+      pm25: cur.pm2_5 != null ? cur.pm2_5.toFixed(1) : undefined,
+      pm10: cur.pm10 != null ? cur.pm10.toFixed(1) : undefined,
+      no2: cur.nitrogen_dioxide != null ? cur.nitrogen_dioxide.toFixed(1) : undefined,
+      o3: cur.ozone != null ? cur.ozone.toFixed(1) : undefined,
+      so2: cur.sulphur_dioxide != null ? cur.sulphur_dioxide.toFixed(1) : undefined,
+    }
   } catch (e) {
     console.error("AQI fetch error:", e)
     return null
@@ -354,6 +384,7 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
     windGust: cur.wind_gusts_10m != null ? Math.round(cur.wind_gusts_10m) + " km/h" : "--",
     aqi: aqiResult ? String(aqiResult.aqi) : "--",
     aqiLabel: aqiResult ? aqiResult.label : "",
+    aqiDetail: aqiResult || undefined,
     forecast,
     hourly: hourlyItems,
     alerts,
