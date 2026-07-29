@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { uvLabel } from "@/utils/weather"
 import type { CurrentWeather } from "@/api/weather"
 
 defineProps<{
@@ -22,7 +23,7 @@ defineProps<{
     </view>
     <view class="detail-item">
       <text class="detail-label">紫外线</text>
-      <text class="detail-value">{{ weather.uvIndex }}</text>
+      <text class="detail-value">{{ weather.uvIndex }} {{ uvLabel(weather.uvIndex) }}</text>
     </view>
     <view class="detail-item">
       <text class="detail-label">日出</text>
@@ -47,6 +48,10 @@ defineProps<{
     <view class="detail-item">
       <text class="detail-label">云量</text>
       <text class="detail-value">{{ weather.cloudCover }}</text>
+    </view>
+    <view class="detail-item">
+      <text class="detail-label">阵风</text>
+      <text class="detail-value">{{ weather.windGust }}</text>
     </view>
     <view class="detail-item" v-if="weather.aqi !== '--'">
       <text class="detail-label">空气质量</text>

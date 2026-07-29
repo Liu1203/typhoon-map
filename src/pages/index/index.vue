@@ -283,6 +283,15 @@ async function toggleForecast(idx: number) {
   }
 }
 
+function showAlertDetail(alert: import("@/api/weather").AlertItem) {
+  uni.showModal({
+    title: alert.event,
+    content: `时间: ${alert.start || "—"} 至 ${alert.end || "—"}\n${alert.severity ? "等级: " + alert.severity + "\n" : ""}${alert.description || "暂无详细描述"}`,
+    showCancel: false,
+    confirmText: "知道了",
+  })
+}
+
 function goSearch() {
   uni.navigateTo({ url: "/pages/search/search" })
 }
@@ -320,9 +329,10 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
         <text class="update-time" v-if="updateTime">{{ refreshing ? '刷新中...' : '更新于 ' + updateTime }}</text>
       </view>
 
-      <view v-if="weather.alerts && weather.alerts.length > 0" class="alert-banner anim-fade-in-down" style="animation-delay: 0.05s">
+      <view v-if="weather.alerts && weather.alerts.length > 0" class="alert-banner anim-fade-in-down" style="animation-delay: 0.05s" @tap="showAlertDetail(weather.alerts[0])">
         <text class="alert-icon">⚠</text>
         <text class="alert-text">{{ weather.alerts[0].event }}</text>
+        <text class="alert-arrow">›</text>
       </view>
       <view v-if="isOffline" class="offline-banner">
         <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
@@ -527,6 +537,12 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+}
+.alert-arrow {
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+  flex-shrink: 0;
 }
 
 .card {

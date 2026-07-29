@@ -51,6 +51,16 @@ export function hourNum(t: string): number {
   return parseInt(parts[0]) || 0
 }
 
+export function uvLabel(index: string): string {
+  const v = parseFloat(index)
+  if (isNaN(v)) return index
+  if (v <= 2) return "低"
+  if (v <= 5) return "中等"
+  if (v <= 7) return "高"
+  if (v <= 10) return "很高"
+  return "极端"
+}
+
 export function sunHour(sun: string): number {
   const parts = sun.split(":")
   const h = parseInt(parts[0]) || 6
