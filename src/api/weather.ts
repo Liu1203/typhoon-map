@@ -94,6 +94,11 @@ export interface CurrentWeather {
   sunrise: string
   sunset: string
   uvIndex: string
+  pressure: string
+  visibility: string
+  dewPoint: string
+  cloudCover: string
+  windGust: string
   forecast: ForecastDay[]
   hourly: HourlyItem[]
 }
@@ -197,11 +202,11 @@ async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
   const params = [
     `latitude=${lat}`,
     `longitude=${lon}`,
-    "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index,precipitation",
+    "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index,precipitation,surface_pressure,visibility,dew_point_2m,cloud_cover,wind_gusts_10m",
     "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max,precipitation_sum",
     "hourly=temperature_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
     "timezone=auto",
-    "forecast_days=4",
+    "forecast_days=7",
   ]
   const url = `https://api.open-meteo.com/v1/forecast?${params.join("&")}`
 
@@ -286,6 +291,11 @@ function parseWeatherData(data: any): CurrentWeather {
     sunrise: daily?.sunrise?.[0] ? extractTime(daily.sunrise[0]) : "--",
     sunset: daily?.sunset?.[0] ? extractTime(daily.sunset[0]) : "--",
     uvIndex: String(cur.uv_index ?? "--"),
+    pressure: cur.surface_pressure != null ? Math.round(cur.surface_pressure) + " hPa" : "--",
+    visibility: cur.visibility != null ? (cur.visibility / 1000).toFixed(1) + " km" : "--",
+    dewPoint: cur.dew_point_2m != null ? cur.dew_point_2m + "°" : "--",
+    cloudCover: cur.cloud_cover != null ? cur.cloud_cover + "%" : "--",
+    windGust: cur.wind_gusts_10m != null ? Math.round(cur.wind_gusts_10m) + " km/h" : "--",
     forecast,
     hourly: hourlyItems,
   }

@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
-import { ref } from "vue"
-import { onShow, onPullDownRefresh } from "@dcloudio/uni-app"
+import { ref, onUnmounted } from "vue"
+import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
 import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
 import WeatherIcon from "@/components/WeatherIcon.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
@@ -36,7 +36,6 @@ async function detectCity(): Promise<string | null> {
       },
       fail(err: any) {
         const msg = (err?.errMsg || err?.message || JSON.stringify(err) || "未知")
-        console.log("定位失败:", msg)
         locateError.value = msg
         if (msg.includes("not authorized") || msg.includes("deny") || msg.includes("permission")) {
           uni.showModal({
@@ -89,6 +88,33 @@ const locating = ref(false)
 const expandedIndex = ref(-1)
 const forecastHourlys = ref<Record<number, import("@/api/weather").HourlyItem[]>>({})
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 20
+const darkMode = ref(false)
+
+function toggleDark() {
+  darkMode.value = !darkMode.value
+  const pages = getCurrentPages()
+  const page = pages[pages.length - 1] as any
+  if (page && page.$el) {
+    if (darkMode.value) {
+      page.$el.setAttribute("data-theme", "dark")
+    } else {
+      page.$el.removeAttribute("data-theme")
+    }
+  }
+  uni.setStorageSync("dark_mode", darkMode.value ? "1" : "0")
+}
+
+function initDarkMode() {
+  const saved = uni.getStorageSync("dark_mode") as string
+  if (saved === "1") {
+    darkMode.value = true
+    const pages = getCurrentPages()
+    const page = pages[pages.length - 1] as any
+    if (page && page.$el) {
+      page.$el.setAttribute("data-theme", "dark")
+    }
+  }
+}
 
 function getCache(): CacheEntry | null {
   try {
@@ -131,9 +157,26 @@ async function fetchAndUpdate(city: string) {
 }
 
 let firstLoad = true
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+const REFRESH_INTERVAL = 30 * 60 * 1000
+
+function startAutoRefresh() {
+  stopAutoRefresh()
+  refreshTimer = setInterval(() => {
+    fetchAndUpdate(currentCity.value)
+  }, REFRESH_INTERVAL)
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
 
 onShow(async () => {
   failed.value = false
+  initDarkMode()
 
   const saved = uni.getStorageSync("selected_city") as string
   if (saved) {
@@ -152,7 +195,7 @@ onShow(async () => {
 
   const cache = getCache()
   const cacheHit = cache && cache.city === currentCity.value
-  const isFresh = cacheHit && (Date.now() - cache.ts) < 30 * 60 * 1000
+  const isFresh = cacheHit && (Date.now() - cache.ts) < REFRESH_INTERVAL
 
   if (cacheHit) {
     applyWeatherData(cache.data)
@@ -168,6 +211,11 @@ onShow(async () => {
 
   await fetchAndUpdate(currentCity.value)
   loading.value = false
+  startAutoRefresh()
+})
+
+onHide(() => {
+  stopAutoRefresh()
 })
 
 onPullDownRefresh(async () => {
@@ -175,6 +223,10 @@ onPullDownRefresh(async () => {
   await fetchAndUpdate(currentCity.value)
   refreshing.value = false
   uni.stopPullDownRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 
 async function locateMe() {
@@ -305,9 +357,14 @@ function hourLabel(t: string): string {
             <text class="city-name">{{ currentCity }}</text>
             <text class="city-arrow">&#9662;</text>
           </view>
-          <view :class="['locate-btn', locating && 'is-locating']" @tap.stop="locateMe">
-            <text class="locate-icon">{{ locating ? '◎' : '◎' }}</text>
-            <text class="locate-text">{{ locating ? '定位中' : '定位' }}</text>
+          <view class="header-actions">
+            <view :class="['dark-toggle', darkMode && 'active']" @tap.stop="toggleDark">
+              <text>{{ darkMode ? '☀' : '☽' }}</text>
+            </view>
+            <view :class="['locate-btn', locating && 'is-locating']" @tap.stop="locateMe">
+              <text class="locate-icon">{{ locating ? '◎' : '◎' }}</text>
+              <text class="locate-text">{{ locating ? '定位中' : '定位' }}</text>
+            </view>
           </view>
         </view>
         <text class="update-time" v-if="updateTime">{{ refreshing ? '刷新中...' : '更新于 ' + updateTime }}</text>
@@ -353,6 +410,22 @@ function hourLabel(t: string): string {
         <view class="detail-item">
           <text class="detail-label">日落</text>
           <text class="detail-value">{{ weather.sunset }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">气压</text>
+          <text class="detail-value">{{ weather.pressure }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">能见度</text>
+          <text class="detail-value">{{ weather.visibility }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">露点</text>
+          <text class="detail-value">{{ weather.dewPoint }}</text>
+        </view>
+        <view class="detail-item">
+          <text class="detail-label">云量</text>
+          <text class="detail-value">{{ weather.cloudCover }}</text>
         </view>
       </view>
 
@@ -519,6 +592,31 @@ function hourLabel(t: string): string {
 
 .city-row:active .city-arrow {
   opacity: 1;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.dark-toggle {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.22);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.3);
+  transition: all var(--transition-fast);
+  font-size: 16px;
+}
+
+.dark-toggle:active {
+  background: rgba(255,255,255,0.4);
+  transform: scale(0.9);
 }
 
 .locate-btn {
@@ -995,4 +1093,15 @@ function hourLabel(t: string): string {
 </style>
 <style>
 ::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+[data-theme="dark"] { background: #141820; color: #E0E6ED; }
+[data-theme="dark"] .card { background: #1E2430; border-color: #2A3240; }
+[data-theme="dark"] .detail-item { background: #262E3A; }
+[data-theme="dark"] .entry-card { background: #1E2430; }
+[data-theme="dark"] .forecast-hourly-wrap { border-color: #2A3240; background: #1A202C; }
+[data-theme="dark"] .forecast-item { border-color: #2A3240; }
+[data-theme="dark"] .hourly-item { border-color: #2A3240; }
+[data-theme="dark"] .brand-section { background: #141820; }
+[data-theme="dark"] .skeleton { background: #262E3A; }
+[data-theme="dark"] .skeleton-shimmer { background: linear-gradient(90deg, #262E3A 0%, #323A48 50%, #262E3A 100%); }
 </style>

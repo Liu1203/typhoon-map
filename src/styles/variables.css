@@ -82,3 +82,47 @@
 
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink: #E0E6ED;
+    --color-ink-soft: #B0BCC8;
+    --color-ink-light: #8896A6;
+    --color-paper: #1E2430;
+    --color-paper-dark: #181E28;
+    --color-paper-border: #2A3240;
+    --color-cloud: #262E3A;
+    --color-ash: #4A5464;
+
+    --color-bg: #141820;
+    --color-bg-card: #1E2430;
+    --color-bg-overlay: rgba(0, 0, 0, 0.6);
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.45);
+  }
+}
+
+.dark-mode {
+  --color-ink: #E0E6ED;
+  --color-ink-soft: #B0BCC8;
+  --color-ink-light: #8896A6;
+  --color-paper: #1E2430;
+  --color-paper-dark: #181E28;
+  --color-paper-border: #2A3240;
+  --color-cloud: #262E3A;
+  --color-ash: #4A5464;
+
+  --color-bg: #141820;
+  --color-bg-card: #1E2430;
+  --color-bg-overlay: rgba(0, 0, 0, 0.6);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.45);
+}
