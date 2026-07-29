@@ -1,3 +1,5 @@
+import { API, TIMEOUT, RETRY, WEATHER } from "@/config"
+
 const CITIES: Record<string, string> = {
   "北京": "Beijing", "上海": "Shanghai", "广州": "Guangzhou",
   "深圳": "Shenzhen", "杭州": "Hangzhou", "成都": "Chengdu",
@@ -81,6 +83,14 @@ export interface HourlyItem {
   windScale: string
 }
 
+export interface AlertItem {
+  event: string
+  severity: string
+  start: string
+  end: string
+  description: string
+}
+
 export interface CurrentWeather {
   temp: string
   feelsLike: string
@@ -99,8 +109,11 @@ export interface CurrentWeather {
   dewPoint: string
   cloudCover: string
   windGust: string
+  aqi: string
+  aqiLabel: string
   forecast: ForecastDay[]
   hourly: HourlyItem[]
+  alerts: AlertItem[]
 }
 
 export interface CoordsWeather {
@@ -198,6 +211,26 @@ function parseHourTime(iso: string): number {
   return match ? parseInt(match[1]) : 0
 }
 
+async function fetchAQI(lat: number, lon: number): Promise<{ aqi: number; label: string } | null> {
+  try {
+    const res = await new Promise<any>((resolve) => {
+      uni.request({
+        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi`,
+        timeout: TIMEOUT.OPEN_METEO_HOURLY,
+        success(r) { resolve(r) },
+        fail() { resolve(null) },
+      })
+    })
+    const val = res?.data?.current?.european_aqi
+    if (val == null) return null
+    const aqi = Math.round(val)
+    const label = aqi <= 20 ? "优" : aqi <= 40 ? "良" : aqi <= 60 ? "轻度" : aqi <= 80 ? "中度" : aqi <= 100 ? "重度" : "严重"
+    return { aqi, label }
+  } catch {
+    return null
+  }
+}
+
 async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
   const params = [
     `latitude=${lat}`,
@@ -207,29 +240,30 @@ async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
     "hourly=temperature_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
     "timezone=auto",
     "forecast_days=7",
+    "alerts=true",
   ]
-  const url = `https://api.open-meteo.com/v1/forecast?${params.join("&")}`
+  const url = `${API.OPEN_METEO}?${params.join("&")}`
 
-  for (let attempt = 0; attempt <= 2; attempt++) {
+  for (let attempt = 0; attempt < RETRY.WEATHER_ATTEMPTS; attempt++) {
     try {
       const res = await new Promise<any>((resolve) => {
         uni.request({
           url,
-          timeout: 10000,
+          timeout: TIMEOUT.OPEN_METEO,
           success(r) { resolve(r) },
           fail() { resolve(null) },
         })
       })
       if (res?.data?.current) return res.data
     } catch { /* retry */ }
-    if (attempt < 2) {
-      await new Promise(r => setTimeout(r, 1500))
+    if (attempt < RETRY.WEATHER_ATTEMPTS - 1) {
+      await new Promise(r => setTimeout(r, RETRY.WEATHER_DELAY))
     }
   }
   return null
 }
 
-function parseWeatherData(data: any): CurrentWeather {
+function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } | null): CurrentWeather {
   const cur = data.current
   const daily = data.daily
   const hourly = data.hourly
@@ -244,7 +278,7 @@ function parseWeatherData(data: any): CurrentWeather {
 
   const forecast: ForecastDay[] = []
   if (daily?.time) {
-    for (let i = 1; i < Math.min(daily.time.length, 4); i++) {
+    for (let i = 1; i < Math.min(daily.time.length, WEATHER.FORECAST_DAYS_SHOWN); i++) {
       const fc = daily.weather_code?.[i] ?? 0
       const dp = daily.precipitation_sum?.[i] ?? 0
       forecast.push({
@@ -278,6 +312,19 @@ function parseWeatherData(data: any): CurrentWeather {
     }
   }
 
+  const alerts: AlertItem[] = []
+  if (data.alerts?.length) {
+    for (const a of data.alerts) {
+      alerts.push({
+        event: a.event || "",
+        severity: a.severity || "",
+        start: a.start || "",
+        end: a.end || "",
+        description: a.description || "",
+      })
+    }
+  }
+
   return {
     temp: String(cur.temperature_2m ?? "--"),
     feelsLike: String(cur.apparent_temperature ?? "--"),
@@ -296,22 +343,25 @@ function parseWeatherData(data: any): CurrentWeather {
     dewPoint: cur.dew_point_2m != null ? cur.dew_point_2m + "°" : "--",
     cloudCover: cur.cloud_cover != null ? cur.cloud_cover + "%" : "--",
     windGust: cur.wind_gusts_10m != null ? Math.round(cur.wind_gusts_10m) + " km/h" : "--",
+    aqi: aqiResult ? String(aqiResult.aqi) : "--",
+    aqiLabel: aqiResult ? aqiResult.label : "",
     forecast,
     hourly: hourlyItems,
+    alerts,
   }
 }
 
 export async function getWeather(lat: number, lon: number): Promise<CurrentWeather | null> {
-  const data = await fetchOpenMeteo(lat, lon)
+  const [data, aqi] = await Promise.all([fetchOpenMeteo(lat, lon), fetchAQI(lat, lon)])
   if (!data) return null
-  return parseWeatherData(data)
+  return parseWeatherData(data, aqi)
 }
 
 export async function getWeatherByCoords(lat: number, lon: number): Promise<CoordsWeather | null> {
-  const data = await fetchOpenMeteo(lat, lon)
+  const [data, aqi] = await Promise.all([fetchOpenMeteo(lat, lon), fetchAQI(lat, lon)])
   if (!data) return null
   return {
-    weather: parseWeatherData(data),
+    weather: parseWeatherData(data, aqi),
     placeName: nearestCity(lat, lon),
   }
 }
@@ -322,8 +372,8 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
     const endDate = date || startDate
     const res = await new Promise<any>((resolve) => {
       uni.request({
-        url: `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
-        timeout: 6000,
+        url: `${API.OPEN_METEO}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
+        timeout: TIMEOUT.OPEN_METEO_HOURLY,
         success(r) { resolve(r) },
         fail() { resolve(null) },
       })
@@ -346,7 +396,7 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
         weather: weatherByPrecip(wcode, hp) || OM_WX[wcode] || translateWeather(String(wcode)),
         rainChance: String(h.precipitation_probability?.[i] ?? 0),
         windDir: degToDir(h.winddirection_10m?.[i] ?? 0),
-        windScale: String(Math.round((h.windspeed_10m?.[i] ?? 0) / 1.852)),
+        windScale: String(Math.round((h.windspeed_10m?.[i] ?? 0) / WEATHER.HOURLY_DIVISOR)),
       })
     }
     return result

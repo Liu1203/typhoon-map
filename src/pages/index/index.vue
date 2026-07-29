@@ -1,7 +1,8 @@
 ﻿<script setup lang="ts">
-import { ref, onUnmounted } from "vue"
+import { ref, computed, onUnmounted } from "vue"
 import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
 import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
+import { TIMEOUT, CACHE, WEATHER } from "@/config"
 import WeatherIcon from "@/components/WeatherIcon.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
 
@@ -27,7 +28,7 @@ async function detectCity(): Promise<string | null> {
     const timer = setTimeout(() => {
       locateError.value = "超时"
       done(null)
-    }, 15000)
+    }, TIMEOUT.LOCATION)
 
     uni.getLocation({
       type: "wgs84",
@@ -63,7 +64,7 @@ async function detectCoords(): Promise<{ lat: number; lon: number } | null> {
       clearTimeout(timer)
       resolve(r)
     }
-    const timer = setTimeout(() => { done(null) }, 15000)
+    const timer = setTimeout(() => { done(null) }, TIMEOUT.LOCATION)
     uni.getLocation({
       type: "wgs84",
       success(res: any) { done({ lat: res.latitude, lon: res.longitude }) },
@@ -92,16 +93,16 @@ const darkMode = ref<boolean>(false)
 
 function toggleDark() {
   darkMode.value = !darkMode.value
-  uni.setStorageSync("dark_mode", darkMode.value ? "1" : "0")
+  uni.setStorageSync(CACHE.DARK_MODE_KEY, darkMode.value ? "1" : "0")
 }
 
 function initDarkMode() {
-  darkMode.value = uni.getStorageSync("dark_mode") as string === "1"
+  darkMode.value = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string === "1"
 }
 
 function getCache(): CacheEntry | null {
   try {
-    const raw = uni.getStorageSync("weather_cache") as string
+    const raw = uni.getStorageSync(CACHE.WEATHER_KEY) as string
     if (raw) {
       const obj = JSON.parse(raw)
       if (obj && obj.data && obj.city) return obj as CacheEntry
@@ -111,14 +112,13 @@ function getCache(): CacheEntry | null {
 }
 
 function setCache(data: CurrentWeather, city: string) {
-  uni.setStorageSync("weather_cache", JSON.stringify({ data, city, ts: Date.now() }))
+  uni.setStorageSync(CACHE.WEATHER_KEY, JSON.stringify({ data, city, ts: Date.now() }))
 }
 
 function applyWeatherData(res: CurrentWeather) {
   weather.value = res
   showBrandOff()
-  const lightBg = isLightBg(res.weather)
-  uni.setNavigationBarColor({ frontColor: lightBg ? '#000000' : '#ffffff', backgroundColor: '#000000' })
+  uni.setNavigationBarColor({ frontColor: lightFor(res.weather) ? '#000000' : '#ffffff', backgroundColor: '#000000' })
   updateTime.value = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
 }
 
@@ -141,13 +141,12 @@ async function fetchAndUpdate(city: string) {
 
 let firstLoad = true
 let refreshTimer: ReturnType<typeof setInterval> | null = null
-const REFRESH_INTERVAL = 30 * 60 * 1000
 
 function startAutoRefresh() {
   stopAutoRefresh()
   refreshTimer = setInterval(() => {
     fetchAndUpdate(currentCity.value)
-  }, REFRESH_INTERVAL)
+  }, CACHE.AUTO_REFRESH_MS)
 }
 
 function stopAutoRefresh() {
@@ -161,16 +160,16 @@ onShow(async () => {
   failed.value = false
   initDarkMode()
 
-  const saved = uni.getStorageSync("selected_city") as string
+  const saved = uni.getStorageSync(CACHE.CITY_KEY) as string
   if (saved) {
     currentCity.value = saved
   } else {
     currentCity.value = "北京"
-    uni.setStorageSync("selected_city", "北京")
+    uni.setStorageSync(CACHE.CITY_KEY, "北京")
     detectCity().then((detected) => {
       if (detected && detected !== currentCity.value) {
         currentCity.value = detected
-        uni.setStorageSync("selected_city", detected)
+        uni.setStorageSync(CACHE.CITY_KEY, detected)
         fetchAndUpdate(currentCity.value)
       }
     })
@@ -178,7 +177,7 @@ onShow(async () => {
 
   const cache = getCache()
   const cacheHit = cache && cache.city === currentCity.value
-  const isFresh = cacheHit && (Date.now() - cache.ts) < REFRESH_INTERVAL
+  const isFresh = cacheHit && (Date.now() - cache.ts) < CACHE.AUTO_REFRESH_MS
 
   if (cacheHit) {
     applyWeatherData(cache.data)
@@ -229,7 +228,7 @@ async function locateMe() {
     const result = await getWeatherByCoords(coords.lat, coords.lon)
     if (result) {
       currentCity.value = result.placeName
-      uni.setStorageSync("selected_city", result.placeName)
+      uni.setStorageSync(CACHE.CITY_KEY, result.placeName)
       applyWeatherData(result.weather)
       setCache(result.weather, result.placeName)
     } else {
@@ -262,7 +261,7 @@ function goSearch() {
   uni.navigateTo({ url: "/pages/search/search" })
 }
 
-function weatherBg(w: string): string {
+function gradientFor(w: string): string {
   if (w.includes("雷")) return "linear-gradient(175deg, #3A4458 0%, #566076 40%, #788098 100%)"
   if (w.includes("大") && w.includes("阵")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
   if (w.includes("暴") && w.includes("雨")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
@@ -280,7 +279,7 @@ function weatherBg(w: string): string {
   return "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)"
 }
 
-function weatherAccent(w: string): string {
+function accentFor(w: string): string {
   if (w.includes("雷")) return "#D4A550"
   if (w.includes("大") && w.includes("阵")) return "#688898"
   if (w.includes("暴") && w.includes("雨")) return "#608090"
@@ -296,9 +295,13 @@ function weatherAccent(w: string): string {
   return "#E09050"
 }
 
-function isLightBg(w: string): boolean {
+function lightFor(w: string): boolean {
   return w.includes("雪") || w.includes("雾") || w.includes("霾") || w.includes("阴") || w.includes("毛毛")
 }
+
+const weatherGradient = computed(() => weather.value ? gradientFor(weather.value.weather) : "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)")
+const accentColor = computed(() => weather.value ? accentFor(weather.value.weather) : "#E09050")
+const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 
 function hourNum(t: string): number {
   const parts = t.split(":")
@@ -326,7 +329,7 @@ function hourLabel(t: string): string {
 </script>
 
 <template>
-  <view class="container" :class="{ 'light-bg': weather && isLightBg(weather.weather), 'dark-mode': darkMode }"   :style="{ background: weather ? weatherBg(weather.weather) : 'linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)', paddingTop: (statusBarHeight + 12) + 'px' }">
+  <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }">
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -353,7 +356,12 @@ function hourLabel(t: string): string {
         <text class="update-time" v-if="updateTime">{{ refreshing ? '刷新中...' : '更新于 ' + updateTime }}</text>
       </view>
 
-      <view class="weather-hero anim-fade-in-scale" :style="{ '--accent': weatherAccent(weather.weather) }">
+      <view v-if="weather.alerts && weather.alerts.length > 0" class="alert-banner anim-fade-in-down" style="animation-delay: 0.05s">
+        <text class="alert-icon">⚠</text>
+        <text class="alert-text">{{ weather.alerts[0].event }}</text>
+      </view>
+
+      <view class="weather-hero anim-fade-in-scale" :style="{ '--accent': accentColor }">
         <view class="temp-display">
           <text class="temp-value">{{ weather.temp }}</text>
           <text class="temp-unit">°</text>
@@ -409,6 +417,10 @@ function hourLabel(t: string): string {
         <view class="detail-item">
           <text class="detail-label">云量</text>
           <text class="detail-value">{{ weather.cloudCover }}</text>
+        </view>
+        <view class="detail-item" v-if="weather.aqi !== '--'">
+          <text class="detail-label">空气质量</text>
+          <text class="detail-value">{{ weather.aqi }} {{ weather.aqiLabel }}</text>
         </view>
       </view>
 
@@ -648,6 +660,28 @@ function hourLabel(t: string): string {
   font-size: var(--font-size-xs);
   color: rgba(255,255,255,0.6);
   margin-top: 2px;
+}
+
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0 var(--spacing-md) var(--spacing-sm);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 200, 50, 0.2);
+  border: 1px solid rgba(255, 200, 50, 0.4);
+}
+.alert-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.alert-text {
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .weather-hero {

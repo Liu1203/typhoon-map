@@ -1,3 +1,5 @@
+import { API, TIMEOUT, QUAKE } from "@/config"
+
 export interface QuakeItem {
   id: string
   mag: number
@@ -84,9 +86,9 @@ function dedup(list: QuakeItem[]): QuakeItem[] {
   const result: QuakeItem[] = []
   for (const q of list) {
     const dup = result.find(r =>
-      Math.abs(r.lat - q.lat) < 0.25 &&
-      Math.abs(r.lon - q.lon) < 0.25 &&
-      Math.abs(r.time - q.time) < 60000
+      Math.abs(r.lat - q.lat) < QUAKE.DUP_LAT_TOLERANCE &&
+      Math.abs(r.lon - q.lon) < QUAKE.DUP_LON_TOLERANCE &&
+      Math.abs(r.time - q.time) < QUAKE.DUP_TIME_TOLERANCE
     )
     if (!dup) {
       result.push(q)
@@ -117,12 +119,12 @@ export async function getEarthquakes(
   }
 
   const isChina = region === "china"
-  const bbox = isChina ? "&minlatitude=15&maxlatitude=55&minlongitude=65&maxlongitude=150" : ""
-  const minmag = isChina ? "&minmagnitude=1.5" : "&minmagnitude=2.5"
+  const bbox = isChina ? QUAKE.CHINA_BBOX : ""
+  const minmag = isChina ? `&minmagnitude=${QUAKE.MIN_MAG_CHINA}` : `&minmagnitude=${QUAKE.MIN_MAG_GLOBAL}`
 
-  const p1 = fetchQuakes(`https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=${start}&endtime=${end}${bbox}${minmag}`, 6000)
-  const p2 = fetchQuakes(`https://geofon.gfz-potsdam.de/fdsnws/event/1/query?format=geojson&starttime=${start}&endtime=${end}${bbox}${minmag}&orderby=time`, 5000)
-  const p3 = fetchQuakes(`https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime=${start}&endtime=${end}${bbox}${minmag}`, 5000)
+  const p1 = fetchQuakes(`${API.USGS}?format=geojson&starttime=${start}&endtime=${end}${bbox}${minmag}`, TIMEOUT.USGS)
+  const p2 = fetchQuakes(`${API.GFZ}?format=geojson&starttime=${start}&endtime=${end}${bbox}${minmag}&orderby=time`, TIMEOUT.GFZ)
+  const p3 = fetchQuakes(`${API.EMSC}?format=json&starttime=${start}&endtime=${end}${bbox}${minmag}`, TIMEOUT.EMSC)
 
   let all: QuakeItem[] = []
 
@@ -135,7 +137,7 @@ export async function getEarthquakes(
   // 竞速：任意两家先返回就开始渲染
   const race = [p1, p2, p3]
   let resolved = 0
-  const barrier = 2
+  const barrier = QUAKE.BARRIER_COUNT
 
   const raceResult = new Promise<QuakeItem[]>((resolve) => {
     race.forEach(p => {

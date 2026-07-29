@@ -38,11 +38,13 @@ function parseJsonp(text: string): any {
   return m ? JSON.parse(m[0]) : null
 }
 
+import { API, TIMEOUT } from "@/config"
+
 function req(url: string): Promise<string | null> {
   return new Promise((resolve) => {
     uni.request({
       url,
-      timeout: 5000,
+      timeout: TIMEOUT.TYPHOON,
       success(res) { resolve((res as any).data as string) },
       fail() { resolve(null) },
     })
@@ -50,7 +52,7 @@ function req(url: string): Promise<string | null> {
 }
 
 export async function getActiveTyphoons(): Promise<TyphoonItem[]> {
-  const text = await req(`http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default?t=${Date.now()}`)
+  const text = await req(`${API.NMC_TYPHOON}list_default?t=${Date.now()}`)
   if (!text) return []
   const data = parseJsonp(text)
   if (!data?.typhoonList) return []
@@ -64,7 +66,7 @@ export async function getActiveTyphoons(): Promise<TyphoonItem[]> {
 }
 
 export async function getHistoricalTyphoons(year: number): Promise<TyphoonItem[]> {
-  const text = await req(`http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_${year}?t=${Date.now()}`)
+  const text = await req(`${API.NMC_TYPHOON}list_${year}?t=${Date.now()}`)
   if (!text) return []
   const data = parseJsonp(text)
   if (!data?.typhoonList) return []
@@ -87,7 +89,7 @@ export function getYearList(): number[] {
 }
 
 export async function getTyphoonDetail(id: string): Promise<TyphoonDetail | null> {
-  const text = await req(`http://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_${id}?t=${Date.now()}`)
+  const text = await req(`${API.NMC_TYPHOON}view_${id}?t=${Date.now()}`)
   if (!text) return null
   const data = parseJsonp(text)
   if (!data?.typhoon) return null
