@@ -1,28 +1,5 @@
 import { API, TIMEOUT, RETRY, WEATHER } from "@/config"
 
-const CITY_PINYIN: Record<string, string> = {
-  "北京": "BJ", "上海": "SH", "广州": "GZ", "深圳": "SZ",
-  "杭州": "HZ", "成都": "CD", "武汉": "WH", "西安": "XA",
-  "南京": "NJ", "重庆": "CQ", "天津": "TJ", "长沙": "CS",
-  "苏州": "SUZ", "昆明": "KM", "厦门": "XM", "青岛": "QD",
-  "大连": "DL", "郑州": "ZZ", "哈尔滨": "HEB", "贵阳": "GY",
-  "沈阳": "SY", "济南": "JN", "合肥": "HF", "福州": "FZ",
-  "南昌": "NC", "太原": "TY", "石家庄": "SJZ", "南宁": "NN",
-  "长春": "CC", "兰州": "LZ", "呼和浩特": "HHHT", "银川": "YC",
-  "西宁": "XN", "乌鲁木齐": "WLMQ", "拉萨": "LS", "海口": "HK",
-  "珠海": "ZH", "东莞": "DG", "佛山": "FS", "宁波": "NB",
-  "无锡": "WX", "温州": "WZ", "泉州": "QZ", "烟台": "YT",
-  "桂林": "GL", "三亚": "SYA", "丽江": "LJ", "秦皇岛": "QHD",
-  "威海": "WHI", "北海": "BH",
-}
-
-export const cityList = Object.keys(CITY_COORDS)
-
-export function matchCity(q: string): string[] {
-  const up = q.toUpperCase()
-  return cityList.filter(c => c.includes(q) || CITY_PINYIN[c]?.includes(up))
-}
-
 const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   "北京": { lat: 39.9, lon: 116.4 }, "上海": { lat: 31.2, lon: 121.5 },
   "广州": { lat: 23.1, lon: 113.3 }, "深圳": { lat: 22.5, lon: 114.1 },
@@ -49,6 +26,29 @@ const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   "桂林": { lat: 25.3, lon: 110.3 }, "三亚": { lat: 18.3, lon: 109.5 },
   "丽江": { lat: 26.9, lon: 100.2 }, "秦皇岛": { lat: 39.9, lon: 119.6 },
   "威海": { lat: 37.5, lon: 122.1 }, "北海": { lat: 21.5, lon: 109.1 },
+}
+
+const CITY_PINYIN: Record<string, string> = {
+  "北京": "BJ", "上海": "SH", "广州": "GZ", "深圳": "SZ",
+  "杭州": "HZ", "成都": "CD", "武汉": "WH", "西安": "XA",
+  "南京": "NJ", "重庆": "CQ", "天津": "TJ", "长沙": "CS",
+  "苏州": "SUZ", "昆明": "KM", "厦门": "XM", "青岛": "QD",
+  "大连": "DL", "郑州": "ZZ", "哈尔滨": "HEB", "贵阳": "GY",
+  "沈阳": "SY", "济南": "JN", "合肥": "HF", "福州": "FZ",
+  "南昌": "NC", "太原": "TY", "石家庄": "SJZ", "南宁": "NN",
+  "长春": "CC", "兰州": "LZ", "呼和浩特": "HHHT", "银川": "YC",
+  "西宁": "XN", "乌鲁木齐": "WLMQ", "拉萨": "LS", "海口": "HK",
+  "珠海": "ZH", "东莞": "DG", "佛山": "FS", "宁波": "NB",
+  "无锡": "WX", "温州": "WZ", "泉州": "QZ", "烟台": "YT",
+  "桂林": "GL", "三亚": "SYA", "丽江": "LJ", "秦皇岛": "QHD",
+  "威海": "WHI", "北海": "BH",
+}
+
+export const cityList = Object.keys(CITY_COORDS)
+
+export function matchCity(q: string): string[] {
+  const up = q.toUpperCase()
+  return cityList.filter(c => c.includes(q) || CITY_PINYIN[c]?.includes(up))
 }
 
 export function getCityCoords(name: string): { lat: number; lon: number } | null {
