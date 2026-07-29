@@ -213,11 +213,11 @@ function parseHourTime(iso: string): number {
 
 async function fetchAQI(lat: number, lon: number): Promise<{ aqi: number; label: string } | null> {
   try {
-    const res = await new Promise<any>((resolve) => {
+    const res = await new Promise<{ data?: { current?: { european_aqi?: number } } } | null>((resolve) => {
       uni.request({
         url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi`,
         timeout: TIMEOUT.OPEN_METEO_HOURLY,
-        success(r) { resolve(r) },
+        success(r) { resolve(r as any) },
         fail() { resolve(null) },
       })
     })
@@ -226,7 +226,8 @@ async function fetchAQI(lat: number, lon: number): Promise<{ aqi: number; label:
     const aqi = Math.round(val)
     const label = aqi <= 20 ? "优" : aqi <= 40 ? "良" : aqi <= 60 ? "轻度" : aqi <= 80 ? "中度" : aqi <= 100 ? "重度" : "严重"
     return { aqi, label }
-  } catch {
+  } catch (e) {
+    console.error("AQI fetch error:", e)
     return null
   }
 }
@@ -255,7 +256,9 @@ async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
         })
       })
       if (res?.data?.current) return res.data
-    } catch { /* retry */ }
+    } catch (e) {
+      console.error("Weather fetch error:", e)
+    }
     if (attempt < RETRY.WEATHER_ATTEMPTS - 1) {
       await new Promise(r => setTimeout(r, RETRY.WEATHER_DELAY))
     }
@@ -400,7 +403,8 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
       })
     }
     return result
-  } catch {
+  } catch (e) {
+    console.error("Hourly forecast error:", e)
     return []
   }
 }

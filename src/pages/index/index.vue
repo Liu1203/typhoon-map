@@ -7,6 +7,15 @@ import WeatherIcon from "@/components/WeatherIcon.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
 
 const locateError = ref("")
+const isOffline = ref(false)
+let netTimer: ReturnType<typeof setInterval> | null = null
+
+uni.getNetworkType({
+  success(r) { isOffline.value = r.networkType === "none" },
+})
+uni.onNetworkStatusChange((r) => {
+  isOffline.value = r.isConnected === false
+})
 
 const showBrand = ref(true)
 
@@ -32,18 +41,18 @@ async function detectCity(): Promise<string | null> {
 
     uni.getLocation({
       type: "wgs84",
-      success(res: any) {
+      success(res: { latitude: number; longitude: number }) {
         done(nearestCity(res.latitude, res.longitude))
       },
-      fail(err: any) {
-        const msg = (err?.errMsg || err?.message || JSON.stringify(err) || "未知")
+      fail(err: { errMsg?: string; message?: string }) {
+        const msg = (err?.errMsg || err?.message || "未知")
         locateError.value = msg
         if (msg.includes("not authorized") || msg.includes("deny") || msg.includes("permission")) {
           uni.showModal({
             title: "需要定位权限",
             content: "请在系统设置中允许本应用访问位置信息",
             confirmText: "去设置",
-            success(modalRes: any) {
+            success(modalRes: { confirm: boolean }) {
               if (modalRes.confirm) uni.openSetting({})
             }
           })
@@ -53,7 +62,6 @@ async function detectCity(): Promise<string | null> {
     })
   })
 }
-
 
 async function detectCoords(): Promise<{ lat: number; lon: number } | null> {
   return new Promise((resolve) => {
@@ -67,7 +75,7 @@ async function detectCoords(): Promise<{ lat: number; lon: number } | null> {
     const timer = setTimeout(() => { done(null) }, TIMEOUT.LOCATION)
     uni.getLocation({
       type: "wgs84",
-      success(res: any) { done({ lat: res.latitude, lon: res.longitude }) },
+      success(res: { latitude: number; longitude: number }) { done({ lat: res.latitude, lon: res.longitude }) },
       fail() { done(null) },
     })
   })
@@ -83,13 +91,13 @@ const currentCity = ref("北京")
 const weather = ref<CurrentWeather | null>(null)
 const loading = ref(true)
 const updateTime = ref("")
-const failed = ref(false)
+const errorType = ref<"network" | "timeout" | "server" | null>(null)
 const refreshing = ref(false)
 const locating = ref(false)
 const expandedIndex = ref(-1)
 const forecastHourlys = ref<Record<number, import("@/api/weather").HourlyItem[]>>({})
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 20
-const darkMode = ref<boolean>(false)
+const darkMode = ref(false)
 
 function toggleDark() {
   darkMode.value = !darkMode.value
@@ -118,24 +126,28 @@ function setCache(data: CurrentWeather, city: string) {
 function applyWeatherData(res: CurrentWeather) {
   weather.value = res
   showBrandOff()
-  uni.setNavigationBarColor({ frontColor: lightFor(res.weather) ? '#000000' : '#ffffff', backgroundColor: '#000000' })
+  uni.setNavigationBarColor({ fontColor: lightFor(res.weather) ? '#000000' : '#ffffff', backgroundColor: '#000000' })
   updateTime.value = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
 }
 
 async function fetchAndUpdate(city: string) {
   const coords = getCityCoords(city)
   if (!coords) {
-    if (!weather.value) failed.value = true
+    if (!weather.value) errorType.value = "server"
     return
   }
+  const start = Date.now()
   const res = await getWeather(coords.lat, coords.lon)
   if (res) {
+    errorType.value = null
     forecastHourlys.value = {}
     expandedIndex.value = -1
     applyWeatherData(res)
     setCache(res, city)
   } else if (!weather.value) {
-    failed.value = true
+    errorType.value = isOffline.value ? "network" : (Date.now() - start >= TIMEOUT.OPEN_METEO * 3 ? "timeout" : "server")
+  } else if (isOffline.value) {
+    errorType.value = "network"
   }
 }
 
@@ -157,7 +169,7 @@ function stopAutoRefresh() {
 }
 
 onShow(async () => {
-  failed.value = false
+  errorType.value = null
   initDarkMode()
 
   const saved = uni.getStorageSync(CACHE.CITY_KEY) as string
@@ -177,7 +189,6 @@ onShow(async () => {
 
   const cache = getCache()
   const cacheHit = cache && cache.city === currentCity.value
-  const isFresh = cacheHit && (Date.now() - cache.ts) < CACHE.AUTO_REFRESH_MS
 
   if (cacheHit) {
     applyWeatherData(cache.data)
@@ -209,36 +220,33 @@ onPullDownRefresh(async () => {
 
 onUnmounted(() => {
   stopAutoRefresh()
+  if (netTimer) clearInterval(netTimer)
 })
 
 async function locateMe() {
   if (locating.value) return
   locating.value = true
-  try {
-    const coords = await detectCoords()
-    if (!coords) {
-      uni.showToast({ title: "定位失败: " + locateError.value, icon: "none", duration: 3000 })
-      locating.value = false
-      return
-    }
-    loading.value = true
-    failed.value = false
-    forecastHourlys.value = {}
-    expandedIndex.value = -1
-    const result = await getWeatherByCoords(coords.lat, coords.lon)
-    if (result) {
-      currentCity.value = result.placeName
-      uni.setStorageSync(CACHE.CITY_KEY, result.placeName)
-      applyWeatherData(result.weather)
-      setCache(result.weather, result.placeName)
-    } else {
-      uni.showToast({ title: "获取天气失败", icon: "none", duration: 2000 })
-    }
-    loading.value = false
-  } catch (e: any) {
-    loading.value = false
-    uni.showToast({ title: "定位失败", icon: "none", duration: 2000 })
+  const coords = await detectCoords()
+  if (!coords) {
+    uni.showToast({ title: "定位失败: " + locateError.value, icon: "none", duration: 3000 })
+    locating.value = false
+    return
   }
+  loading.value = true
+  errorType.value = null
+  forecastHourlys.value = {}
+  expandedIndex.value = -1
+  const result = await getWeatherByCoords(coords.lat, coords.lon)
+  if (result) {
+    currentCity.value = result.placeName
+    uni.setStorageSync(CACHE.CITY_KEY, result.placeName)
+    applyWeatherData(result.weather)
+    setCache(result.weather, result.placeName)
+  } else {
+    errorType.value = isOffline.value ? "network" : "server"
+    uni.showToast({ title: "获取天气失败", icon: "none", duration: 2000 })
+  }
+  loading.value = false
   locating.value = false
 }
 
@@ -359,6 +367,9 @@ function hourLabel(t: string): string {
       <view v-if="weather.alerts && weather.alerts.length > 0" class="alert-banner anim-fade-in-down" style="animation-delay: 0.05s">
         <text class="alert-icon">⚠</text>
         <text class="alert-text">{{ weather.alerts[0].event }}</text>
+      </view>
+      <view v-if="isOffline" class="offline-banner">
+        <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
       </view>
 
       <view class="weather-hero anim-fade-in-scale" :style="{ '--accent': accentColor }">
@@ -515,9 +526,9 @@ function hourLabel(t: string): string {
     </template>
 
     <view v-else class="error-view">
-      <text class="error-icon">☁</text>
-      <text class="error-text">无法获取天气数据</text>
-      <view class="retry-btn" @tap="onShow()">
+      <text class="error-icon">{{ errorType === "network" ? "📡" : "☁" }}</text>
+      <text class="error-text">{{ errorType === "network" ? "网络已断开，请检查连接" : errorType === "timeout" ? "请求超时，服务器未响应" : "无法获取天气数据" }}</text>
+      <view class="retry-btn" @tap="fetchAndUpdate(currentCity.value)">
         <text>重新加载</text>
       </view>
     </view>
@@ -660,6 +671,19 @@ function hourLabel(t: string): string {
   font-size: var(--font-size-xs);
   color: rgba(255,255,255,0.6);
   margin-top: 2px;
+}
+
+.offline-banner {
+  text-align: center;
+  padding: 4px var(--spacing-md);
+  margin: 0 var(--spacing-md) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  background: rgba(255, 100, 50, 0.2);
+  border: 1px solid rgba(255, 100, 50, 0.35);
+}
+.offline-text {
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.9);
 }
 
 .alert-banner {
