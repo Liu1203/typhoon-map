@@ -367,7 +367,8 @@ let touchInScroll = false
 
 function isInsideScrollView(el: HTMLElement | null): boolean {
   while (el) {
-    if (el.getAttribute?.("scroll-x") === "" || el.getAttribute?.("scroll-y") === "") return true
+    const cls = el.classList
+    if (cls?.contains?.("hourly-scroll") || cls?.contains?.("hourly-list") || cls?.contains?.("forecast-hourly-wrap") || cls?.contains?.("city-sections")) return true
     el = el.parentElement
   }
   return false

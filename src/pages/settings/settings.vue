@@ -109,7 +109,7 @@ function removeFav(city: string) {
       <text class="section-title">关于</text>
       <view class="setting-row">
         <text class="setting-label">应用版本</text>
-        <text class="setting-value">{{ manifest.versionName || "1.1.0" }}</text>
+        <text class="setting-value">1.1.0</text>
       </view>
       <view class="setting-row">
         <text class="setting-label">数据来源</text>
