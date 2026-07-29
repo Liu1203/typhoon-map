@@ -341,8 +341,8 @@ function hourLabel(t: string): string {
             <text class="city-arrow">&#9662;</text>
           </view>
           <view class="header-actions">
-            <view class="dark-toggle" @tap.stop="toggleDark">
-              <text>{{ darkMode ? '亮' : '暗' }}</text>
+            <view class="locate-btn" @tap.stop="toggleDark">
+              <text class="locate-text">{{ darkMode ? '亮' : '暗' }}</text>
             </view>
             <view :class="['locate-btn', locating && 'is-locating']" @tap.stop="locateMe">
               <text class="locate-icon">{{ locating ? '◎' : '◎' }}</text>
