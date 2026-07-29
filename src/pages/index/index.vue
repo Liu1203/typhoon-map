@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue"
 import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
-import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, cityList, type CurrentWeather } from "@/api/weather"
+import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
 import { TIMEOUT, CACHE } from "@/config"
 import { gradientFor, accentFor, lightFor, getUnitSettings, formatTemp, formatWind } from "@/utils/weather"
 import { loadDarkMode, toggleDarkMode } from "@/utils/theme"
@@ -361,61 +361,7 @@ const displayForecast = computed(() => {
   }))
 })
 
-let touchStartX = 0
-let touchStartY = 0
-let touchInScroll = false
 
-function isInsideScrollView(el: HTMLElement | null): boolean {
-  while (el) {
-    const cls = el.classList
-    if (cls?.contains?.("hourly-scroll") || cls?.contains?.("hourly-list") || cls?.contains?.("forecast-hourly-wrap") || cls?.contains?.("city-sections")) return true
-    el = el.parentElement
-  }
-  return false
-}
-
-function onTouchStart(e: TouchEvent) {
-  touchStartX = e.touches[0].clientX
-  touchStartY = e.touches[0].clientY
-  touchInScroll = isInsideScrollView(e.target as HTMLElement | null)
-}
-
-function onTouchEnd(e: TouchEvent) {
-  if (touchInScroll) return
-  const dx = e.changedTouches[0].clientX - touchStartX
-  const dy = e.changedTouches[0].clientY - touchStartY
-  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
-
-  const ordered = getAllOrderedCities()
-  const curIdx = ordered.indexOf(currentCity.value)
-  if (curIdx < 0) return
-
-  if (dx < 0 && curIdx < ordered.length - 1) {
-    switchCity(ordered[curIdx + 1])
-  } else if (dx > 0 && curIdx > 0) {
-    switchCity(ordered[curIdx - 1])
-  }
-}
-
-function getAllOrderedCities(): string[] {
-  try {
-    const raw = uni.getStorageSync("fav_cities") as string
-    const favs: string[] = raw ? JSON.parse(raw) : []
-    const rest = cityList.filter(c => !favs.includes(c))
-    return [...favs, ...rest]
-  } catch {
-    return cityList
-  }
-}
-
-async function switchCity(name: string) {
-  if (name === currentCity.value) return
-  loading.value = true
-  currentCity.value = name
-  uni.setStorageSync(CACHE.CITY_KEY, name)
-  await fetchAndUpdate(name)
-  loading.value = false
-}
 
 const weatherGradient = computed(() => weather.value ? gradientFor(weather.value.weather) : "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)")
 const accentColor = computed(() => weather.value ? accentFor(weather.value.weather) : "#E09050")
@@ -423,7 +369,7 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 </script>
 
 <template>
-    <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode, switching: loading && !!weather }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }" @touchstart="onTouchStart" @touchend="onTouchEnd">
+    <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }">
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -839,11 +785,7 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 .dark-mode .card { background: rgba(30,36,48,0.85); border-color: rgba(255,255,255,0.08); box-shadow: 0 2px 16px rgba(0,0,0,0.2); }
 .dark-mode .entry-card { background: rgba(30,36,48,0.85); }
 
-.container.switching > :not(.header-section):not(.alert-banner):not(.offline-banner) {
-  opacity: 0.5;
-  transform: scale(0.97);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
+
 </style>
 <style>
 ::-webkit-scrollbar { display: none; width: 0; height: 0; }
