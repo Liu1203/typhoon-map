@@ -35,10 +35,28 @@ const emit = defineEmits<{
           <text class="forecast-expand">{{ expandedIndex === i ? '▲' : '▼' }}</text>
         </view>
         <view v-if="expandedIndex === i" class="forecast-hourly-wrap">
+          <view class="daily-summary" v-if="f.sunrise || f.precip">
+            <view class="daily-chip" v-if="f.sunrise">
+              <text class="chip-label">日出</text>
+              <text class="chip-value">{{ f.sunrise }}</text>
+            </view>
+            <view class="daily-chip" v-if="f.sunset">
+              <text class="chip-label">日落</text>
+              <text class="chip-value">{{ f.sunset }}</text>
+            </view>
+            <view class="daily-chip" v-if="f.uvMax">
+              <text class="chip-label">紫外线</text>
+              <text class="chip-value">{{ f.uvMax }}</text>
+            </view>
+            <view class="daily-chip" v-if="f.precip">
+              <text class="chip-label">降水</text>
+              <text class="chip-value">{{ f.precip }}</text>
+            </view>
+          </view>
           <view v-if="!forecastHourlys[i]" class="forecast-hourly-loading">
             <text>加载中...</text>
           </view>
-          <HourlyScroll v-else-if="forecastHourlys[i].length > 0" :hourly="forecastHourlys[i]" :sunrise="'06:00'" :sunset="'18:00'" />
+          <HourlyScroll v-else-if="forecastHourlys[i].length > 0" :hourly="forecastHourlys[i]" :sunrise="f.sunrise || '06:00'" :sunset="f.sunset || '18:00'" />
           <text v-else class="forecast-hourly-empty">暂无逐时数据</text>
         </view>
       </view>
@@ -132,6 +150,31 @@ const emit = defineEmits<{
 .forecast-hourly-wrap {
   padding: var(--spacing-sm) 0 var(--spacing-md);
   border-bottom: 1px solid var(--color-paper-border);
+}
+.daily-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+.daily-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--color-cloud);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-xs) var(--spacing-md);
+  min-width: 56px;
+}
+.chip-label {
+  font-size: 10px;
+  color: var(--color-ink-light);
+  font-weight: var(--font-weight-medium);
+}
+.chip-value {
+  font-size: var(--font-size-sm);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-semibold);
 }
 .forecast-hourly-loading, .forecast-hourly-empty {
   font-size: var(--font-size-sm);

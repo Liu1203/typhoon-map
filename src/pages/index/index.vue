@@ -1,9 +1,9 @@
 ﻿<script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue"
 import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
-import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
+import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, cityList, type CurrentWeather } from "@/api/weather"
 import { TIMEOUT, CACHE } from "@/config"
-import { gradientFor, accentFor, lightFor } from "@/utils/weather"
+import { gradientFor, accentFor, lightFor, getUnitSettings, formatTemp, formatWind } from "@/utils/weather"
 import WeatherHero from "@/components/WeatherHero.vue"
 import DetailGrid from "@/components/DetailGrid.vue"
 import ForecastCard from "@/components/ForecastCard.vue"
@@ -175,9 +175,11 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 function startAutoRefresh() {
   stopAutoRefresh()
+  const interval = readRefreshInterval()
+  if (interval <= 0) return
   refreshTimer = setInterval(() => {
     fetchAndUpdate(currentCity.value)
-  }, CACHE.AUTO_REFRESH_MS)
+  }, interval)
 }
 
 function stopAutoRefresh() {
@@ -296,13 +298,107 @@ function goSearch() {
   uni.navigateTo({ url: "/pages/search/search" })
 }
 
+function goSettings() {
+  uni.navigateTo({ url: "/pages/settings/settings" })
+}
+
+function readRefreshInterval(): number {
+  try {
+    const raw = uni.getStorageSync("unit_settings") as string
+    if (raw) {
+      const s = JSON.parse(raw)
+      if (typeof s.refresh === "number") return s.refresh * 60 * 1000
+    }
+  } catch {}
+  return CACHE.AUTO_REFRESH_MS
+}
+
+const displayWeather = computed(() => {
+  if (!weather.value) return null
+  const s = getUnitSettings()
+  const w = { ...weather.value }
+  w.temp = formatTemp(w.temp, s.temp === "f")
+  w.feelsLike = formatTemp(w.feelsLike, s.temp === "f")
+  w.high = formatTemp(w.high, s.temp === "f")
+  w.low = formatTemp(w.low, s.temp === "f")
+  if (s.wind !== "kmh") {
+    w.windScale = formatWind(w.windScale, s.wind)
+    w.windGust = formatWind(w.windGust, s.wind)
+  }
+  return w
+})
+
+const displayHourly = computed(() => {
+  if (!weather.value?.hourly) return []
+  const s = getUnitSettings()
+  return weather.value.hourly.map(h => ({
+    ...h,
+    temp: formatTemp(h.temp, s.temp === "f"),
+    windScale: s.wind !== "kmh" ? formatWind(h.windScale, s.wind) : h.windScale,
+  }))
+})
+
+const displayForecast = computed(() => {
+  if (!weather.value?.forecast) return []
+  const s = getUnitSettings()
+  return weather.value.forecast.map(f => ({
+    ...f,
+    high: formatTemp(f.high, s.temp === "f"),
+    low: formatTemp(f.low, s.temp === "f"),
+  }))
+})
+
+let touchStartX = 0
+let touchStartY = 0
+
+function onTouchStart(e: TouchEvent) {
+  touchStartX = e.touches[0].clientX
+  touchStartY = e.touches[0].clientY
+}
+
+function onTouchEnd(e: TouchEvent) {
+  const dx = e.changedTouches[0].clientX - touchStartX
+  const dy = e.changedTouches[0].clientY - touchStartY
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
+
+  const ordered = getAllOrderedCities()
+  const curIdx = ordered.indexOf(currentCity.value)
+  if (curIdx < 0) return
+
+  if (dx < 0 && curIdx < ordered.length - 1) {
+    switchCity(ordered[curIdx + 1])
+  } else if (dx > 0 && curIdx > 0) {
+    switchCity(ordered[curIdx - 1])
+  }
+}
+
+function getAllOrderedCities(): string[] {
+  try {
+    const raw = uni.getStorageSync("fav_cities") as string
+    const favs: string[] = raw ? JSON.parse(raw) : []
+    const rest = cityList.filter(c => !favs.includes(c))
+    return [...favs, ...rest]
+  } catch {
+    return cityList
+  }
+}
+
+async function switchCity(name: string) {
+  if (name === currentCity.value) return
+  loading.value = true
+  currentCity.value = name
+  uni.setStorageSync(CACHE.CITY_KEY, name)
+  await fetchAndUpdate(name)
+  loading.value = false
+}
+
 const weatherGradient = computed(() => weather.value ? gradientFor(weather.value.weather) : "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)")
 const accentColor = computed(() => weather.value ? accentFor(weather.value.weather) : "#E09050")
 const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 </script>
 
 <template>
-  <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }">
+  <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }" @touchstart="onTouchStart" @touchend="onTouchEnd">
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -324,6 +420,9 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
               <text class="locate-icon">{{ locating ? '◎' : '◎' }}</text>
               <text class="locate-text">{{ locating ? '定位中' : '定位' }}</text>
             </view>
+            <view class="locate-btn" @tap.stop="goSettings">
+              <text class="locate-icon">⚙</text>
+            </view>
           </view>
         </view>
         <text class="update-time" v-if="updateTime">{{ refreshing ? '刷新中...' : '更新于 ' + updateTime }}</text>
@@ -338,18 +437,18 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
         <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
       </view>
 
-      <WeatherHero :temp="weather.temp" :weather="weather.weather" :high="weather.high" :low="weather.low" :accentColor="accentColor" />
+      <WeatherHero :temp="displayWeather!.temp" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
 
-      <DetailGrid :weather="weather" />
+      <DetailGrid :weather="displayWeather!" />
 
-      <ForecastCard :forecast="weather.forecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
+      <ForecastCard :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
 
-      <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="weather.hourly && weather.hourly.length > 0">
+      <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="displayHourly.length > 0">
         <view class="section-header">
           <view class="section-decor" />
           <text class="section-title">逐时天气</text>
         </view>
-        <HourlyScroll :hourly="weather.hourly" :sunrise="weather.sunrise" :sunset="weather.sunset" />
+        <HourlyScroll :hourly="displayHourly" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
       </view>
 
       <view class="entry-cards anim-fade-in-up" style="animation-delay: 0.3s">

@@ -1,28 +1,26 @@
 import { API, TIMEOUT, RETRY, WEATHER } from "@/config"
 
-const CITIES: Record<string, string> = {
-  "北京": "Beijing", "上海": "Shanghai", "广州": "Guangzhou",
-  "深圳": "Shenzhen", "杭州": "Hangzhou", "成都": "Chengdu",
-  "武汉": "Wuhan", "西安": "Xi'an", "南京": "Nanjing",
-  "重庆": "Chongqing", "天津": "Tianjin", "长沙": "Changsha",
-  "苏州": "Suzhou", "昆明": "Kunming", "厦门": "Xiamen",
-  "青岛": "Qingdao", "大连": "Dalian", "郑州": "Zhengzhou",
-  "哈尔滨": "Harbin", "贵阳": "Guiyang",
-  "沈阳": "Shenyang", "济南": "Jinan", "合肥": "Hefei",
-  "福州": "Fuzhou", "南昌": "Nanchang", "太原": "Taiyuan",
-  "石家庄": "Shijiazhuang", "南宁": "Nanning", "长春": "Changchun",
-  "兰州": "Lanzhou", "呼和浩特": "Hohhot", "银川": "Yinchuan",
-  "西宁": "Xining", "乌鲁木齐": "Urumqi", "拉萨": "Lhasa",
-  "海口": "Haikou", "珠海": "Zhuhai", "东莞": "Dongguan",
-  "佛山": "Foshan", "宁波": "Ningbo", "无锡": "Wuxi",
-  "温州": "Wenzhou", "泉州": "Quanzhou", "烟台": "Yantai",
-  "桂林": "Guilin", "三亚": "Sanya", "丽江": "Lijiang",
-  "秦皇岛": "Qinhuangdao", "威海": "Weihai", "北海": "Beihai",
+const CITY_PINYIN: Record<string, string> = {
+  "北京": "BJ", "上海": "SH", "广州": "GZ", "深圳": "SZ",
+  "杭州": "HZ", "成都": "CD", "武汉": "WH", "西安": "XA",
+  "南京": "NJ", "重庆": "CQ", "天津": "TJ", "长沙": "CS",
+  "苏州": "SUZ", "昆明": "KM", "厦门": "XM", "青岛": "QD",
+  "大连": "DL", "郑州": "ZZ", "哈尔滨": "HEB", "贵阳": "GY",
+  "沈阳": "SY", "济南": "JN", "合肥": "HF", "福州": "FZ",
+  "南昌": "NC", "太原": "TY", "石家庄": "SJZ", "南宁": "NN",
+  "长春": "CC", "兰州": "LZ", "呼和浩特": "HHHT", "银川": "YC",
+  "西宁": "XN", "乌鲁木齐": "WLMQ", "拉萨": "LS", "海口": "HK",
+  "珠海": "ZH", "东莞": "DG", "佛山": "FS", "宁波": "NB",
+  "无锡": "WX", "温州": "WZ", "泉州": "QZ", "烟台": "YT",
+  "桂林": "GL", "三亚": "SYA", "丽江": "LJ", "秦皇岛": "QHD",
+  "威海": "WHI", "北海": "BH",
 }
 
-export const cityList = Object.keys(CITIES)
-export function getCityId(name: string) {
-  return CITIES[name]
+export const cityList = Object.keys(CITY_COORDS)
+
+export function matchCity(q: string): string[] {
+  const up = q.toUpperCase()
+  return cityList.filter(c => c.includes(q) || CITY_PINYIN[c]?.includes(up))
 }
 
 const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
@@ -72,6 +70,10 @@ export interface ForecastDay {
   weather: string
   high: string
   low: string
+  sunrise?: string
+  sunset?: string
+  uvMax?: string
+  precip?: string
 }
 
 export interface HourlyItem {
@@ -290,6 +292,10 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
         weather: weatherByPrecip(fc, dp) || OM_WX[fc] || translateWeather(String(fc)),
         high: String(daily.temperature_2m_max?.[i] ?? "--"),
         low: String(daily.temperature_2m_min?.[i] ?? "--"),
+        sunrise: daily.sunrise?.[i] ? extractTime(daily.sunrise[i]) : undefined,
+        sunset: daily.sunset?.[i] ? extractTime(daily.sunset[i]) : undefined,
+        uvMax: daily.uv_index_max?.[i] != null ? String(daily.uv_index_max[i]) : undefined,
+        precip: dp > 0 ? String(dp) + "mm" : undefined,
       })
     }
   }

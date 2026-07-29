@@ -69,3 +69,29 @@ export function sunHour(sun: string): number {
   if (m.includes("AM") && h === 12) return 0
   return h
 }
+
+export const UNITS_DEFAULT = { temp: "c" as const, wind: "kmh" as const, refresh: 30 }
+export type UnitSettings = typeof UNITS_DEFAULT
+
+export function getUnitSettings(): UnitSettings {
+  try {
+    const raw = uni.getStorageSync("unit_settings") as string
+    if (raw) return { ...UNITS_DEFAULT, ...JSON.parse(raw) }
+  } catch {}
+  return { ...UNITS_DEFAULT }
+}
+
+export function formatTemp(val: string, toF: boolean): string {
+  if (!val || val === "--") return val
+  const n = parseFloat(val)
+  if (isNaN(n)) return val
+  return toF ? String(Math.round(n * 9 / 5 + 32)) : val
+}
+
+export function formatWind(val: string, unit: string): string {
+  if (!val || val === "--") return val
+  const n = parseFloat(val)
+  if (isNaN(n)) return val
+  if (unit === "ms") return (n / 3.6).toFixed(1)
+  return String(Math.round(n))
+}

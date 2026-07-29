@@ -1,13 +1,28 @@
 <script setup lang="ts">
+import { computed } from "vue"
 import WeatherIcon from "./WeatherIcon.vue"
 
-defineProps<{
+const props = defineProps<{
   temp: string
   weather: string
   high: string
   low: string
   accentColor: string
+  sunrise: string
+  sunset: string
 }>()
+
+const daylightPct = computed(() => {
+  if (!props.sunrise || !props.sunset || props.sunrise === "--" || props.sunset === "--") return 0
+  const now = new Date()
+  const today = now.toISOString().slice(0, 10)
+  const rise = new Date(`${today}T${props.sunrise}:00`).getTime()
+  const set = new Date(`${today}T${props.sunset}:00`).getTime()
+  const current = now.getTime()
+  if (current < rise) return 0
+  if (current > set) return 100
+  return ((current - rise) / (set - rise)) * 100
+})
 </script>
 
 <template>
@@ -25,13 +40,23 @@ defineProps<{
       <view class="temp-divider" />
       <text class="temp-low">↓ {{ low }}°</text>
     </view>
+    <view class="daylight-row" v-if="sunrise && sunrise !== '--'">
+      <text class="daylight-label">{{ sunrise }}</text>
+      <view class="daylight-track">
+        <view class="daylight-bar">
+          <view class="daylight-fill" :style="{ width: daylightPct + '%' }" />
+          <view class="daylight-dot" :style="{ left: daylightPct + '%' }" />
+        </view>
+      </view>
+      <text class="daylight-label">{{ sunset }}</text>
+    </view>
   </view>
 </template>
 
 <style scoped>
 .weather-hero {
   text-align: center;
-  padding: var(--spacing-lg) 0 var(--spacing-2xl);
+  padding: var(--spacing-lg) 0 var(--spacing-lg);
 }
 .temp-display {
   display: flex;
@@ -72,6 +97,7 @@ defineProps<{
   align-items: center;
   justify-content: center;
   gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
 }
 .temp-high {
   font-size: var(--font-size-md);
@@ -87,5 +113,50 @@ defineProps<{
   font-size: var(--font-size-md);
   color: rgba(255,255,255,0.65);
   font-weight: var(--font-weight-medium);
+}
+.daylight-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-xl);
+}
+.daylight-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  font-weight: var(--font-weight-medium);
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: center;
+}
+.daylight-track {
+  flex: 1;
+  height: 20px;
+  display: flex;
+  align-items: center;
+}
+.daylight-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.18);
+  border-radius: 3px;
+  position: relative;
+  overflow: visible;
+}
+.daylight-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FFD700, #FF8C00, #FF6347);
+  border-radius: 3px;
+  transition: width 1s ease;
+}
+.daylight-dot {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  transition: left 1s ease;
 }
 </style>
