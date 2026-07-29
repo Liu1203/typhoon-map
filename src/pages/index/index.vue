@@ -88,32 +88,15 @@ const locating = ref(false)
 const expandedIndex = ref(-1)
 const forecastHourlys = ref<Record<number, import("@/api/weather").HourlyItem[]>>({})
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 20
-const darkMode = ref(false)
+const darkMode = ref<boolean>(false)
 
 function toggleDark() {
   darkMode.value = !darkMode.value
-  const pages = getCurrentPages()
-  const page = pages[pages.length - 1] as any
-  if (page && page.$el) {
-    if (darkMode.value) {
-      page.$el.setAttribute("data-theme", "dark")
-    } else {
-      page.$el.removeAttribute("data-theme")
-    }
-  }
   uni.setStorageSync("dark_mode", darkMode.value ? "1" : "0")
 }
 
 function initDarkMode() {
-  const saved = uni.getStorageSync("dark_mode") as string
-  if (saved === "1") {
-    darkMode.value = true
-    const pages = getCurrentPages()
-    const page = pages[pages.length - 1] as any
-    if (page && page.$el) {
-      page.$el.setAttribute("data-theme", "dark")
-    }
-  }
+  darkMode.value = uni.getStorageSync("dark_mode") as string === "1"
 }
 
 function getCache(): CacheEntry | null {
@@ -343,7 +326,7 @@ function hourLabel(t: string): string {
 </script>
 
 <template>
-  <view class="container" :class="{ 'light-bg': weather && isLightBg(weather.weather) }"   :style="{ background: weather ? weatherBg(weather.weather) : 'linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)', paddingTop: (statusBarHeight + 12) + 'px' }">
+  <view class="container" :class="{ 'light-bg': weather && isLightBg(weather.weather), 'dark-mode': darkMode }"   :style="{ background: weather ? weatherBg(weather.weather) : 'linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)', paddingTop: (statusBarHeight + 12) + 'px' }">
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -1090,18 +1073,11 @@ function hourLabel(t: string): string {
   color: rgba(255,255,255,0.75);
   letter-spacing: 0.2em;
 }
+
+.dark-mode .detail-item { background: rgba(30,36,48,0.6); border-color: rgba(255,255,255,0.06); }
+.dark-mode .card { background: rgba(30,36,48,0.85); border-color: rgba(255,255,255,0.08); box-shadow: 0 2px 16px rgba(0,0,0,0.2); }
+.dark-mode .entry-card { background: rgba(30,36,48,0.85); }
 </style>
 <style>
 ::-webkit-scrollbar { display: none; width: 0; height: 0; }
-
-[data-theme="dark"] { background: #141820; color: #E0E6ED; }
-[data-theme="dark"] .card { background: #1E2430; border-color: #2A3240; }
-[data-theme="dark"] .detail-item { background: #262E3A; }
-[data-theme="dark"] .entry-card { background: #1E2430; }
-[data-theme="dark"] .forecast-hourly-wrap { border-color: #2A3240; background: #1A202C; }
-[data-theme="dark"] .forecast-item { border-color: #2A3240; }
-[data-theme="dark"] .hourly-item { border-color: #2A3240; }
-[data-theme="dark"] .brand-section { background: #141820; }
-[data-theme="dark"] .skeleton { background: #262E3A; }
-[data-theme="dark"] .skeleton-shimmer { background: linear-gradient(90deg, #262E3A 0%, #323A48 50%, #262E3A 100%); }
 </style>
