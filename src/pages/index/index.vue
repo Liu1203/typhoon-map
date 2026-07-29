@@ -2,13 +2,16 @@
 import { ref, computed, onUnmounted } from "vue"
 import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
 import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
-import { TIMEOUT, CACHE, WEATHER } from "@/config"
-import WeatherIcon from "@/components/WeatherIcon.vue"
+import { TIMEOUT, CACHE } from "@/config"
+import { gradientFor, accentFor, lightFor } from "@/utils/weather"
+import WeatherHero from "@/components/WeatherHero.vue"
+import DetailGrid from "@/components/DetailGrid.vue"
+import ForecastCard from "@/components/ForecastCard.vue"
+import HourlyScroll from "@/components/HourlyScroll.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
 
 const locateError = ref("")
 const isOffline = ref(false)
-let netTimer: ReturnType<typeof setInterval> | null = null
 
 uni.getNetworkType({
   success(r) { isOffline.value = r.networkType === "none" },
@@ -100,12 +103,28 @@ const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 20
 const darkMode = ref(false)
 
 function toggleDark() {
-  darkMode.value = !darkMode.value
-  uni.setStorageSync(CACHE.DARK_MODE_KEY, darkMode.value ? "1" : "0")
+  const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
+  if (!stored) {
+    darkMode.value = true
+    uni.setStorageSync(CACHE.DARK_MODE_KEY, "1")
+  } else if (stored === "1") {
+    darkMode.value = false
+    uni.setStorageSync(CACHE.DARK_MODE_KEY, "0")
+  } else {
+    uni.removeStorageSync(CACHE.DARK_MODE_KEY)
+    const sys = uni.getSystemInfoSync()
+    darkMode.value = sys.theme === "dark"
+  }
 }
 
 function initDarkMode() {
-  darkMode.value = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string === "1"
+  const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
+  if (stored === "1") darkMode.value = true
+  else if (stored === "0") darkMode.value = false
+  else {
+    const sys = uni.getSystemInfoSync()
+    darkMode.value = sys.theme === "dark"
+  }
 }
 
 function getCache(): CacheEntry | null {
@@ -220,7 +239,6 @@ onPullDownRefresh(async () => {
 
 onUnmounted(() => {
   stopAutoRefresh()
-  if (netTimer) clearInterval(netTimer)
 })
 
 async function locateMe() {
@@ -269,71 +287,9 @@ function goSearch() {
   uni.navigateTo({ url: "/pages/search/search" })
 }
 
-function gradientFor(w: string): string {
-  if (w.includes("雷")) return "linear-gradient(175deg, #3A4458 0%, #566076 40%, #788098 100%)"
-  if (w.includes("大") && w.includes("阵")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
-  if (w.includes("暴") && w.includes("雨")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
-  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return "linear-gradient(175deg, #C8D8E8 0%, #DDE8F2 40%, #EDF3FA 100%)"
-  if (w.includes("雾") || w.includes("霾")) return "linear-gradient(175deg, #B8C4D0 0%, #D0DAE4 50%, #E4EBF2 100%)"
-  if (w.includes("大") && w.includes("雨")) return "linear-gradient(175deg, #587080 0%, #7890A0 40%, #98AEBE 100%)"
-  if (w.includes("阵雨")) return "linear-gradient(175deg, #688088 0%, #889EA8 50%, #A8BCC6 100%)"
-  if (w.includes("中") && w.includes("雨")) return "linear-gradient(175deg, #6E8890 0%, #8EA4AE 50%, #AEC0C8 100%)"
-  if (w.includes("小") && w.includes("雨")) return "linear-gradient(175deg, #789098 0%, #98ACB4 50%, #B6C8CE 100%)"
-  if (w.includes("毛毛")) return "linear-gradient(175deg, #7C969E 0%, #9EB0B8 50%, #BCCAD0 100%)"
-  if (w.includes("雨")) return "linear-gradient(175deg, #789098 0%, #98AEB6 50%, #B8CAD0 100%)"
-  if (w.includes("阴")) return "linear-gradient(175deg, #98ACB6 0%, #B8C8D2 50%, #D4E0E8 100%)"
-  if (w.includes("多云")) return "linear-gradient(175deg, #78A8C0 0%, #A0C4D8 40%, #CCE0EC 100%)"
-  if (w.includes("晴")) return "linear-gradient(175deg, #6DB4E0 0%, #98CAE8 35%, #C4E0F2 100%)"
-  return "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)"
-}
-
-function accentFor(w: string): string {
-  if (w.includes("雷")) return "#D4A550"
-  if (w.includes("大") && w.includes("阵")) return "#688898"
-  if (w.includes("暴") && w.includes("雨")) return "#608090"
-  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return "#8B9DAF"
-  if (w.includes("雾") || w.includes("霾")) return "#8EA0B0"
-  if (w.includes("大") && w.includes("雨")) return "#5A8A90"
-  if (w.includes("阵雨")) return "#6DAF98"
-  if (w.includes("毛毛")) return "#8DCFB8"
-  if (w.includes("雨")) return "#6DAF98"
-  if (w.includes("阴")) return "#8898A8"
-  if (w.includes("多云")) return "#D4A550"
-  if (w.includes("晴")) return "#E09050"
-  return "#E09050"
-}
-
-function lightFor(w: string): boolean {
-  return w.includes("雪") || w.includes("雾") || w.includes("霾") || w.includes("阴") || w.includes("毛毛")
-}
-
 const weatherGradient = computed(() => weather.value ? gradientFor(weather.value.weather) : "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)")
 const accentColor = computed(() => weather.value ? accentFor(weather.value.weather) : "#E09050")
 const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
-
-function hourNum(t: string): number {
-  const parts = t.split(":")
-  return parseInt(parts[0]) || 0
-}
-
-function sunHour(sun: string): number {
-  const parts = sun.split(":")
-  const h = parseInt(parts[0]) || 6
-  const m = parts[1] || "00"
-  if (m.includes("PM") && h < 12) return h + 12
-  if (m.includes("AM") && h === 12) return 0
-  return h
-}
-
-function windArrow(dir: string): string {
-  const m: Record<string, string> = { "北风": "↓", "东北风": "↙", "东风": "←", "东南风": "↖", "南风": "↑", "西南风": "↗", "西风": "→", "西北风": "↘" }
-  return m[dir] || dir
-}
-
-function hourLabel(t: string): string {
-  const h = parseInt(t) || 0
-  return h + "时"
-}
 </script>
 
 <template>
@@ -372,133 +328,18 @@ function hourLabel(t: string): string {
         <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
       </view>
 
-      <view class="weather-hero anim-fade-in-scale" :style="{ '--accent': accentColor }">
-        <view class="temp-display">
-          <text class="temp-value">{{ weather.temp }}</text>
-          <text class="temp-unit">°</text>
-        </view>
-        <view class="weather-badge">
-          <WeatherIcon :weather="weather.weather" :size="44" />
-          <text class="weather-desc">{{ weather.weather }}</text>
-        </view>
-        <view class="temp-range-row">
-          <text class="temp-high">↑ {{ weather.high }}°</text>
-          <view class="temp-divider" />
-          <text class="temp-low">↓ {{ weather.low }}°</text>
-        </view>
-      </view>
+      <WeatherHero :temp="weather.temp" :weather="weather.weather" :high="weather.high" :low="weather.low" :accentColor="accentColor" />
 
-      <view class="detail-grid anim-fade-in-up" style="animation-delay: 0.1s">
-        <view class="detail-item">
-          <text class="detail-label">体感</text>
-          <text class="detail-value">{{ weather.feelsLike }}°</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">湿度</text>
-          <text class="detail-value">{{ weather.humidity }}%</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">{{ weather.windDir }}</text>
-          <text class="detail-value">{{ weather.windLevel }}</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">紫外线</text>
-          <text class="detail-value">{{ weather.uvIndex }}</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">日出</text>
-          <text class="detail-value">{{ weather.sunrise }}</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">日落</text>
-          <text class="detail-value">{{ weather.sunset }}</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">气压</text>
-          <text class="detail-value">{{ weather.pressure }}</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">能见度</text>
-          <text class="detail-value">{{ weather.visibility }}</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">露点</text>
-          <text class="detail-value">{{ weather.dewPoint }}</text>
-        </view>
-        <view class="detail-item">
-          <text class="detail-label">云量</text>
-          <text class="detail-value">{{ weather.cloudCover }}</text>
-        </view>
-        <view class="detail-item" v-if="weather.aqi !== '--'">
-          <text class="detail-label">空气质量</text>
-          <text class="detail-value">{{ weather.aqi }} {{ weather.aqiLabel }}</text>
-        </view>
-      </view>
+      <DetailGrid :weather="weather" />
 
-      <view class="card forecast anim-fade-in-up" style="animation-delay: 0.2s" v-if="weather.forecast.length > 0">
-        <view class="section-header">
-          <view class="section-decor" />
-          <text class="section-title">未来天气</text>
-        </view>
-        <view class="forecast-list">
-          <view v-for="(f, i) in weather.forecast" :key="f.day">
-            <view class="forecast-item" :class="{ expanded: expandedIndex === i }" @tap="toggleForecast(i)">
-              <text class="forecast-day">{{ f.day }}</text>
-              <view class="forecast-icon-wrap">
-                <WeatherIcon :weather="f.weather" :size="26" />
-              </view>
-              <text class="forecast-weather">{{ f.weather }}</text>
-              <view class="forecast-temps">
-                <text class="forecast-high">{{ f.high }}°</text>
-                <text class="forecast-low">{{ f.low }}°</text>
-              </view>
-              <text class="forecast-expand">{{ expandedIndex === i ? '▲' : '▼' }}</text>
-            </view>
-            <view v-if="expandedIndex === i" class="forecast-hourly-wrap">
-              <view v-if="!forecastHourlys[i]" class="forecast-hourly-loading">
-                <text>加载中...</text>
-              </view>
-              <scroll-view v-else-if="forecastHourlys[i].length > 0" scroll-x class="hourly-scroll">
-                <view class="hourly-list">
-                  <view v-for="(h, j) in forecastHourlys[i]" :key="j" class="hourly-item">
-                    <text class="hourly-time">{{ hourLabel(h.time) }}</text>
-                    <WeatherIcon :weather="h.weather" :size="22" />
-                    <text class="hourly-temp">{{ h.temp }}°</text>
-                    <text class="hourly-desc">{{ h.weather }}</text>
-                    <view :class="['rain-tag', parseInt(h.rainChance) > 30 ? 'rain-heavy' : parseInt(h.rainChance) > 0 ? 'rain-light' : 'rain-none']">
-                      <text>{{ parseInt(h.rainChance) > 0 ? h.rainChance + '%' : '无雨' }}</text>
-                    </view>
-                  </view>
-                </view>
-              </scroll-view>
-              <text v-else class="forecast-hourly-empty">暂无逐时数据</text>
-            </view>
-          </view>
-        </view>
-      </view>
+      <ForecastCard :forecast="weather.forecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
 
       <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="weather.hourly && weather.hourly.length > 0">
         <view class="section-header">
           <view class="section-decor" />
           <text class="section-title">逐时天气</text>
         </view>
-        <view class="hourly-scroll-wrap">
-          <scroll-view scroll-x class="hourly-scroll" :show-scrollbar="false">
-            <view class="hourly-list">
-              <view v-for="(h, i) in weather.hourly" :key="i" class="hourly-item" :class="{ 'is-sun': sunHour(weather.sunrise) === hourNum(h.time), 'is-dusk': sunHour(weather.sunset) === hourNum(h.time) }">
-                <text class="hourly-time">{{ hourLabel(h.time) }}</text>
-                <WeatherIcon :weather="h.weather" :size="26" />
-                <text class="hourly-temp">{{ h.temp }}°</text>
-                <text class="hourly-desc">{{ h.weather }}</text>
-                <text class="hourly-wind">{{ windArrow(h.windDir) }} {{ h.windScale }}</text>
-                <view :class="['rain-tag', parseInt(h.rainChance) > 30 ? 'rain-heavy' : parseInt(h.rainChance) > 0 ? 'rain-light' : 'rain-none']">
-                  <text>{{ parseInt(h.rainChance) > 0 ? h.rainChance + '%' : '无雨' }}</text>
-                </view>
-              </view>
-            </view>
-          </scroll-view>
-          <view class="scroll-fade-right" />
-        </view>
+        <HourlyScroll :hourly="weather.hourly" :sunrise="weather.sunrise" :sunset="weather.sunset" />
       </view>
 
       <view class="entry-cards anim-fade-in-up" style="animation-delay: 0.3s">
@@ -606,26 +447,6 @@ function hourLabel(t: string): string {
   gap: var(--spacing-sm);
 }
 
-.dark-toggle {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.22);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.3);
-  transition: all var(--transition-fast);
-  font-size: 18px;
-  color: #fff;
-}
-
-.dark-toggle:active {
-  background: rgba(255,255,255,0.4);
-  transform: scale(0.9);
-}
-
 .locate-btn {
   display: flex;
   align-items: center;
@@ -708,104 +529,6 @@ function hourLabel(t: string): string {
   text-overflow: ellipsis;
 }
 
-.weather-hero {
-  text-align: center;
-  padding: var(--spacing-lg) 0 var(--spacing-2xl);
-}
-
-.temp-display {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  margin-bottom: var(--spacing-sm);
-}
-
-.temp-value {
-  font-size: 100px;
-  font-weight: var(--font-weight-light);
-  color: #fff;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  text-shadow: 0 2px 12px rgba(0,0,0,0.1);
-  font-family: var(--font-family-number);
-}
-
-.temp-unit {
-  font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-light);
-  color: rgba(255,255,255,0.7);
-  margin-top: 12px;
-  margin-left: -2px;
-}
-
-.weather-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.weather-desc {
-  font-size: var(--font-size-xl);
-  color: rgba(255,255,255,0.85);
-  font-weight: var(--font-weight-medium);
-}
-
-.temp-range-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-md);
-}
-
-.temp-high {
-  font-size: var(--font-size-md);
-  color: rgba(255,255,255,0.75);
-  font-weight: var(--font-weight-medium);
-}
-
-.temp-divider {
-  width: 1px;
-  height: 14px;
-  background: rgba(255,255,255,0.3);
-}
-
-.temp-low {
-  font-size: var(--font-size-md);
-  color: rgba(255,255,255,0.65);
-  font-weight: var(--font-weight-medium);
-}
-
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.detail-item {
-  background: rgba(255,255,255,0.2);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-md) var(--spacing-sm);
-  text-align: center;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-
-.detail-label {
-  display: block;
-  font-size: var(--font-size-xs);
-  color: rgba(255,255,255,0.65);
-  margin-bottom: 2px;
-}
-
-.detail-value {
-  display: block;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: #fff;
-}
-
 .card {
   background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px);
@@ -835,179 +558,6 @@ function hourLabel(t: string): string {
   font-weight: var(--font-weight-semibold);
   color: var(--color-ink);
 }
-
-.forecast-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.forecast-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) 0;
-  border-bottom: 1px solid var(--color-paper-border);
-  transition: background var(--transition-fast);
-}
-
-.forecast-item.expanded {
-  background: var(--color-paper);
-  margin: 0 calc(-1 * var(--spacing-lg));
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-md);
-}
-
-.forecast-item:last-child { border-bottom: none; }
-
-.forecast-day {
-  width: 44px;
-  font-size: var(--font-size-sm);
-  color: var(--color-ink-soft);
-  font-weight: var(--font-weight-medium);
-}
-
-.forecast-icon-wrap {
-  width: 48px;
-  display: flex;
-  justify-content: center;
-}
-
-.forecast-weather {
-  flex: 1;
-  font-size: var(--font-size-sm);
-  color: var(--color-ink-soft);
-}
-
-.forecast-temps {
-  display: flex;
-  gap: var(--spacing-sm);
-  min-width: 70px;
-  justify-content: flex-end;
-}
-
-.forecast-high {
-  font-size: var(--font-size-md);
-  color: var(--color-ink);
-  font-weight: var(--font-weight-semibold);
-}
-
-.forecast-low {
-  font-size: var(--font-size-md);
-  color: var(--color-ink-light);
-}
-
-.forecast-expand {
-  font-size: var(--font-size-xs);
-  color: var(--color-ash);
-  width: 20px;
-  text-align: center;
-}
-
-.forecast-hourly-wrap {
-  padding: var(--spacing-sm) 0 var(--spacing-md);
-  border-bottom: 1px solid var(--color-paper-border);
-}
-
-.forecast-hourly-loading, .forecast-hourly-empty {
-  font-size: var(--font-size-sm);
-  color: var(--color-ink-light);
-  text-align: center;
-  padding: var(--spacing-md) 0;
-}
-
-.hourly-card { padding: var(--spacing-lg) var(--spacing-md); }
-
-.hourly-scroll-wrap {
-  position: relative;
-}
-
-.scroll-fade-right {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 40px;
-  background: linear-gradient(90deg, transparent, rgba(251,247,240,0.95));
-  pointer-events: none;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-}
-
-.hourly-scroll { white-space: nowrap; }
-
-.hourly-list {
-  display: flex;
-  gap: var(--spacing-sm);
-  padding-right: 36px;
-}
-
-.hourly-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 68px;
-  padding: var(--spacing-sm) 6px;
-  border-radius: var(--radius-md);
-  background: var(--color-paper);
-  border: 1px solid transparent;
-  transition: all var(--transition-fast);
-}
-
-.hourly-item.is-sun {
-  background: rgba(212,168,83,0.12);
-  border-color: rgba(212,168,83,0.25);
-}
-
-.hourly-item.is-dusk {
-  background: rgba(139,109,175,0.08);
-  border-color: rgba(139,109,175,0.2);
-}
-
-.hourly-time {
-  position: relative;
-  z-index: 1;
-  font-size: var(--font-size-xs);
-  color: var(--color-ink-light);
-  font-weight: var(--font-weight-semibold);
-}
-
-.hourly-temp {
-  position: relative;
-  z-index: 1;
-  font-size: var(--font-size-md);
-  color: var(--color-ink);
-  font-weight: var(--font-weight-semibold);
-}
-
-.hourly-desc {
-  position: relative;
-  z-index: 1;
-  font-size: 10px;
-  color: var(--color-ink-soft);
-  text-align: center;
-  white-space: normal;
-  max-width: 56px;
-}
-
-.hourly-wind {
-  position: relative;
-  z-index: 1;
-  font-size: 10px;
-  color: var(--color-ash);
-}
-
-.rain-tag {
-  position: relative;
-  z-index: 1;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 10px;
-  font-weight: var(--font-weight-medium);
-}
-
-.rain-heavy { background: rgba(91,140,122,0.12); color: var(--color-jade); }
-.rain-light { background: rgba(91,140,122,0.06); color: var(--color-jade-light); }
-.rain-none { color: var(--color-ash); }
 
 .entry-cards {
   display: flex;
