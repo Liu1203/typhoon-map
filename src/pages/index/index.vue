@@ -363,13 +363,24 @@ const displayForecast = computed(() => {
 
 let touchStartX = 0
 let touchStartY = 0
+let touchInScroll = false
+
+function isInsideScrollView(el: HTMLElement | null): boolean {
+  while (el) {
+    if (el.getAttribute?.("scroll-x") === "" || el.getAttribute?.("scroll-y") === "") return true
+    el = el.parentElement
+  }
+  return false
+}
 
 function onTouchStart(e: TouchEvent) {
   touchStartX = e.touches[0].clientX
   touchStartY = e.touches[0].clientY
+  touchInScroll = isInsideScrollView(e.target as HTMLElement | null)
 }
 
 function onTouchEnd(e: TouchEvent) {
+  if (touchInScroll) return
   const dx = e.changedTouches[0].clientX - touchStartX
   const dy = e.changedTouches[0].clientY - touchStartY
   if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return
@@ -457,8 +468,6 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 
       <ForecastCard :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
 
-      <TempTrend :forecast="displayForecast" />
-
       <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="displayHourly.length > 0">
         <view class="section-header">
           <view class="section-decor" />
@@ -466,6 +475,8 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
         </view>
         <HourlyScroll :hourly="displayHourly" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
       </view>
+
+      <TempTrend :forecast="displayForecast" />
 
       <view class="entry-cards anim-fade-in-up" style="animation-delay: 0.3s">
         <view class="entry-card typhoon-entry" @tap="uni.navigateTo({ url: '/pages/typhoon/typhoon' })">
