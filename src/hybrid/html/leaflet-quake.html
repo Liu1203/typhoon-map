@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>地震</title>
+<link rel="stylesheet" href="./leaflet.min.css">
+<script src="./leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;color:#2C3E50}
+#app{display:flex;flex-direction:column;width:100%;height:100%}
+
+.top-bar{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);z-index:20}
+.tab-row{flex:1;display:flex;background:#EDF2F8;border-radius:8px;padding:3px}
+.tab{flex:1;text-align:center;padding:8px 0;font-size:13px;color:#8B9CAD;border-radius:6px;border:none;background:transparent;cursor:pointer}
+.tab.active{background:#fff;color:#5B8FC0;font-weight:600;box-shadow:0 1px 4px rgba(91,143,192,.18)}
+.date-wrap{flex-shrink:0;position:relative;display:flex;align-items:center;gap:4px;padding:7px 10px;border-radius:8px;background:#EDF2F8;font-size:13px;color:#5B8FC0;font-weight:500;cursor:pointer;overflow:hidden}
+.date-input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
+.date-arrow{font-size:10px}
+.refresh-btn{flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:#EDF2F8;border-radius:50%;font-size:17px;color:#5B8FC0;cursor:pointer}
+.refresh-btn.loading{animation:spin .6s linear infinite;pointer-events:none;opacity:.5}
+.update-time{flex-shrink:0;font-size:10px;color:#B0BDCC;white-space:nowrap;padding-right:4px}
+
+.sub-bar{flex-shrink:0;display:flex;justify-content:space-between;align-items:center;padding:4px 14px 6px;background:#fff;font-size:12px;color:#8B9CAD;z-index:20}
+.sub-count-num{font-weight:700;color:#5B8FC0;font-size:14px}
+.sub-src{color:#B0BDCC;font-size:10px}
+.sub-toggle{padding:4px 10px;border-radius:6px;background:#EDF2F8;font-size:11px;color:#5B8FC0;cursor:pointer}
+
+.quake-list{flex-shrink:0;max-height:35vh;overflow-y:auto;background:#fff;border-bottom:1px solid #DDE4ED;z-index:20}
+.quake-list.hide{display:none}
+.quake-item{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #EDF2F8;cursor:pointer;transition:background .1s}
+.quake-item:hover{background:#F5F8FC}
+.quake-item.active{background:rgba(91,143,192,.06)}
+.qi-rank{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:700;color:#fff}
+.qi-mag{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;font-weight:700}
+.qi-info{flex:1;min-width:0}
+.qi-place{font-size:13px;font-weight:500;color:#2C3E50;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qi-meta{font-size:11px;color:#8B9CAD;margin-top:2px}
+.qi-depth{font-size:11px;color:#B0BDCC;flex-shrink:0}
+
+.loading-hint{flex-shrink:0;padding:8px 14px;font-size:13px;color:#8B9CAD;background:#fff;display:none}
+.loading-hint.show{display:block}
+
+.map-wrap{flex:1;position:relative;min-height:0;background:#E8EEF5}
+#map{width:100%;height:100%}
+
+.legend{
+  position:absolute;z-index:1000;left:10px;bottom:14px;
+  background:rgba(255,255,255,.94);border-radius:12px;padding:8px 10px;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);border:1px solid #DDE4ED;min-width:96px;
+  font-size:10px;color:#5A6E80;user-select:none
+}
+.legend-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:2px;cursor:pointer}
+.legend-title{font-weight:600;color:#2C3E50;letter-spacing:.04em}
+.legend-toggle{color:#5B8FC0;font-size:9px}
+.legend-body{display:flex;flex-direction:column;gap:2px}
+.legend-body.hide{display:none}
+.legend-row{display:flex;align-items:center;gap:6px;padding:2px 0}
+.legend-dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1.5px #fff,0 1px 2px rgba(0,0,0,.08)}
+
+.empty{
+  position:absolute;inset:0;z-index:900;display:none;align-items:center;justify-content:center;
+  background:rgba(240,245,250,.45)
+}
+.empty.show{display:flex}
+.empty-card{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  padding:32px 40px;background:rgba(255,255,255,.95);border-radius:20px;
+  box-shadow:0 8px 32px rgba(0,0,0,.1);border:1px solid #DDE4ED
+}
+.empty-icon{font-size:40px;line-height:1}
+.empty-text{font-size:15px;color:#5A6E80}
+
+.fetching{
+  position:absolute;inset:0;z-index:850;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:rgba(240,245,250,.72);color:#5A6E80;font-size:13px
+}
+.fetching.show{display:flex}
+.spinner{width:34px;height:34px;border:3px solid rgba(91,143,192,.2);border-top-color:#5B8FC0;border-radius:50%;animation:spin .75s linear infinite}
+
+.bottom{flex-shrink:0;background:#fff;border-top:1px solid #DDE4ED;z-index:20;display:none}
+.bottom.show{display:block}
+.info-card{padding:12px 16px 14px}
+.info-top{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.info-mag-badge{width:52px;height:52px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.info-mag-num{font-size:20px;font-weight:700;color:#fff;line-height:1}
+.info-mag-lbl{font-size:10px;color:rgba(255,255,255,.7)}
+.info-top-right{flex:1}
+.info-time{font-size:14px;font-weight:600;color:#2C3E50}
+.info-coords{font-size:11px;color:#8B9CAD;margin-top:2px}
+.info-place{font-size:14px;font-weight:500;color:#2C3E50;margin-bottom:8px}
+.info-stats{display:flex;gap:16px}
+.info-stat{display:flex;flex-direction:column;gap:1px}
+.info-stat-val{font-size:14px;font-weight:600;color:#2C3E50}
+.info-stat-lbl{font-size:10px;color:#B0BDCC}
+
+@keyframes spin{to{transform:rotate(360deg)}}
+.leaflet-container{background:#E8EEF5;font:12px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+.leaflet-control-layers:not(.leaflet-control-layers-expanded){background:none!important;border:none!important;box-shadow:none!important}
+.leaflet-control-layers-expanded{background:rgba(255,255,255,.96)!important;border:none!important;border-radius:12px!important;box-shadow:0 2px 12px rgba(0,0,0,.12)!important;padding:8px 12px!important;font-size:13px;color:#2C3E50;max-height:220px}
+.leaflet-control-layers-toggle{width:36px!important;height:36px!important;background:rgba(255,255,255,.94) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235B8FC0'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E") center/20px no-repeat!important;border-radius:8px!important;box-shadow:0 2px 8px rgba(0,0,0,.15)!important}
+.leaflet-touch .leaflet-control-layers-toggle{width:36px!important;height:36px!important}
+.leaflet-retina .leaflet-control-layers-toggle{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235B8FC0'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E")!important;background-size:20px 20px!important}
+</style>
+</head>
+<body>
+<div id="app">
+
+<div class="top-bar">
+  <div class="tab-row">
+    <button class="tab active" id="tabGlobal" type="button">全球</button>
+    <button class="tab" id="tabChina" type="button">中国及周边</button>
+  </div>
+  <div class="date-wrap" id="dateWrap">
+    <input type="date" id="dateInput" class="date-input">
+    <span id="dateText"></span>
+    <span class="date-arrow">&#9662;</span>
+  </div>
+  <span class="update-time" id="updateTime"></span>
+  <button class="refresh-btn" id="refreshBtn" type="button">&#x21bb;</button>
+</div>
+
+<div class="sub-bar">
+  <span><span class="sub-count-num" id="quakeCount">0</span> 次地震 <span class="sub-src">· USGS + GFZ + EMSC</span></span>
+  <span class="sub-toggle" id="listToggle">收起 ▲</span>
+</div>
+
+<div class="quake-list" id="quakeList"></div>
+
+<div class="loading-hint" id="loadingHint">正在获取地震数据...</div>
+
+<div class="map-wrap">
+  <div id="map"></div>
+  <div class="legend" id="legend">
+    <div class="legend-head" id="legendHead">
+      <span class="legend-title">震级</span>
+      <span class="legend-toggle" id="legendToggle">收起</span>
+    </div>
+    <div class="legend-body" id="legendBody">
+      <div class="legend-row"><span class="legend-dot" style="background:#E5606E"></span>7.0+ 巨震</div>
+      <div class="legend-row"><span class="legend-dot" style="background:#F09050"></span>5.0-6.9 强震</div>
+      <div class="legend-row"><span class="legend-dot" style="background:#E8B84A"></span>3.0-4.9 有感</div>
+      <div class="legend-row"><span class="legend-dot" style="background:#5BAA6A"></span>0-2.9 微震</div>
+    </div>
+  </div>
+  <div class="empty" id="empty">
+    <div class="empty-card">
+      <div class="empty-icon">📡</div>
+      <div class="empty-text" id="emptyText">该日期暂无地震数据</div>
+    </div>
+  </div>
+  <div class="fetching" id="fetching">
+    <div class="spinner"></div>
+    <div>加载中...</div>
+  </div>
+</div>
+
+<div class="bottom" id="bottom">
+  <div class="info-card" id="infoCard">
+    <div class="info-top">
+      <div class="info-mag-badge" id="infoMagBadge">
+        <span class="info-mag-num" id="infoMagNum">-</span>
+        <span class="info-mag-lbl">级</span>
+      </div>
+      <div class="info-top-right">
+        <div class="info-time" id="infoTime">-</div>
+        <div class="info-coords" id="infoCoords">-</div>
+      </div>
+    </div>
+    <div class="info-place" id="infoPlace">-</div>
+    <div class="info-stats">
+      <div class="info-stat"><span class="info-stat-val" id="infoDepth">-</span><span class="info-stat-lbl">深度 (km)</span></div>
+      <div class="info-stat"><span class="info-stat-val" id="infoFeel">-</span><span class="info-stat-lbl">震感</span></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+var MAG_COLORS={7:'#E5606E',5:'#F09050',3:'#E8B84A',0:'#5BAA6A'}
+var FEEL={7:'破坏性',5:'强烈',3:'有感',0:'轻微'}
+
+function magColor(m){
+  if(m>=7)return MAG_COLORS[7];if(m>=5)return MAG_COLORS[5];if(m>=3)return MAG_COLORS[3];return MAG_COLORS[0]
+}
+function magRadius(m){return Math.max(4,m*2+2)}
+function magFeel(m){if(m>=7)return FEEL[7];if(m>=5)return FEEL[5];if(m>=3)return FEEL[3];return FEEL[0]}
+
+var PLACE_CN={China:'中国',Japan:'日本',Indonesia:'印度尼西亚',Philippines:'菲律宾',Taiwan:'台湾地区',India:'印度',Russia:'俄罗斯',Mongolia:'蒙古',Myanmar:'缅甸',Vietnam:'越南',Thailand:'泰国',Pakistan:'巴基斯坦',Afghanistan:'阿富汗',Iran:'伊朗',Turkey:'土耳其',Nepal:'尼泊尔',Bhutan:'不丹',Bangladesh:'孟加拉国','South Korea':'韩国','North Korea':'朝鲜',Kyrgyzstan:'吉尔吉斯斯坦',Kazakhstan:'哈萨克斯坦',Tajikistan:'塔吉克斯坦',Uzbekistan:'乌兹别克斯坦','Papua New Guinea':'巴布亚新几内亚',Fiji:'斐济',Vanuatu:'瓦努阿图','Solomon Islands':'所罗门群岛',Tonga:'汤加','New Zealand':'新西兰',Australia:'澳大利亚',Chile:'智利',Peru:'秘鲁',Mexico:'墨西哥','United States':'美国',Canada:'Canada',Alaska:'阿拉斯加',Hawaii:'夏威夷'}
+
+function translatePlace(p){
+  for(var k in PLACE_CN){if(p.includes(k))return p.replace(k,PLACE_CN[k])}
+  return p.replace(/^(\d+)\s*km\s+(.+?)\s+of\s+(.+)/,'距$3$1公里')
+}
+
+function getDateStr(offset){
+  var d=new Date();if(offset)d.setDate(d.getDate()+offset)
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())
+}
+function pad2(n){return String(n).padStart(2,'0')}
+
+var region='global',queryDate=getDateStr(),quakes=[],selected=null,listExpanded=true
+var map=null,layers=[],mapData=[],selectedKey=null
+var refreshTimer=null
+
+function $(id){return document.getElementById(id)}
+function setShow(el,on){if(!el)return;if(on)el.classList.add('show');else el.classList.remove('show')}
+
+function invalidateMap(){
+  if(!map)return
+  setTimeout(function(){try{map.invalidateSize(false)}catch(e){}},60)
+}
+
+function renderList(){
+  var list=$('quakeList')
+  listExpanded?list.classList.remove('hide'):list.classList.add('hide')
+  $('listToggle').textContent=listExpanded?'收起 ▲':'列表 ▼'
+  list.innerHTML=''
+  quakes.forEach(function(q,i){
+    var el=document.createElement('div')
+    el.className='quake-item'+(selected&&selected.id===q.id?' active':'')
+    el.innerHTML='<span class="qi-rank" style="background:'+magColor(q.mag)+'">'+(i+1)+'</span>'+
+      '<span class="qi-mag" style="background:'+magColor(q.mag)+'22;color:'+magColor(q.mag)+'">'+q.mag.toFixed(1)+'</span>'+
+      '<div class="qi-info"><div class="qi-place">'+q.place+'</div><div class="qi-meta">'+fmtTime(q.time)+' · '+q.source+'</div></div>'+
+      '<span class="qi-depth">'+q.depth.toFixed(0)+'km</span>'
+    el.onclick=function(){selectQuake(q)}
+    list.appendChild(el)
+  })
+}
+
+function renderBottom(){
+  if(selected){
+    $('bottom').classList.add('show')
+    var c=magColor(selected.mag)
+    $('infoMagBadge').style.background=c
+    $('infoMagNum').textContent=selected.mag.toFixed(1)
+    $('infoTime').textContent=fmtFull(selected.time)
+    $('infoCoords').textContent=selected.lat.toFixed(2)+'°N '+selected.lon.toFixed(2)+'°E'
+    $('infoPlace').textContent=selected.place
+    $('infoDepth').textContent=selected.depth.toFixed(0)
+    $('infoFeel').textContent=magFeel(selected.mag)
+  }else{
+    $('bottom').classList.remove('show')
+  }
+  invalidateMap()
+}
+
+function fmtTime(ts){
+  var d=new Date(ts)
+  return pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())
+}
+function fmtFull(ts){
+  var d=new Date(ts)
+  return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate())+' '+pad2(d.getHours())+':'+pad2(d.getMinutes())
+}
+
+function setLastUpdate(){
+  var now=new Date()
+  $('updateTime').textContent='更新 '+pad2(now.getHours())+':'+pad2(now.getMinutes())
+}
+function startRefresh(interval){
+  if(refreshTimer)clearInterval(refreshTimer)
+  refreshTimer=setInterval(function(){loadData()},interval||600000)
+}
+
+function setLoading(on){setShow($('fetching'),on)}
+function setEmpty(on,text){setShow($('empty'),on);if(text)$('emptyText').textContent=text}
+
+/* ===== map ===== */
+function clearLayers(){layers.forEach(function(l){try{map.removeLayer(l)}catch(e){}});layers=[]}
+function add(l){layers.push(l);return l}
+
+function renderMap(fit){
+  if(!map)return
+  clearLayers()
+  if(!quakes.length){map.setView([20,130],2);return}
+  var markers=[]
+  quakes.forEach(function(q,i){
+    var r=magRadius(q.mag),c=magColor(q.mag)
+    var m=add(L.circleMarker([q.lat,q.lon],{
+      radius:i===0?r+4:r,color:'#fff',weight:2,fillColor:c,fillOpacity:0.75
+    }).addTo(map))
+    m.on('click',function(e){
+      L.DomEvent.stopPropagation(e)
+      selectQuake(q)
+    })
+    markers.push(m)
+  })
+  if(fit!==false){
+    var bounds=[]
+    quakes.forEach(function(q){bounds.push([q.lat,q.lon])})
+    if(bounds.length){
+      try{map.fitBounds(bounds,{padding:[40,40],maxZoom:7,animate:false})}
+      catch(e){map.setView([20,130],2)}
+    }
+  }
+}
+
+function selectQuake(q){
+  selected=q
+  renderList();renderBottom()
+  if(map){map.setView([q.lat,q.lon],Math.max(map.getZoom(),6),{animate:true})}
+  renderMap(false)
+}
+
+/* ===== data ===== */
+function fetchQuakes(url,timeout){
+  return new Promise(function(resolve){
+    var x=new XMLHttpRequest()
+    x.open('GET',url,true)
+    x.timeout=timeout||6000
+    x.onload=function(){
+      if(x.status>=200&&x.status<300){
+        try{
+          var data=JSON.parse(x.responseText)
+          if(data&&data.features){
+            var items=data.features.map(function(f){
+              var p=f.properties||{},g=f.geometry||{}
+              var lat=g.coordinates?.[1]||p.lat||0,lon=g.coordinates?.[0]||p.lon||0
+              var depth=Math.abs(g.coordinates?.[2]||p.depth||0)
+              var place=translatePlace(p.place||p.flynn_region||'未知')
+              var time=typeof p.time==='string'?new Date(p.time).getTime():p.time||0
+              return{id:String(f.id||p.unid||''),mag:p.mag||0,place:place,time:time,lat:lat,lon:lon,depth:depth,source:p.net||''}
+            })
+            resolve(items)
+          }else resolve([])
+        }catch(e){resolve([])}
+      }else resolve([])
+    }
+    x.onerror=function(){resolve([])}
+    x.ontimeout=function(){resolve([])}
+    x.send()
+  })
+}
+
+function dedup(list){
+  var r=[]
+  list.forEach(function(q){
+    var d=r.find(function(x){return Math.abs(x.lat-q.lat)<.25&&Math.abs(x.lon-q.lon)<.25&&Math.abs(x.time-q.time)<60000})
+    if(!d)r.push(q);else if(q.mag>d.mag)Object.assign(d,q)
+  })
+  return r
+}
+
+async function loadData(){
+  setLoading(true);setEmpty(false)
+  var btn=$('refreshBtn');btn.classList.add('loading')
+  var d=queryDate,start=d+'T00:00:00',end=d+'T23:59:59'
+  var isChina=region==='china'
+  var bbox=isChina?'&minlatitude=15&maxlatitude=55&minlongitude=65&maxlongitude=150':''
+  var minmag=isChina?'&minmagnitude=1.5':'&minmagnitude=2.5'
+  var u1='https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime='+start+'&endtime='+end+bbox+minmag
+  var u2='https://geofon.gfz-potsdam.de/fdsnws/event/1/query?format=geojson&starttime='+start+'&endtime='+end+bbox+minmag+'&orderby=time'
+  var u3='https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime='+start+'&endtime='+end+bbox+minmag
+  var p1=fetchQuakes(u1,6000),p2=fetchQuakes(u2,5000),p3=fetchQuakes(u3,5000)
+  var all=[]
+  var resolved=0
+  function merge(items){
+    all=dedup(all.concat(items))
+    all.sort(function(a,b){return b.mag-a.mag})
+    quakes=all;selected=quakes.length?quakes[0]:null
+    $('quakeCount').textContent=quakes.length
+    renderList();renderBottom();renderMap(true)
+  }
+  [p1,p2,p3].forEach(function(p){
+    p.then(function(items){
+      resolved++;merge(items)
+    }).catch(function(){resolved++;if(resolved>=3&&!all.length){setLoading(false);setEmpty(true,'该日期暂无地震数据')}})
+  })
+  await Promise.all([p1,p2,p3])
+  setTimeout(function(){
+    var all2=[]
+    Promise.all([p1,p2,p3]).then(function(batches){
+      batches.forEach(function(b){all2=dedup(all2.concat(b))})
+      all2.sort(function(a,b){return b.mag-a.mag})
+      quakes=all2;selected=quakes.length?quakes[0]:null
+      $('quakeCount').textContent=quakes.length
+      renderList();renderBottom();renderMap(false)
+    })
+  },200)
+  btn.classList.remove('loading');setLoading(false)
+  if(!quakes.length)setEmpty(true,'该日期暂无地震数据')
+  setLastUpdate()
+}
+
+function initMap(){
+  map=L.map('map',{center:[20,130],zoom:2,zoomControl:false,attributionControl:false,preferCanvas:true})
+  var layers={
+    '街道图（Carto）':L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'}),
+    '卫星图（ESRI）':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}),
+    '地形图（OSM）':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}),
+    '暗色图（Carto）':L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'})
+  }
+  layers['街道图（Carto）'].addTo(map)
+  L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
+  invalidateMap()
+}
+
+function bindUI(){
+  $('tabGlobal').onclick=function(){if(region!=='global'){region='global';loadData()}}
+  $('tabChina').onclick=function(){if(region!=='china'){region='china';loadData()}}
+  var di=$('dateInput')
+  di.value=queryDate
+  di.onchange=function(){if(di.value){queryDate=di.value;$('dateText').textContent=queryDate;loadData()}}
+  $('dateWrap').onclick=function(e){if(e.target!==di)di.showPicker()}
+  $('refreshBtn').onclick=function(){loadData()}
+  $('listToggle').onclick=function(){listExpanded=!listExpanded;renderList();invalidateMap()}
+  $('legendHead').onclick=function(){
+    var hide=$('legendBody').classList.toggle('hide')
+    $('legendToggle').textContent=hide?'展开':'收起'
+  }
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  $('dateText').textContent=getDateStr()
+  bindUI()
+  initMap()
+  loadData()
+  window.addEventListener('resize',invalidateMap)
+})
+</script>
+</body>
+</html>

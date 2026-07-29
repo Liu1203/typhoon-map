@@ -12,13 +12,17 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 #app{display:flex;flex-direction:column;width:100%;height:100%}
 
 /* top */
-.top-bar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 14px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);z-index:20}
+.top-bar{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);z-index:20}
 .tab-row{flex:1;display:flex;background:#EDF2F8;border-radius:8px;padding:3px}
 .tab{flex:1;text-align:center;padding:8px 0;font-size:13px;color:#8B9CAD;border-radius:6px;border:none;background:transparent;cursor:pointer}
 .tab.active{background:#fff;color:#5B8FC0;font-weight:600;box-shadow:0 1px 4px rgba(91,143,192,.18)}
-.year-wrap{flex-shrink:0;display:none}
-.year-wrap.show{display:block}
-.year-select{padding:7px 12px;border:none;border-radius:8px;background:#EDF2F8;font-size:13px;color:#2C3E50;font-weight:500;outline:none}
+.year-wrap{flex-shrink:0;position:relative;display:none;align-items:center;gap:4px;padding:7px 10px;border-radius:8px;background:#EDF2F8;font-size:13px;color:#5B8FC0;font-weight:500;cursor:pointer;overflow:hidden;user-select:none}
+.year-wrap.show{display:flex}
+.year-select{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2;width:100%;height:100%}
+.year-arrow{font-size:10px;margin-left:2px}
+.refresh-btn{flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:#EDF2F8;border-radius:50%;font-size:17px;color:#5B8FC0;cursor:pointer}
+.refresh-btn.loading{animation:spin .6s linear infinite;pointer-events:none;opacity:.5}
+.update-time{flex-shrink:0;font-size:10px;color:#B0BDCC;white-space:nowrap;padding-right:4px}
 
 /* chips */
 .chip-bar{flex-shrink:0;position:relative;padding:8px 0;background:#fff;border-bottom:1px solid #DDE4ED;z-index:20}
@@ -63,6 +67,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .legend-sep{height:1px;background:#DDE4ED;margin:4px 0}
 .legend-line{width:16px;height:3px;border-radius:2px;background:#8B9CAD}
 .legend-line.dash{background:repeating-linear-gradient(90deg,#8B9CAD 0 3px,transparent 3px 6px)}
+.legend-line.ac{height:3px;border-radius:2px;background:#8B9CAD;flex-shrink:0}
 
 .empty{
   position:absolute;inset:0;z-index:900;display:none;align-items:center;justify-content:center;
@@ -128,9 +133,21 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .cyclone-core{width:34px;height:34px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.28);animation:spin 2.4s linear infinite}
 .cyclone-core::after{content:"";display:block;width:8px;height:8px;margin:11px auto 0;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.12)}
 .cyclone-label{position:absolute;top:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#fff;padding:2px 8px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
-@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes spin{to{transform:rotate(-360deg)}}
 @keyframes pulse-ring{0%{transform:scale(.75);opacity:.6}100%{transform:scale(1.45);opacity:0}}
 .leaflet-container{background:#E8EEF5;font:12px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+.leaflet-control-layers:not(.leaflet-control-layers-expanded){background:none!important;border:none!important;box-shadow:none!important}
+.leaflet-control-layers-expanded{background:rgba(255,255,255,.96)!important;border:none!important;border-radius:12px!important;box-shadow:0 2px 12px rgba(0,0,0,.12)!important;padding:8px 12px!important;font-size:13px;color:#2C3E50;max-height:220px}
+.leaflet-control-layers-toggle{width:36px!important;height:36px!important;background:rgba(255,255,255,.94) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235B8FC0'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E") center/20px no-repeat!important;border-radius:8px!important;box-shadow:0 2px 8px rgba(0,0,0,.15)!important}
+.leaflet-touch .leaflet-control-layers-toggle{width:36px!important;height:36px!important}
+.leaflet-retina .leaflet-control-layers-toggle{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235B8FC0'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E")!important;background-size:20px 20px!important}
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle{display:none}
+.leaflet-control-layers-list{margin-bottom:0!important}
+.leaflet-control-layers-base label,.leaflet-control-layers-overlays label{display:flex!important;align-items:center!important;gap:6px!important;padding:6px 8px!important;border-radius:8px!important;transition:background .15s;cursor:pointer}
+.leaflet-control-layers-base label:hover,.leaflet-control-layers-overlays label:hover{background:#EDF2F8}
+.leaflet-control-layers-base label span,.leaflet-control-layers-overlays label span{font-size:13px;color:#2C3E50}
+.leaflet-control-layers-selector{margin:0!important;width:16px;height:16px;accent-color:#5B8FC0}
+.leaflet-control-layers-separator{display:none!important}
 </style>
 </head>
 <body>
@@ -141,8 +158,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
       <button class="tab" id="tabHistory" type="button">历史台风</button>
     </div>
     <div class="year-wrap" id="yearWrap">
+      <span id="yearText"></span>
+      <span class="year-arrow">&#9662;</span>
       <select class="year-select" id="yearSelect"></select>
     </div>
+    <span class="update-time" id="updateTime"></span>
+    <button class="refresh-btn" id="refreshBtn" type="button">&#x21bb;</button>
   </div>
 
   <div class="chip-bar" id="chipBar">
@@ -175,7 +196,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
         <div class="legend-row"><span class="legend-dot" style="background:#E85A9B"></span>超强台风</div>
         <div class="legend-sep"></div>
         <div class="legend-row"><span class="legend-line"></span>实况</div>
-        <div class="legend-row"><span class="legend-line dash"></span>预报</div>
+        <div class="legend-row"><span class="legend-line dash"></span>预报（NMC）</div>
+        <div class="legend-sep"></div>
+        <div class="legend-row" style="font-weight:600;color:#2C3E50;margin:4px 0 2px">机构预报</div>
+        <div id="legendAgencies"></div>
       </div>
     </div>
     <div class="empty" id="empty">
@@ -238,6 +262,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 var GRADE_COLORS={TD:'#6BA3D4',TS:'#E8C84A',STS:'#E08A3C',TY:'#D95B4F',STY:'#8B6BB8',SuperTY:'#E85A9B'}
 var GRADE_MAP={TD:'热带低压',TS:'热带风暴',STS:'强热带风暴',TY:'台风',STY:'强台风',SuperTY:'超强台风'}
 var COMPASS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW']
+var AGENCIES={BABJ:{name:'中国（NMC）',color:'#D95B4F'},RJTD:{name:'日本（JMA）',color:'#E08A3C'},WTPN:{name:'美国（JTWC）',color:'#8B6BB8'},VHHH:{name:'香港（HKO）',color:'#5BAA6A'},RKSL:{name:'韩国（KMA）',color:'#4A90D9'}}
+var AGENCY_COLORS=['#6BA3D4','#E8C84A','#E85A9B','#E08A3C','#5A6E80','#B0BDCC','#3D6A94','#A07D38','#6DAF98','#90A4AE']
 
 function gc(g){return GRADE_COLORS[ng(g)]||'#90A4AE'}
 function ng(g){
@@ -281,7 +307,6 @@ function parseDetail(raw){
   if(!raw)return null
   var points=raw[8]||[]
   var last=points[points.length-1]
-  var forecast=(last&&last[11]&&last[11].BABJ)||[]
   var history=points.map(function(v){
     return{
       time:v[1]!=null?String(v[1]):'',
@@ -297,24 +322,50 @@ function parseDetail(raw){
   var baseTime=lastHistTime.length===12
     ?new Date(Date.UTC(+lastHistTime.slice(0,4),+lastHistTime.slice(4,6)-1,+lastHistTime.slice(6,8),+lastHistTime.slice(8,10),+lastHistTime.slice(10,12)))
     :new Date()
-  var forecastPts=forecast.map(function(v){
-    var offsetH=Number(v[0])||0
-    var ft=new Date(baseTime.getTime()+offsetH*3600000)
-    var pad=function(n){return String(n).padStart(2,'0')}
-    var lon=Number(v[2]),lat=Number(v[3])
-    return{
-      time:ft.getUTCFullYear()+pad(ft.getUTCMonth()+1)+pad(ft.getUTCDate())+pad(ft.getUTCHours())+pad(ft.getUTCMinutes()),
-      lon:isFinite(lon)?lon:0,
-      lat:isFinite(lat)?lat:0,
-      pressure:v[4]||0,
-      windSpeed:v[5]||0,
-      grade:v[7]||'TD',
-      gradeText:gt(v[7])
-    }
-  }).filter(function(p){return !(p.lat===0&&p.lon===0)})
-  return{id:raw[0],nameCn:raw[2]||'',nameEn:raw[1]||'',tcNum:raw[4]||'',history:history,forecast:forecastPts}
+  function parseForecast(arr){
+    if(!arr||!arr.length)return[]
+    return arr.map(function(v){
+      var offsetH=Number(v[0])||0
+      var ft=new Date(baseTime.getTime()+offsetH*3600000)
+      var pad=function(n){return String(n).padStart(2,'0')}
+      var lon=Number(v[2]),lat=Number(v[3])
+      return{
+        time:ft.getUTCFullYear()+pad(ft.getUTCMonth()+1)+pad(ft.getUTCDate())+pad(ft.getUTCHours())+pad(ft.getUTCMinutes()),
+        lon:isFinite(lon)?lon:0,
+        lat:isFinite(lat)?lat:0,
+        pressure:v[4]||0,
+        windSpeed:v[5]||0,
+        grade:v[7]||'TD',
+        gradeText:gt(v[7])
+      }
+    }).filter(function(p){return !(p.lat===0&&p.lon===0)})
+  }
+  var allForecasts={}
+  var rawForecasts=last&&last[11]
+  if(rawForecasts&&typeof rawForecasts==='object'){
+    Object.keys(rawForecasts).forEach(function(key){
+      if(rawForecasts[key]&&rawForecasts[key].length){
+        allForecasts[key]=parseForecast(rawForecasts[key])
+      }
+    })
+  }
+  return{
+    id:raw[0],nameCn:raw[2]||'',nameEn:raw[1]||'',tcNum:raw[4]||'',
+    history:history,forecast:allForecasts.BABJ||[],
+    forecasts:allForecasts
+  }
 }
 
+function timeAgo(t){
+  if(!t||t.length<12)return ''
+  var now=new Date()
+  var d=new Date(+t.slice(0,4),+t.slice(4,6)-1,+t.slice(6,8),+t.slice(8,10),+t.slice(10,12))
+  var diff=(now-d)/3600000
+  if(diff<0)return ''
+  if(diff<1)return Math.round(diff*60)+' 分钟前'
+  if(diff<24)return Math.round(diff)+' 小时前'
+  return Math.round(diff/24)+' 天前'
+}
 function fmtTime(t){
   if(t==null||t==='')return''
   var s=String(t).trim()
@@ -357,6 +408,7 @@ var detail=null
 var listExpanded=true
 var selectedPoint=null
 var map=null,layers=[],mapData=null,selectedKey=null
+var refreshTimer=null,lastUpdateTime=null
 
 /* ===== DOM ===== */
 var $=function(id){return document.getElementById(id)}
@@ -402,7 +454,7 @@ function renderInfo(){
     var p=selectedPoint.point,type=selectedPoint.type
     var g=ng(p.grade)
     $('pDot').style.background=gc(g)
-    $('pTime').textContent=fmtTime(p.time)
+    $('pTime').innerHTML=fmtTime(p.time)+' <span style="font-size:10px;color:#B0BDCC;font-weight:400">'+timeAgo(p.time)+'</span>'
     $('pGrade').className='grade-badge g-'+g
     $('pGrade').textContent=p.gradeText||gt(g)
     $('pWind').textContent=p.windSpeed+' m/s'
@@ -431,7 +483,7 @@ function renderInfo(){
     var cp=detail.history[detail.history.length-1]
     var g=ng(cp.grade)
     $('infoTitle').textContent=displayName({nameCn:detail.nameCn,nameEn:detail.nameEn,tcNum:detail.tcNum})
-    $('infoSub').textContent=(detail.tcNum?detail.tcNum+' · ':'')+fmtTime(cp.time)
+    $('infoSub').innerHTML=(detail.tcNum?detail.tcNum+' · ':'')+'报告 '+fmtTime(cp.time)+' <span style="color:#B0BDCC;font-size:10px">'+timeAgo(cp.time)+'</span>'
     $('infoGrade').className='grade-badge g-'+g
     $('infoGrade').textContent=cp.gradeText||gt(g)
     $('infoWind').textContent=cp.windSpeed+' m/s'
@@ -443,6 +495,17 @@ function renderInfo(){
   invalidateMap()
 }
 
+function pad2(n){return String(n).padStart(2,'0')}
+function setLastUpdate(){
+  var now=new Date()
+  $('updateTime').textContent='更新 '+pad2(now.getHours())+':'+pad2(now.getMinutes())
+}
+function startRefresh(interval){
+  if(refreshTimer)clearInterval(refreshTimer)
+  refreshTimer=setInterval(function(){
+    if(tabMode==='active')loadActive()
+  },interval||600000)
+}
 function setLoading(on,text){
   var el=$('loadingHint')
   setShow(el,on)
@@ -498,25 +561,50 @@ function drawSegs(pts,dashed){
   }
 }
 
+function drawAgencyForecast(pts,ac){
+  if(!pts||pts.length<2)return
+  var clean=pts.filter(validLL)
+  if(clean.length<2)return
+  var sub=clean.map(function(p){return[p.lat,p.lon]})
+  add(L.polyline(sub,{color:ac,weight:6,opacity:0.2,lineCap:'round',lineJoin:'round'}).addTo(map))
+  add(L.polyline(sub,{color:ac,weight:2.5,opacity:0.85,lineCap:'round',lineJoin:'round',dashArray:'6,6'}).addTo(map))
+}
+
 function renderMap(fit){
   if(!map)return
   clearLayers()
+  renderAgencyLegend()
   if(!detail){map.setView([20,130],4);return}
   var hist=detail.history||[],fc=detail.forecast||[]
   var cp=hist.length?hist[hist.length-1]:null
+  var forecasts=detail.forecasts||{}
   var ni=autoIntervalByScale(map.getZoom())
   mapData={history:hist,forecast:fc,currentPos:cp,nodeInterval:ni}
 
   if(!hist.length&&!fc.length){map.setView([20,130],4);return}
 
   drawSegs(hist,false)
-  if(hist.length&&fc.length&&validLL(hist[hist.length-1])&&validLL(fc[0])&&Math.abs(hist[hist.length-1].lon-fc[0].lon)<=180){
-    var lh=hist[hist.length-1],ff=fc[0],cc=gc(lh.grade)
-    var pair=[[lh.lat,lh.lon],[ff.lat,ff.lon]]
-    add(L.polyline(pair,{color:cc,weight:7,opacity:0.15,dashArray:'7,8'}).addTo(map))
-    add(L.polyline(pair,{color:cc,weight:3,opacity:0.9,dashArray:'7,8'}).addTo(map))
+
+  // 各机构预报路径
+  var ci=0
+  Object.keys(forecasts).forEach(function(key){
+    var pts=forecasts[key],a=AGENCIES[key]
+    if(!pts||!pts.length)return
+    var ac=a?a.color:AGENCY_COLORS[ci++%AGENCY_COLORS.length]
+    // 连接线：历史末点到机构首个预报点
+    if(cp&&validLL(cp)&&validLL(pts[0])&&Math.abs(cp.lon-pts[0].lon)<=180){
+      var pair=[[cp.lat,cp.lon],[pts[0].lat,pts[0].lon]]
+      add(L.polyline(pair,{color:ac,weight:5,opacity:0.15,dashArray:'5,6'}).addTo(map))
+      add(L.polyline(pair,{color:ac,weight:2,opacity:0.7,dashArray:'5,6'}).addTo(map))
+    }
+    drawAgencyForecast(pts,ac)
+  })
+
+  // 仅 BABJ 预报路径带节点（主预报）
+  var babj=forecasts.BABJ||fc
+  if(babj.length){
+    drawSegs(babj,true)
   }
-  drawSegs(fc,true)
 
   function addDot(p,type,idx,isForecast){
     if(!validLL(p))return
@@ -538,7 +626,7 @@ function renderMap(fit){
     if(cp&&idx===hist.length-1)return
     addDot(hist[idx],'history',idx,false)
   })
-  sampleNodes(fc,ni).forEach(function(idx){addDot(fc[idx],'forecast',idx,true)})
+  sampleNodes(babj,ni).forEach(function(idx){addDot(babj[idx],'forecast',idx,true)})
 
   if(cp&&validLL(cp)){
     var cg=ng(cp.grade),cc=gc(cg)
@@ -559,7 +647,9 @@ function renderMap(fit){
   if(fit!==false){
     var all=[]
     hist.forEach(function(p){if(validLL(p))all.push([p.lat,p.lon])})
-    fc.forEach(function(p){if(validLL(p))all.push([p.lat,p.lon])})
+    Object.keys(forecasts).forEach(function(k){
+      forecasts[k].forEach(function(p){if(validLL(p))all.push([p.lat,p.lon])})
+    })
     if(all.length){
       try{map.fitBounds(all,{padding:[40,40],maxZoom:8,animate:false})}
       catch(e){if(cp)map.setView([cp.lat,cp.lon],5)}
@@ -616,7 +706,9 @@ async function loadActive(){
   setLoading(true,'正在获取活跃台风...')
   setEmpty(false)
   selectedPoint=null
+  var btn=$('refreshBtn');btn.classList.add('loading')
   var text=await req('http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default?t='+Date.now())
+  btn.classList.remove('loading')
   setLoading(false)
   var data=text?parseJsonp(text):null
   typhoons=mapList(data)
@@ -629,6 +721,8 @@ async function loadActive(){
     renderChips();renderCollapsed();renderInfo();renderMap(true)
     setEmpty(true,'暂无可追踪台风','查看历史台风')
   }
+  setLastUpdate()
+  startRefresh(600000)
 }
 
 async function loadHistory(year){
@@ -638,11 +732,15 @@ async function loadHistory(year){
   $('tabActive').classList.remove('active')
   $('yearWrap').classList.add('show')
   $('yearSelect').value=String(year)
+  $('yearText').textContent=year+' 年'
+  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null}
   setLoading(true,'正在获取 '+year+' 年台风...')
   setEmpty(false)
   selected=null;detail=null;selectedPoint=null;typhoons=[]
   renderChips();renderCollapsed();renderInfo();renderMap(true)
+  var btn=$('refreshBtn');btn.classList.add('loading')
   var text=await req('http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_'+year+'?t='+Date.now())
+  btn.classList.remove('loading')
   setLoading(false)
   var data=text?parseJsonp(text):null
   typhoons=mapList(data)
@@ -654,6 +752,7 @@ async function loadHistory(year){
     renderChips();renderCollapsed();renderInfo();renderMap(true)
     setEmpty(true,year+' 年暂无台风记录','返回活跃台风')
   }
+  setLastUpdate()
 }
 
 async function selectTyphoon(t){
@@ -670,6 +769,19 @@ async function selectTyphoon(t){
   renderCollapsed();renderInfo();renderMap(true)
 }
 
+function renderAgencyLegend(){
+  var el=$('legendAgencies'),html='',ci=0
+  if(detail&&detail.forecasts){
+    Object.keys(detail.forecasts).forEach(function(key){
+      var pts=detail.forecasts[key],a=AGENCIES[key]
+      if(!pts||!pts.length)return
+      var ac=a?a.color:AGENCY_COLORS[ci++%AGENCY_COLORS.length]
+      var name=a?a.name:key
+      html+='<div class="legend-row"><span class="legend-line ac" style="background:'+ac+'"></span>'+name+'</div>'
+    })
+  }
+  el.innerHTML=html
+}
 function bindUI(){
   $('tabActive').onclick=function(){if(tabMode!=='active')loadActive()}
   $('tabHistory').onclick=function(){if(tabMode!=='history')loadHistory(selectedYear)}
@@ -680,7 +792,7 @@ function bindUI(){
     if(y===selectedYear)o.selected=true
     ys.appendChild(o)
   })
-  ys.onchange=function(){loadHistory(+ys.value)}
+  ys.onchange=function(){$('yearText').textContent=ys.value+' 年';loadHistory(+ys.value)}
   $('collapsedBar').onclick=function(){
     listExpanded=true
     renderChips();renderCollapsed();invalidateMap()
@@ -701,6 +813,10 @@ function bindUI(){
   $('legendHead').onclick=function(){
     var hide=$('legendBody').classList.toggle('hide')
     $('legendToggle').textContent=hide?'展开':'收起'
+  }
+  $('refreshBtn').onclick=function(){
+    if(tabMode==='active')loadActive()
+    else loadHistory(selectedYear)
   }
 }
 

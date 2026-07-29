@@ -1,245 +1,35 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue"
-import { getEarthquakes, getDateStr, magColor, magBgColor, magRadius, type QuakeItem } from "@/api/earthquake"
+import { ref, onMounted } from "vue"
 
-const quakes = ref<QuakeItem[]>([])
-const loading = ref(true)
-const failed = ref(false)
-const selected = ref<QuakeItem | null>(null)
-const center = ref({ lat: 30, lng: 105 })
-const scale = ref(3)
-const showList = ref(true)
-const region = ref<"global" | "china">("global")
-const queryDate = ref(getDateStr())
+const mapSrc = ref("/hybrid/html/leaflet-quake.html")
 
-onMounted(async () => {
-  await load()
+onMounted(() => {
+  // #ifdef H5
+  mapSrc.value = "/static/leaflet-quake.html"
+  // #endif
+  // #ifdef APP-PLUS
+  mapSrc.value = "/hybrid/html/leaflet-quake.html"
+  // #endif
 })
-
-async function load() {
-  loading.value = true
-  failed.value = false
-  quakes.value = []
-  const data = await getEarthquakes(queryDate.value, region.value, (updated) => {
-    quakes.value = updated
-    if (updated.length > 0) {
-      if (!selected.value) { selected.value = updated[0]; fitMap(updated) }
-      failed.value = false
-    }
-    loading.value = false
-  })
-  quakes.value = data
-  if (data.length > 0) {
-    selected.value = data[0]
-    fitMap(data)
-  }
-  failed.value = data.length === 0
-  loading.value = false
-}
-
-async function switchRegion(mode: "global" | "china") {
-  if (mode === region.value) return
-  region.value = mode
-  await load()
-}
-
-async function onDateChange(e: any) {
-  queryDate.value = e.detail.value
-  await load()
-}
-
-function fitMap(list: QuakeItem[]) {
-  let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180
-  for (const q of list) {
-    if (q.lat < minLat) minLat = q.lat
-    if (q.lat > maxLat) maxLat = q.lat
-    if (q.lon < minLng) minLng = q.lon
-    if (q.lon > maxLng) maxLng = q.lon
-  }
-  center.value = { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 }
-  const span = Math.max(maxLat - minLat, maxLng - minLng)
-  if (span < 5) scale.value = 8
-  else if (span < 15) scale.value = 6
-  else if (span < 40) scale.value = 4
-  else if (span < 80) scale.value = 3
-  else scale.value = 2
-}
-
-function selectQuake(q: QuakeItem) {
-  selected.value = q
-  center.value = { lat: q.lat, lng: q.lon }
-  scale.value = 6
-}
-
-function dotIcon(mag: number): string {
-  if (mag >= 6) return "/static/dot-SuperTY.png"
-  if (mag >= 5) return "/static/dot-STY.png"
-  if (mag >= 4) return "/static/dot-TY.png"
-  if (mag >= 3) return "/static/dot-STS.png"
-  if (mag >= 2) return "/static/dot-TS.png"
-  return "/static/dot-TD.png"
-}
-
-const markers = computed(() => {
-  const list: any[] = []
-  quakes.value.slice(0, 100).forEach((q, i) => {
-    list.push({
-      id: i + 1,
-      latitude: q.lat,
-      longitude: q.lon,
-      iconPath: dotIcon(q.mag),
-      width: 1,
-      height: 1,
-      zIndex: Math.round(q.mag * 10),
-      anchor: { x: 0.5, y: 0.5 },
-    })
-  })
-  if (selected.value) {
-    list.push({
-      id: 9999,
-      latitude: selected.value.lat,
-      longitude: selected.value.lon,
-      iconPath: "/static/点位.png",
-      width: 48,
-      height: 48,
-      zIndex: 1000,
-      anchor: { x: 0.5, y: 1.25 },
-    })
-  }
-  return list
-})
-
-function onMapTap(e: any) {
-  const lat = e.detail.latitude
-  const lng = e.detail.longitude
-  if (lat === undefined || lng === undefined) return
-  let best: QuakeItem | null = null
-  let bestDist = Infinity
-  for (const q of quakes.value) {
-    const dlat = q.lat - lat
-    const dlng = q.lon - lng
-    const dist = dlat * dlat + dlng * dlng
-    if (dist < bestDist) { bestDist = dist; best = q }
-  }
-  if (best && Math.sqrt(bestDist) < 1.5) {
-    selectQuake(best)
-  }
-}
-
-function formatTime(ts: number): string {
-  const d = new Date(ts)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function formatFull(ts: number): string {
-  const d = new Date(ts)
-  const pad = (n: number) => String(n).padStart(2, "0")
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
 </script>
 
 <template>
   <view class="page">
-    <view class="bar">
-      <view class="bar-row">
-        <view class="region-tabs">
-          <view :class="['region-tab', region === 'global' && 'active']" @tap="switchRegion('global')">
-            <text>全球</text>
-          </view>
-          <view :class="['region-tab', region === 'china' && 'active']" @tap="switchRegion('china')">
-            <text>中国及周边</text>
-          </view>
-        </view>
-        <picker mode="date" :value="queryDate" @change="onDateChange">
-          <view class="date-picker">
-            <text>{{ queryDate }}</text>
-            <text class="date-arrow">&#9662;</text>
-          </view>
-        </picker>
-      </view>
-      <view class="bar-sub">
-        <text v-if="!loading" class="bar-count">
-          <text class="bar-count-num">{{ quakes.length }}</text> 次地震
-          <text class="bar-count-src">· USGS + GFZ + EMSC</text>
-        </text>
-        <text v-else class="bar-count bar-loading">加载中...</text>
-        <view class="bar-toggle" @tap="showList = !showList">
-          <text>{{ showList ? '收起 ▲' : '列表 ▼' }}</text>
-        </view>
-      </view>
-      <view v-show="showList" class="quake-list">
-        <view
-          v-for="(q, i) in quakes" :key="q.id || i"
-          :class="['quake-item', q.id === selected?.id && 'active']"
-          @tap="selectQuake(q)"
-        >
-          <view class="quake-rank" :style="{ background: magColor(q.mag) }">
-            <text class="quake-rank-text">{{ i + 1 }}</text>
-          </view>
-          <view class="quake-mag-tag" :style="{ background: magBgColor(q.mag), color: magColor(q.mag) }">
-            <text class="quake-mag-num">{{ q.mag.toFixed(1) }}</text>
-          </view>
-          <view class="quake-info">
-            <text class="quake-place">{{ q.place }}</text>
-            <text class="quake-meta">{{ formatTime(q.time) }} · 深度 {{ q.depth.toFixed(0) }}km</text>
-          </view>
-        </view>
-      </view>
-    </view>
-
-    <view class="map-container">
-      <map
-        id="quakeMap"
-        :latitude="center.lat"
-        :longitude="center.lng"
-        :scale="scale"
-        :markers="markers"
-        @tap="onMapTap"
-        enable-zoom
-        enable-scroll
-        enable-rotate
-        style="width:100%;height:100%"
-      />
-
-      <view v-if="loading" class="map-message">
-        <view class="fetching-spinner" />
-        <text>加载中...</text>
-      </view>
-      <view v-else-if="failed" class="map-message">
-        <text class="map-msg-icon">📡</text>
-        <text>该日期暂无地震数据</text>
-        <text class="map-msg-hint">可切换至「中国及周边」或更换日期</text>
-      </view>
-    </view>
-
-    <view v-if="selected" class="info-card" @tap="showList ? null : showList = true">
-      <view class="info-top">
-        <view class="info-mag-wrap" :style="{ background: magColor(selected.mag) }">
-          <text class="info-mag-num">{{ selected.mag.toFixed(1) }}</text>
-          <text class="info-mag-label">级</text>
-        </view>
-        <view class="info-top-right">
-          <text class="info-time-full">{{ formatFull(selected.time) }}</text>
-          <view class="info-coords">
-            <text>{{ selected.lat.toFixed(2) }}°N {{ selected.lon.toFixed(2) }}°E</text>
-          </view>
-        </view>
-      </view>
-      <text class="info-place">{{ selected.place }}</text>
-      <view class="info-bottom">
-        <view class="info-stat">
-          <text class="info-stat-value">{{ selected.depth.toFixed(0) }}</text>
-          <text class="info-stat-label">深度 (km)</text>
-        </view>
-        <view class="info-stat">
-          <text class="info-stat-value">{{ magColor(selected.mag) === '#E53935' ? '破坏性' : magColor(selected.mag) === '#EF6C00' ? '强烈' : magColor(selected.mag) === '#F9A825' ? '有感' : '轻微' }}</text>
-          <text class="info-stat-label">震感</text>
-        </view>
-      </view>
-    </view>
+    <web-view class="wv" :src="mapSrc" />
   </view>
 </template>
+
+<style scoped>
+.page {
+  width: 100%;
+  height: 100vh;
+  background: #F0F5FA;
+}
+.wv {
+  width: 100%;
+  height: 100%;
+}
+</style>
 
 <style scoped>
 .page {

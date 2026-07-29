@@ -463,7 +463,6 @@ function hourLabel(t: string): string {
   padding-right: var(--spacing-lg);
   padding-bottom: calc(32px + var(--safe-area-bottom));
   min-height: 100vh;
-  transition: background 0.8s ease;
 }
 
 .light-bg .city-name,
@@ -646,13 +645,11 @@ function hourLabel(t: string): string {
 }
 
 .detail-item {
-  background: rgba(255,255,255,0.18);
-  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.2);
   border-radius: var(--radius-lg);
   padding: var(--spacing-md) var(--spacing-sm);
   text-align: center;
   border: 1px solid rgba(255,255,255,0.1);
-  transition: background var(--transition-fast);
 }
 
 .detail-label {
@@ -995,4 +992,7 @@ function hourLabel(t: string): string {
   color: rgba(255,255,255,0.75);
   letter-spacing: 0.2em;
 }
+</style>
+<style>
+::-webkit-scrollbar { display: none; width: 0; height: 0; }
 </style>

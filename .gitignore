@@ -6,3 +6,6 @@ HelloUniApp-build/
 *.apk
 src/static/temp-typhoon/
 src/static/typhoon-map/
+.opencode/
+.hbuilderx/
+天气查询-*.apk

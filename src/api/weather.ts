@@ -155,6 +155,16 @@ const OM_WX: Record<number, string> = {
   85: "小阵雪", 86: "大阵雪", 95: "雷阵雨", 96: "雷阵雨+冰雹", 99: "雷阵雨+冰雹",
 }
 
+const RAIN_CODES = new Set([51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99])
+
+function weatherByPrecip(wcode: number, precip: number): string | null {
+  if (RAIN_CODES.has(wcode)) return null
+  if (precip <= 0) return null
+  if (precip >= 10) return "大雨"
+  if (precip >= 4) return "中雨"
+  return "小雨"
+}
+
 function dayName(dateStr: string): string {
   const days = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
   const d = new Date(dateStr)
@@ -187,9 +197,9 @@ async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
   const params = [
     `latitude=${lat}`,
     `longitude=${lon}`,
-    "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index",
-    "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max",
-    "hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m,wind_direction_10m",
+    "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index,precipitation",
+    "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max,precipitation_sum",
+    "hourly=temperature_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
     "timezone=auto",
     "forecast_days=4",
   ]
@@ -220,7 +230,8 @@ function parseWeatherData(data: any): CurrentWeather {
   const hourly = data.hourly
 
   const wcode: number = cur.weather_code ?? 0
-  const weatherDesc = OM_WX[wcode] || translateWeather(String(wcode))
+  const precip = cur.precipitation ?? 0
+  const weatherDesc = weatherByPrecip(wcode, precip) || OM_WX[wcode] || translateWeather(String(wcode))
 
   const now = new Date()
   const todayDate = daily?.time?.[0] || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
@@ -230,10 +241,11 @@ function parseWeatherData(data: any): CurrentWeather {
   if (daily?.time) {
     for (let i = 1; i < Math.min(daily.time.length, 4); i++) {
       const fc = daily.weather_code?.[i] ?? 0
+      const dp = daily.precipitation_sum?.[i] ?? 0
       forecast.push({
         day: dayName(daily.time[i]),
         date: daily.time[i],
-        weather: OM_WX[fc] || translateWeather(String(fc)),
+        weather: weatherByPrecip(fc, dp) || OM_WX[fc] || translateWeather(String(fc)),
         high: String(daily.temperature_2m_max?.[i] ?? "--"),
         low: String(daily.temperature_2m_min?.[i] ?? "--"),
       })
@@ -249,10 +261,11 @@ function parseWeatherData(data: any): CurrentWeather {
       if (dateStr !== todayDate || hh < currentHour) continue
 
       const hcode = hourly.weather_code?.[i] ?? 0
+      const hp = hourly.precipitation?.[i] ?? 0
       hourlyItems.push({
         time: hh + ":00",
         temp: String(hourly.temperature_2m?.[i] ?? "--"),
-        weather: OM_WX[hcode] || translateWeather(String(hcode)),
+        weather: weatherByPrecip(hcode, hp) || OM_WX[hcode] || translateWeather(String(hcode)),
         rainChance: String(hourly.precipitation_probability?.[i] ?? 0),
         windDir: degToDir(hourly.wind_direction_10m?.[i] ?? 0),
         windScale: String(Math.round((hourly.wind_speed_10m?.[i] ?? 0) / 1.852)),
@@ -299,7 +312,7 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
     const endDate = date || startDate
     const res = await new Promise<any>((resolve) => {
       uni.request({
-        url: `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
+        url: `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
         timeout: 6000,
         success(r) { resolve(r) },
         fail() { resolve(null) },
@@ -316,10 +329,11 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
       const hh = parseInt(t.slice(11, 13))
       if (isToday && hh < currentHour) continue
       const wcode = h.weathercode?.[i] ?? 0
+      const hp = h.precipitation?.[i] ?? 0
       result.push({
         time: hh + ":00",
         temp: String(h.temperature_2m?.[i] ?? "--"),
-        weather: OM_WX[wcode] || translateWeather(String(wcode)),
+        weather: weatherByPrecip(wcode, hp) || OM_WX[wcode] || translateWeather(String(wcode)),
         rainChance: String(h.precipitation_probability?.[i] ?? 0),
         windDir: degToDir(h.winddirection_10m?.[i] ?? 0),
         windScale: String(Math.round((h.windspeed_10m?.[i] ?? 0) / 1.852)),
