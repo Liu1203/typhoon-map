@@ -388,8 +388,15 @@ function initMap(){
 }
 
 function bindUI(){
-  $('tabGlobal').onclick=function(){if(region!=='global'){region='global';loadData()}}
-  $('tabChina').onclick=function(){if(region!=='china'){region='china';loadData()}}
+  function switchTab(r){
+    if(region===r)return
+    region=r
+    $('tabGlobal').className='tab'+(r==='global'?' active':'')
+    $('tabChina').className='tab'+(r==='china'?' active':'')
+    loadData()
+  }
+  $('tabGlobal').onclick=function(){switchTab('global')}
+  $('tabChina').onclick=function(){switchTab('china')}
   var di=$('dateInput')
   di.value=queryDate
   di.onchange=function(){if(di.value){queryDate=di.value;$('dateText').textContent=queryDate;loadData()}}
