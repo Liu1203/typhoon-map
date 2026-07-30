@@ -293,7 +293,7 @@ function req(url){
 }
 
 function getYearList(){
-  var y=new Date().getFullYear()-1,arr=[]
+  var y=new Date().getFullYear(),arr=[]
   for(;y>=2015;y--)arr.push(y)
   return arr
 }

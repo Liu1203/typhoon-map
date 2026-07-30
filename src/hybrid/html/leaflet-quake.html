@@ -28,6 +28,10 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .sub-src{color:#B0BDCC;font-size:10px}
 .sub-toggle{padding:4px 10px;border-radius:6px;background:#EDF2F8;font-size:11px;color:#5B8FC0;cursor:pointer}
 
+.filter-bar{flex-shrink:0;display:flex;gap:6px;padding:6px 14px;background:#fff;border-bottom:1px solid #DDE4ED;z-index:20}
+.filter-btn{padding:4px 12px;border-radius:999px;border:1px solid #DDE4ED;background:transparent;font-size:11px;color:#8B9CAD;cursor:pointer;font-weight:500;transition:all .12s}
+.filter-btn.active{background:#5B8FC0;border-color:#5B8FC0;color:#fff;box-shadow:0 2px 8px rgba(91,143,192,.2)}
+
 .quake-list{flex-shrink:0;max-height:35vh;overflow-y:auto;background:#fff;border-bottom:1px solid #DDE4ED;z-index:20}
 .quake-list.hide{display:none}
 .quake-item{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid #EDF2F8;cursor:pointer;transition:background .1s}
@@ -125,10 +129,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 </div>
 
 <div class="sub-bar">
-  <span><span class="sub-count-num" id="quakeCount">0</span> 次地震 <span class="sub-src">· USGS + GFZ + EMSC</span></span>
+  <span><span class="sub-count-num" id="quakeCount">0</span> 次地震 <span class="sub-src" id="subSrc"></span></span>
   <span class="sub-toggle" id="listToggle">收起 ▲</span>
 </div>
 
+<div class="filter-bar" id="filterBar">
+  <button class="filter-btn active" data-min="0" type="button">全部</button>
+  <button class="filter-btn" data-min="3" type="button">M3+</button>
+  <button class="filter-btn" data-min="5" type="button">M5+</button>
+  <button class="filter-btn" data-min="7" type="button">M7+</button>
+</div>
 <div class="quake-list" id="quakeList"></div>
 
 <div class="loading-hint" id="loadingHint">正在获取地震数据...</div>
@@ -205,7 +215,7 @@ function getDateStr(offset){
 }
 function pad2(n){return String(n).padStart(2,'0')}
 
-var region='global',queryDate=getDateStr(),quakes=[],selected=null,listExpanded=true
+var region='global',queryDate=getDateStr(),allQuakes=[],quakes=[],selected=null,listExpanded=true,minMagFilter=0
 var map=null,layers=[],mapData=[],selectedKey=null
 var refreshTimer=null
 
@@ -215,6 +225,13 @@ function setShow(el,on){if(!el)return;if(on)el.classList.add('show');else el.cla
 function invalidateMap(){
   if(!map)return
   setTimeout(function(){try{map.invalidateSize(false)}catch(e){}},60)
+}
+
+function applyFilter(){
+  quakes=minMagFilter>0?allQuakes.filter(function(q){return q.mag>=minMagFilter}):allQuakes.slice()
+  selected=quakes.length?quakes[0]:null
+  $('quakeCount').textContent=quakes.length
+  renderList();renderBottom();renderMap(true)
 }
 
 function renderList(){
@@ -350,6 +367,9 @@ function dedup(list){
 
 async function loadData(){
   setLoading(true);setEmpty(false)
+  minMagFilter=0
+  var filterBtns=$('filterBar').querySelectorAll('.filter-btn')
+  filterBtns.forEach(function(b,i){b.className='filter-btn'+(i===0?' active':'')})
   var btn=$('refreshBtn');btn.classList.add('loading')
   var d=queryDate,start=d+'T00:00:00',end=d+'T23:59:59'
   var isChina=region==='china'
@@ -358,20 +378,27 @@ async function loadData(){
   var u1='https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime='+start+'&endtime='+end+bbox+minmag
   var u2='https://geofon.gfz-potsdam.de/fdsnws/event/1/query?format=geojson&starttime='+start+'&endtime='+end+bbox+minmag+'&orderby=time'
   var u3='https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime='+start+'&endtime='+end+bbox+minmag
-  var p1=fetchQuakes(u1,6000),p2=fetchQuakes(u2,5000),p3=fetchQuakes(u3,5000)
+  function fetchSrc(url,timeout,src){
+    return fetchQuakes(url,timeout).then(function(items){
+      items.forEach(function(q){q._src=src})
+      return items
+    })
+  }
+  var sources=[{src:'USGS',url:u1,to:6000},{src:'GFZ',url:u2,to:5000},{src:'EMSC',url:u3,to:5000}]
   var all=[]
   function merge(items){
     all=dedup(all.concat(items))
     all.sort(function(a,b){return b.mag-a.mag})
-    quakes=all;selected=quakes.length?quakes[0]:null
-    $('quakeCount').textContent=quakes.length
-    renderList();renderBottom();renderMap(true)
+    allQuakes=all
+    applyFilter()
+    btn.classList.remove('loading');setLoading(false)
+    if(!quakes.length)setEmpty(true,'该日期暂无地震数据')
+    setLastUpdate()
   }
-  var batches=await Promise.all([p1,p2,p3].map(function(p){return p.catch(function(){return[]})}))
+  var batches=await Promise.all(sources.map(function(s){return fetchSrc(s.url,s.to,s.src).catch(function(){return[]})}))
   batches.forEach(function(b){merge(b)})
-  btn.classList.remove('loading');setLoading(false)
-  if(!quakes.length)setEmpty(true,'该日期暂无地震数据')
-  setLastUpdate()
+  var activeSrcs=sources.filter(function(s,i){return batches[i].length>0}).map(function(s){return s.src})
+  $('subSrc').textContent='· '+(activeSrcs.length?activeSrcs.join(' + '):'无数据')
 }
 
 function initMap(){
@@ -405,6 +432,15 @@ function bindUI(){
   $('todayBtn').onclick=function(){queryDate=getDateStr();$('dateInput').value=queryDate;$('dateText').textContent=queryDate;loadData()}
   $('emptyRetry').onclick=function(){loadData()}
   $('listToggle').onclick=function(){listExpanded=!listExpanded;renderList();invalidateMap()}
+  var filterBtns=$('filterBar').querySelectorAll('.filter-btn')
+  filterBtns.forEach(function(btn){
+    btn.onclick=function(){
+      filterBtns.forEach(function(b){b.className='filter-btn'})
+      btn.className='filter-btn active'
+      minMagFilter=parseFloat(btn.getAttribute('data-min'))||0
+      applyFilter()
+    }
+  })
   $('legendHead').onclick=function(){
     var hide=$('legendBody').classList.toggle('hide')
     $('legendToggle').textContent=hide?'展开':'收起'
