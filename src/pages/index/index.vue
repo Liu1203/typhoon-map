@@ -288,12 +288,7 @@ function shareWeather() {
   if (!weather.value || !displayWeather.value) return
   const w = displayWeather.value
   const text = `🌤 ${currentCity.value} · 清清天气\n\n${w.temp}°C · ${w.weather}\n↑ ${w.high}° ↓ ${w.low}°C\n体感 ${w.feelsLike}°C · 💧 ${w.humidity}%\n日出 ${w.sunrise} · 日落 ${w.sunset}`
-  // #ifdef APP-PLUS
-  plus.share.sendWithSystem({ content: text, type: 'text' })
-  // #endif
-  // #ifdef H5
-  uni.setClipboardData({ data: text, success() { uni.showToast({ title: '已复制天气信息', icon: 'none' }) } })
-  // #endif
+  uni.setClipboardData({ data: text, success() { uni.showToast({ title: '天气信息已复制', icon: 'none' }) } })
 }
 
 function goSearch() {
