@@ -46,7 +46,7 @@ const nowHour = new Date().getHours()
   top: 0;
   bottom: 0;
   width: 40px;
-  background: linear-gradient(90deg, transparent, rgba(251,247,240,0.95));
+  background: linear-gradient(90deg, transparent, var(--color-paper));
   pointer-events: none;
   border-radius: 0 var(--radius-md) var(--radius-md) 0;
 }

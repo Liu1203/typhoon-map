@@ -21,9 +21,10 @@ defineProps<{
       <text class="detail-label">{{ weather.windDir }}</text>
       <text class="detail-value">{{ weather.windLevel }}</text>
     </view>
-    <view class="detail-item">
+    <view class="detail-item" :class="{ 'uv-warning': parseInt(weather.uvIndex) >= 7 }">
       <text class="detail-label">紫外线</text>
       <text class="detail-value">{{ weather.uvIndex }} {{ uvLabel(weather.uvIndex) }}</text>
+      <text class="uv-badge" v-if="parseInt(weather.uvIndex) >= 7">⚠ 注意防护</text>
     </view>
     <view class="detail-item">
       <text class="detail-label">日出</text>
@@ -117,5 +118,16 @@ defineProps<{
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
   color: #fff;
+}
+.uv-warning {
+  background: rgba(240, 100, 50, 0.25) !important;
+  border-color: rgba(240, 100, 50, 0.4) !important;
+}
+.uv-badge {
+  display: block;
+  font-size: 9px;
+  color: rgba(255, 200, 50, 1);
+  font-weight: var(--font-weight-bold);
+  margin-top: 2px;
 }
 </style>

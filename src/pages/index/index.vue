@@ -363,6 +363,19 @@ const displayForecast = computed(() => {
 
 
 
+const rainAlarm = computed(() => {
+  if (!weather.value?.hourly?.length) return null
+  const now = new Date().getHours()
+  const next6 = weather.value.hourly.filter(h => {
+    const hh = parseInt(h.time)
+    return hh >= now && hh < now + 6
+  })
+  const risky = next6.filter(h => parseInt(h.rainChance) > 50)
+  if (!risky.length) return null
+  const maxPct = Math.max(...risky.map(h => parseInt(h.rainChance)))
+  return { count: risky.length, maxPct }
+})
+
 const weatherGradient = computed(() => weather.value ? gradientFor(weather.value.weather) : "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)")
 const accentColor = computed(() => weather.value ? accentFor(weather.value.weather) : "#E09050")
 const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
@@ -404,6 +417,10 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
         <text class="alert-text">{{ weather.alerts[0].event }}{{ weather.alerts.length > 1 ? ' 等' + weather.alerts.length + '条' : '' }}</text>
         <text class="alert-count" v-if="weather.alerts.length > 1">{{ weather.alerts.length }}</text>
         <text class="alert-arrow">›</text>
+      </view>
+      <view v-if="rainAlarm" class="rain-alarm-banner anim-fade-in-down" style="animation-delay: 0.08s">
+        <text class="rain-alarm-icon">☔</text>
+        <text class="rain-alarm-text">未来{{ rainAlarm.count }}小时可能降雨（{{ rainAlarm.maxPct }}%），出门记得带伞</text>
       </view>
       <view v-if="isOffline" class="offline-banner">
         <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
@@ -588,6 +605,25 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 .offline-text {
   font-size: var(--font-size-xs);
   color: rgba(255,255,255,0.9);
+}
+
+.rain-alarm-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0 var(--spacing-md) var(--spacing-sm);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(91, 143, 192, 0.2);
+  border: 1px solid rgba(91, 143, 192, 0.35);
+}
+.rain-alarm-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.rain-alarm-text {
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.95);
 }
 
 .alert-banner {

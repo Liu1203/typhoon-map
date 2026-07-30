@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { UNITS_DEFAULT, type UnitSettings } from "@/utils/weather"
-import { loadDarkMode } from "@/utils/theme"
+import { loadDarkMode, toggleDarkMode as toggleThemeDarkMode } from "@/utils/theme"
+import { APP_VERSION } from "@/version"
 
 const darkMode = ref(false)
 const units = ref<UnitSettings>({ ...UNITS_DEFAULT })
@@ -26,8 +27,7 @@ onMounted(() => {
 })
 
 function toggleDark() {
-  darkMode.value = !darkMode.value
-  uni.setStorageSync("dark_mode", darkMode.value ? "1" : "0")
+  darkMode.value = toggleThemeDarkMode()
 }
 
 function setTemp(val: string) {
@@ -109,7 +109,7 @@ function removeFav(city: string) {
       <text class="section-title">关于</text>
       <view class="setting-row">
         <text class="setting-label">应用版本</text>
-        <text class="setting-value">1.1.0</text>
+        <text class="setting-value">{{ APP_VERSION }}</text>
       </view>
       <view class="setting-row">
         <text class="setting-label">数据来源</text>

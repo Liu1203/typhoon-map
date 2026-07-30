@@ -63,8 +63,49 @@ export function groupCitiesByPinyin(): Record<string, string[]> {
   return sorted
 }
 
+const DYNAMIC_COORDS: Record<string, { lat: number; lon: number }> = {}
+
+export function setDynamicCity(name: string, lat: number, lon: number) {
+  DYNAMIC_COORDS[name] = { lat, lon }
+}
+
 export function getCityCoords(name: string): { lat: number; lon: number } | null {
-  return CITY_COORDS[name] || null
+  return CITY_COORDS[name] || DYNAMIC_COORDS[name] || null
+}
+
+export interface GeoCity {
+  name: string
+  lat: number
+  lon: number
+  country: string
+  admin1?: string
+}
+
+export async function searchCities(query: string): Promise<GeoCity[]> {
+  if (!query || query.length < 1) return []
+  try {
+    const res = await new Promise<any>((resolve) => {
+      uni.request({
+        url: `${API.GEOCODING}?name=${encodeURIComponent(query)}&count=15&language=zh&format=json`,
+        timeout: 5000,
+        success(r) { resolve(r) },
+        fail() { resolve(null) },
+      })
+    })
+    if (!res?.data?.results) return []
+    return res.data.results
+      .filter((r: any) => r.name && r.latitude != null && r.longitude != null)
+      .map((r: any) => ({
+        name: r.name,
+        lat: r.latitude,
+        lon: r.longitude,
+        country: r.country || "",
+        admin1: r.admin1 || "",
+      }))
+  } catch (e) {
+    console.error("Geocoding error:", e)
+    return []
+  }
 }
 
 export function nearestCity(lat: number, lon: number): string {
