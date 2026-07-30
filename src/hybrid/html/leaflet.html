@@ -707,7 +707,7 @@ async function loadActive(){
   setEmpty(false)
   selectedPoint=null
   var btn=$('refreshBtn');btn.classList.add('loading')
-  var text=await req('http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default?t='+Date.now())
+  var text=await req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default?t='+Date.now())
   btn.classList.remove('loading')
   setLoading(false)
   var data=text?parseJsonp(text):null
@@ -739,7 +739,7 @@ async function loadHistory(year){
   selected=null;detail=null;selectedPoint=null;typhoons=[]
   renderChips();renderCollapsed();renderInfo();renderMap(true)
   var btn=$('refreshBtn');btn.classList.add('loading')
-  var text=await req('http://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_'+year+'?t='+Date.now())
+  var text=await req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_'+year+'?t='+Date.now())
   btn.classList.remove('loading')
   setLoading(false)
   var data=text?parseJsonp(text):null
@@ -762,7 +762,7 @@ async function selectTyphoon(t){
   listExpanded=false
   renderChips();renderCollapsed();renderInfo()
   setFetching(true)
-  var text=await req('http://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_'+t.id+'?t='+Date.now())
+  var text=await req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_'+t.id+'?t='+Date.now())
   setFetching(false)
   var data=text?parseJsonp(text):null
   detail=data&&data.typhoon?parseDetail(data.typhoon):null

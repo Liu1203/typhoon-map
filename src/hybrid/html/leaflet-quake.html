@@ -18,6 +18,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .date-wrap{flex-shrink:0;position:relative;display:flex;align-items:center;gap:4px;padding:7px 10px;border-radius:8px;background:#EDF2F8;font-size:13px;color:#5B8FC0;font-weight:500;cursor:pointer;overflow:hidden}
 .date-input{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2}
 .date-arrow{font-size:10px}
+.today-btn{flex-shrink:0;padding:7px 10px;border:none;border-radius:8px;background:#5B8FC0;font-size:12px;color:#fff;font-weight:500;cursor:pointer;line-height:1}
 .refresh-btn{flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:#EDF2F8;border-radius:50%;font-size:17px;color:#5B8FC0;cursor:pointer}
 .refresh-btn.loading{animation:spin .6s linear infinite;pointer-events:none;opacity:.5}
 .update-time{flex-shrink:0;font-size:10px;color:#B0BDCC;white-space:nowrap;padding-right:4px}
@@ -71,6 +72,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 }
 .empty-icon{font-size:40px;line-height:1}
 .empty-text{font-size:15px;color:#5A6E80}
+.retry-btn{margin-top:4px;padding:9px 24px;border:none;border-radius:999px;background:linear-gradient(135deg,#5B8FC0,#3D6A94);color:#fff;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 4px 14px rgba(91,143,192,.28)}
 
 .fetching{
   position:absolute;inset:0;z-index:850;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;
@@ -117,6 +119,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
     <span id="dateText"></span>
     <span class="date-arrow">&#9662;</span>
   </div>
+  <button class="today-btn" id="todayBtn" type="button">今天</button>
   <span class="update-time" id="updateTime"></span>
   <button class="refresh-btn" id="refreshBtn" type="button">&#x21bb;</button>
 </div>
@@ -148,6 +151,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
     <div class="empty-card">
       <div class="empty-icon">📡</div>
       <div class="empty-text" id="emptyText">该日期暂无地震数据</div>
+      <button class="retry-btn" id="emptyRetry" type="button">重新加载</button>
     </div>
   </div>
   <div class="fetching" id="fetching">
@@ -356,7 +360,6 @@ async function loadData(){
   var u3='https://www.seismicportal.eu/fdsnws/event/1/query?format=json&starttime='+start+'&endtime='+end+bbox+minmag
   var p1=fetchQuakes(u1,6000),p2=fetchQuakes(u2,5000),p3=fetchQuakes(u3,5000)
   var all=[]
-  var resolved=0
   function merge(items){
     all=dedup(all.concat(items))
     all.sort(function(a,b){return b.mag-a.mag})
@@ -364,22 +367,8 @@ async function loadData(){
     $('quakeCount').textContent=quakes.length
     renderList();renderBottom();renderMap(true)
   }
-  [p1,p2,p3].forEach(function(p){
-    p.then(function(items){
-      resolved++;merge(items)
-    }).catch(function(){resolved++;if(resolved>=3&&!all.length){setLoading(false);setEmpty(true,'该日期暂无地震数据')}})
-  })
-  await Promise.all([p1,p2,p3])
-  setTimeout(function(){
-    var all2=[]
-    Promise.all([p1,p2,p3]).then(function(batches){
-      batches.forEach(function(b){all2=dedup(all2.concat(b))})
-      all2.sort(function(a,b){return b.mag-a.mag})
-      quakes=all2;selected=quakes.length?quakes[0]:null
-      $('quakeCount').textContent=quakes.length
-      renderList();renderBottom();renderMap(false)
-    })
-  },200)
+  var batches=await Promise.all([p1,p2,p3].map(function(p){return p.catch(function(){return[]})}))
+  batches.forEach(function(b){merge(b)})
   btn.classList.remove('loading');setLoading(false)
   if(!quakes.length)setEmpty(true,'该日期暂无地震数据')
   setLastUpdate()
@@ -406,6 +395,8 @@ function bindUI(){
   di.onchange=function(){if(di.value){queryDate=di.value;$('dateText').textContent=queryDate;loadData()}}
   $('dateWrap').onclick=function(e){if(e.target!==di)di.showPicker()}
   $('refreshBtn').onclick=function(){loadData()}
+  $('todayBtn').onclick=function(){queryDate=getDateStr();$('dateInput').value=queryDate;$('dateText').textContent=queryDate;loadData()}
+  $('emptyRetry').onclick=function(){loadData()}
   $('listToggle').onclick=function(){listExpanded=!listExpanded;renderList();invalidateMap()}
   $('legendHead').onclick=function(){
     var hide=$('legendBody').classList.toggle('hide')
