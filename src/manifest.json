@@ -37,6 +37,9 @@
     "compatible": {
       "ignoreVersion": true
     },
+    "modules": {
+      "Share": {}
+    },
     "push": {
       "ignore": true
     },

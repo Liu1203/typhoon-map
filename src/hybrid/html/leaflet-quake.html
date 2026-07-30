@@ -231,6 +231,8 @@ function applyFilter(){
   quakes=minMagFilter>0?allQuakes.filter(function(q){return q.mag>=minMagFilter}):allQuakes.slice()
   selected=quakes.length?quakes[0]:null
   $('quakeCount').textContent=quakes.length
+  if(!allQuakes.length)setEmpty(true,'该日期暂无地震数据')
+  else setEmpty(quakes.length===0,'该震级范围内暂无数据')
   renderList();renderBottom();renderMap(true)
 }
 
