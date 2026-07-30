@@ -95,3 +95,43 @@ export function formatWind(val: string, unit: string): string {
   if (unit === "ms") return (n / 3.6).toFixed(1)
   return String(Math.round(n))
 }
+
+const LUNAR_CYCLE = 29.53058867
+const KNOWN_NEW_MOON = Date.UTC(2000, 0, 6, 18, 14, 0)
+
+export function moonPhase(date?: Date): { phase: string; icon: string } {
+  const d = date || new Date()
+  const days = (d.getTime() - KNOWN_NEW_MOON) / 86400000
+  const pct = ((days % LUNAR_CYCLE) / LUNAR_CYCLE)
+  if (pct < 0.025 || pct >= 0.975) return { phase: "新月", icon: "🌑" }
+  if (pct < 0.25) return { phase: "蛾眉月", icon: "🌒" }
+  if (pct < 0.275) return { phase: "上弦月", icon: "🌓" }
+  if (pct < 0.475) return { phase: "盈凸月", icon: "🌔" }
+  if (pct < 0.525) return { phase: "满月", icon: "🌕" }
+  if (pct < 0.725) return { phase: "亏凸月", icon: "🌖" }
+  if (pct < 0.775) return { phase: "下弦月", icon: "🌗" }
+  return { phase: "残月", icon: "🌘" }
+}
+
+export function moonriseMoonset(lat: number, lon: number, date?: Date): Promise<{ rise: string; set: string } | null> {
+  const d = date || new Date()
+  const ds = d.toISOString().slice(0, 10)
+  return new Promise((resolve) => {
+    uni.request({
+      url: `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=moonrise,moonset&timezone=auto&start_date=${ds}&end_date=${ds}`,
+      timeout: 5000,
+      success(r: any) {
+        const daily = r?.data?.daily
+        if (daily?.moonrise?.[0] && daily?.moonset?.[0]) {
+          resolve({
+            rise: daily.moonrise[0].slice(11, 16),
+            set: daily.moonset[0].slice(11, 16),
+          })
+        } else {
+          resolve(null)
+        }
+      },
+      fail() { resolve(null) },
+    })
+  })
+}

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import WeatherIcon from "./WeatherIcon.vue"
-import { windArrow, hourLabel, hourNum, sunHour } from "@/utils/weather"
+import { hourLabel, hourNum, sunHour } from "@/utils/weather"
 import type { HourlyItem } from "@/api/weather"
 
 const props = withDefaults(defineProps<{
@@ -14,6 +14,11 @@ const props = withDefaults(defineProps<{
 })
 
 const nowHour = new Date().getHours()
+
+const DIR_DEG: Record<string, number> = {
+  "北风": 0, "东北风": 45, "东风": 90, "东南风": 135,
+  "南风": 180, "西南风": 225, "西风": 270, "西北风": 315,
+}
 </script>
 
 <template>
@@ -25,7 +30,10 @@ const nowHour = new Date().getHours()
           <WeatherIcon :weather="h.weather" :size="26" />
           <text class="hourly-temp">{{ h.temp }}°</text>
           <text class="hourly-desc">{{ h.weather }}</text>
-          <text class="hourly-wind">{{ windArrow(h.windDir) }} {{ h.windScale }}</text>
+          <view class="hourly-wind-row">
+            <text class="wind-arrow" :style="{ transform: 'rotate(' + (DIR_DEG[h.windDir] || 0) + 'deg)' }">↑</text>
+            <text class="wind-num">{{ h.windScale }}</text>
+          </view>
           <view :class="['rain-tag', parseInt(h.rainChance) > 30 ? 'rain-heavy' : parseInt(h.rainChance) > 0 ? 'rain-light' : 'rain-none']">
             <text>{{ parseInt(h.rainChance) > 0 ? h.rainChance + '%' : '无雨' }}</text>
           </view>
@@ -110,11 +118,23 @@ const nowHour = new Date().getHours()
   white-space: normal;
   max-width: 56px;
 }
-.hourly-wind {
+.hourly-wind-row {
   position: relative;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.wind-arrow {
   font-size: 10px;
   color: var(--color-ash);
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+.wind-num {
+  font-size: 10px;
+  color: var(--color-ash);
+  font-weight: var(--font-weight-medium);
 }
 .rain-tag {
   position: relative;

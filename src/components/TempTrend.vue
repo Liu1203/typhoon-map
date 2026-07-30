@@ -119,4 +119,14 @@ const data = computed(() => {
   margin-top: var(--spacing-xs);
   font-weight: var(--font-weight-medium);
 }
+
+</style>
+<style>
+.dark-mode .trend-card {
+  background: rgba(30,36,48,0.85) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+.dark-mode .trend-high { color: #E0E6ED; }
+.dark-mode .trend-low { color: #8896A6; }
+.dark-mode .trend-day { color: #4A5464; }
 </style>

@@ -1,5 +1,14 @@
 <template><view></view></template>
 
+<script setup lang="ts">
+import { onError } from "@dcloudio/uni-app"
+
+onError((err) => {
+  console.error("[App Error]", err)
+  uni.showToast({ title: "出现异常，请稍后重试", icon: "none", duration: 3000 })
+})
+</script>
+
 <style>
 @import "@/styles/variables.css";
 @import "@/styles/animations.css";

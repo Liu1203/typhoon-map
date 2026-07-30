@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { uvLabel } from "@/utils/weather"
+import { computed } from "vue"
+import { uvLabel, moonPhase } from "@/utils/weather"
 import type { CurrentWeather } from "@/api/weather"
 
-defineProps<{
+const props = defineProps<{
   weather: CurrentWeather
 }>()
+
+const moon = computed(() => moonPhase())()
 </script>
 
 <template>
@@ -58,6 +61,10 @@ defineProps<{
       <text class="detail-label">空气质量</text>
       <text class="detail-value">{{ weather.aqi }} {{ weather.aqiLabel }}</text>
     </view>
+  </view>
+  <view class="moon-row">
+    <text class="moon-icon">{{ moon.icon }}</text>
+    <text class="moon-text">{{ moon.phase }}</text>
   </view>
   <view class="aqi-detail" v-if="weather.aqiDetail && (weather.aqiDetail.pm25 || weather.aqiDetail.pm10)">
     <view class="aqi-chip" v-if="weather.aqiDetail.pm25"><text class="aqi-label">PM2.5</text><text class="aqi-val">{{ weather.aqiDetail.pm25 }}</text></view>
@@ -129,5 +136,24 @@ defineProps<{
   color: rgba(255, 200, 50, 1);
   font-weight: var(--font-weight-bold);
   margin-top: 2px;
+}
+.moon-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: rgba(255,255,255,0.12);
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.moon-icon {
+  font-size: 18px;
+}
+.moon-text {
+  font-size: var(--font-size-sm);
+  color: rgba(255,255,255,0.85);
+  font-weight: var(--font-weight-medium);
 }
 </style>
