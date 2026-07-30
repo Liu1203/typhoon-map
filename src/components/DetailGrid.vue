@@ -7,7 +7,7 @@ const props = defineProps<{
   weather: CurrentWeather
 }>()
 
-const moon = computed(() => moonPhase())()
+const moon = computed(() => moonPhase())
 </script>
 
 <template>
