@@ -313,7 +313,7 @@ async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
   try {
     const res = await new Promise<{ data?: { current?: { european_aqi?: number; pm2_5?: number; pm10?: number; nitrogen_dioxide?: number; ozone?: number; sulphur_dioxide?: number }; hourly?: { time?: string[]; european_aqi?: number[] } } } | null>((resolve) => {
       uni.request({
-        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide&hourly=european_aqi&timezone=auto`,
+        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide&hourly=european_aqi&timezone=auto&forecast_days=1`,
         timeout: TIMEOUT.OPEN_METEO_HOURLY,
         success(r) { resolve(r as any) },
         fail() { resolve(null) },
@@ -327,7 +327,7 @@ async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
     const ht = res?.data?.hourly?.time
     const ha = res?.data?.hourly?.european_aqi
     if (Array.isArray(ht) && Array.isArray(ha)) {
-      for (let i = 0; i < ht.length; i++) {
+      for (let i = 0; i < ht.length && hourly.length < 24; i++) {
         const v = ha[i]
         if (v == null) continue
         hourly.push({ time: String(ht[i]).slice(11, 16), aqi: Math.round(v) })

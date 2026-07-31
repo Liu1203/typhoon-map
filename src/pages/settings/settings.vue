@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
-import { UNITS_DEFAULT, type UnitSettings, type ModuleConfig } from "@/utils/weather"
+import { ref, computed, onMounted, nextTick, getCurrentInstance } from "vue"
+import { UNITS_DEFAULT, MODULE_ORDER_DEFAULT, getUnitSettings, type UnitSettings, type ModuleConfig } from "@/utils/weather"
 import { loadDarkMode, getDarkModeState, setDarkMode, type DarkModeState } from "@/utils/theme"
 import { APP_VERSION } from "@/version"
 
@@ -17,26 +17,102 @@ const refreshOptions = [
 const tempAlert = ref({ enabled: false, high: 35, low: 0 })
 const moduleList: { key: keyof ModuleConfig; label: string }[] = [
   { key: "detail", label: "天气详情网格" },
+  { key: "aqi", label: "空气质量" },
+  { key: "forecast", label: "未来天气" },
   { key: "hourly", label: "逐时天气" },
   { key: "lifetips", label: "生活指数" },
   { key: "temptr", label: "温度趋势" },
   { key: "preciptr", label: "降水趋势" },
 ]
 
+const orderedModules = computed(() => {
+  const order = units.value.moduleOrder && units.value.moduleOrder.length ? units.value.moduleOrder : MODULE_ORDER_DEFAULT
+  const sorted: { key: keyof ModuleConfig; label: string }[] = []
+  order.forEach(k => {
+    const m = moduleList.find(x => x.key === k)
+    if (m) sorted.push(m)
+  })
+  moduleList.forEach(m => { if (!sorted.some(x => x.key === m.key)) sorted.push(m) })
+  return sorted
+})
+
+/* 拖拽排序：长按整行任意位置 380ms 进入拖动 */
+const dragKey = ref<string | null>(null)
+const dragDy = ref(0)
+const startPageY = ref(0)
+const startIndex = ref(0)
+const currentIndex = ref(0)
+const itemH = ref(48)
+const pressed = ref(false)
+let longPressTimer: ReturnType<typeof setTimeout> | null = null
+
+function getY(e: any): number {
+  const t = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0])
+  if (!t) return 0
+  return t.pageY != null ? t.pageY : (t.clientY || 0)
+}
+
+function measureItemH() {
+  try {
+    const q = uni.createSelectorQuery().in(getCurrentInstance())
+    q.select(".module-item").boundingClientRect((r: any) => {
+      if (r && r.height) itemH.value = Math.max(32, Math.min(80, r.height))
+    }).exec()
+  } catch {}
+}
+
+onMounted(async () => { await nextTick(); measureItemH() })
+
+function onRowTouchStart(e: any, index: number) {
+  pressed.value = true
+  startPageY.value = getY(e)
+  startIndex.value = index
+  currentIndex.value = index
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null
+    if (pressed.value) {
+      dragKey.value = orderedModules.value[index].key
+      measureItemH()
+    }
+  }, 380)
+}
+
+function onRowTouchMove(e: any) {
+  if (!dragKey.value) return
+  const y = getY(e)
+  const dy = y - startPageY.value
+  const len = orderedModules.value.length
+  const target = Math.max(0, Math.min(len - 1, Math.round((startIndex.value * itemH.value + dy) / itemH.value)))
+  if (target !== currentIndex.value) {
+    const order = units.value.moduleOrder.slice()
+    const from = order.indexOf(orderedModules.value[currentIndex.value].key)
+    const to = order.indexOf(orderedModules.value[target].key)
+    if (from >= 0 && to >= 0 && from !== to) {
+      order.splice(from, 1)
+      order.splice(to, 0, units.value.moduleOrder[from])
+      units.value.moduleOrder = order
+      saveUnits()
+    }
+    currentIndex.value = target
+  }
+  const absPos = startIndex.value * itemH.value + dy
+  const minAbs = -itemH.value * 0.5
+  const maxAbs = (len - 1) * itemH.value + itemH.value * 0.5
+  dragDy.value = Math.max(minAbs, Math.min(maxAbs, absPos)) - currentIndex.value * itemH.value
+}
+
+function onRowTouchEnd() {
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null }
+  pressed.value = false
+  dragKey.value = null
+  dragDy.value = 0
+}
+
 onMounted(() => {
   darkMode.value = loadDarkMode()
   darkState.value = getDarkModeState()
-  try {
-    const raw = uni.getStorageSync("unit_settings") as string
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      units.value = {
-        ...UNITS_DEFAULT,
-        ...parsed,
-        modules: { ...UNITS_DEFAULT.modules, ...(parsed.modules || {}) },
-      }
-    }
-  } catch {}
+  units.value = getUnitSettings()
   try {
     const raw = uni.getStorageSync("fav_cities") as string
     if (raw) favCities.value = JSON.parse(raw)
@@ -185,10 +261,23 @@ function checkUpdate() {
     </view>
 
     <view class="section">
-      <text class="section-title">首页模块</text>
-      <view class="setting-row" v-for="m in moduleList" :key="m.key" @tap="toggleModule(m.key)">
-        <text class="setting-label">{{ m.label }}</text>
-        <view class="toggle" :class="{ on: units.modules[m.key] }">
+      <text class="section-title">首页模块（长按任意位置拖动排序）</text>
+      <view
+        v-for="(m, idx) in orderedModules"
+        :key="m.key"
+        class="setting-row module-item"
+        :class="{ dragging: dragKey === m.key }"
+        :style="dragKey === m.key ? { transform: 'translateY(' + dragDy + 'px)', zIndex: 9 } : {}"
+        @touchstart="onRowTouchStart($event, idx)"
+        @touchmove.stop="onRowTouchMove($event)"
+        @touchend="onRowTouchEnd"
+        @touchcancel="onRowTouchEnd"
+      >
+        <view class="drag-handle">
+          <text class="drag-icon">≡</text>
+        </view>
+        <text class="setting-label module-label">{{ m.label }}</text>
+        <view class="toggle" :class="{ on: units.modules[m.key] }" @tap="toggleModule(m.key)">
           <view class="toggle-knob" />
         </view>
       </view>
@@ -301,6 +390,37 @@ function checkUpdate() {
   font-size: var(--font-size-md);
   color: var(--color-ink);
   font-weight: var(--font-weight-medium);
+}
+.module-item {
+  transition: transform 0.18s ease, background 0.15s;
+  touch-action: none;
+}
+.module-item.dragging {
+  background: var(--color-primary);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  transition: none;
+}
+.module-item.dragging .setting-label,
+.module-item.dragging .module-label {
+  color: #fff;
+}
+.drag-handle {
+  width: 30px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -8px;
+  flex-shrink: 0;
+}
+.drag-icon {
+  font-size: 20px;
+  color: var(--color-ash);
+  font-weight: var(--font-weight-bold);
+}
+.module-item.dragging .drag-icon { color: #fff; }
+.module-label {
+  flex: 1;
 }
 .setting-value {
   font-size: var(--font-size-sm);

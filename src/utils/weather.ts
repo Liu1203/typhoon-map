@@ -72,11 +72,15 @@ export function sunHour(sun: string): number {
 
 export interface ModuleConfig {
   detail: boolean
+  aqi: boolean
+  forecast: boolean
   hourly: boolean
   lifetips: boolean
   temptr: boolean
   preciptr: boolean
 }
+
+export const MODULE_ORDER_DEFAULT = ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr"]
 
 export const UNITS_DEFAULT = {
   temp: "c" as const,
@@ -84,7 +88,16 @@ export const UNITS_DEFAULT = {
   refresh: 30,
   pressure: "hpa" as const,
   visibility: "km" as const,
-  modules: { detail: true, hourly: true, lifetips: true, temptr: true, preciptr: true },
+  modules: {
+    detail: true,
+    aqi: true,
+    forecast: true,
+    hourly: true,
+    lifetips: true,
+    temptr: true,
+    preciptr: true,
+  },
+  moduleOrder: [...MODULE_ORDER_DEFAULT],
 }
 
 export type UnitSettings = {
@@ -94,6 +107,16 @@ export type UnitSettings = {
   pressure: "hpa" | "inhg"
   visibility: "km" | "mi"
   modules: ModuleConfig
+  moduleOrder: string[]
+}
+
+function normalizeModuleOrder(order: any): string[] {
+  if (!Array.isArray(order)) return [...MODULE_ORDER_DEFAULT]
+  const known = MODULE_ORDER_DEFAULT
+  const result: string[] = []
+  order.forEach((k: any) => { if (known.includes(k) && !result.includes(k)) result.push(k) })
+  known.forEach(k => { if (!result.includes(k)) result.push(k) })
+  return result
 }
 
 export function getUnitSettings(): UnitSettings {
@@ -105,10 +128,11 @@ export function getUnitSettings(): UnitSettings {
         ...UNITS_DEFAULT,
         ...parsed,
         modules: { ...UNITS_DEFAULT.modules, ...(parsed.modules || {}) },
+        moduleOrder: normalizeModuleOrder(parsed.moduleOrder),
       }
     }
   } catch {}
-  return { ...UNITS_DEFAULT, modules: { ...UNITS_DEFAULT.modules } }
+  return { ...UNITS_DEFAULT, modules: { ...UNITS_DEFAULT.modules }, moduleOrder: [...MODULE_ORDER_DEFAULT] }
 }
 
 export function formatTemp(val: string, toF: boolean): string {

@@ -28,7 +28,7 @@ const info = computed(() => {
       { name: "O₃", val: a.o3 },
       { name: "SO₂", val: a.so2 },
     ].filter(p => p.val != null),
-    hourly: a.hourly || [],
+    hourly: (a.hourly || []).slice(-24),
   }
 })
 
@@ -52,7 +52,8 @@ function barHeight(v: number): number {
 
 const trendTimes = computed(() => {
   if (!info.value?.hourly?.length) return []
-  return info.value.hourly.map((p, i) => (i % 4 === 0 ? p.time : "")).filter((_, i) => i % 4 === 0)
+  const step = Math.max(4, Math.ceil(info.value.hourly.length / 6))
+  return info.value.hourly.filter((_, i) => i % step === 0).map(p => p.time)
 })
 </script>
 
@@ -194,6 +195,7 @@ const trendTimes = computed(() => {
   align-items: flex-end;
   gap: 2px;
   height: 66px;
+  overflow: hidden;
 }
 .aqi-bar-col {
   flex: 1;
@@ -210,6 +212,7 @@ const trendTimes = computed(() => {
   display: flex;
   justify-content: space-between;
   padding: 2px 2px 0;
+  overflow: hidden;
 }
 .aqi-time {
   font-size: 8px;

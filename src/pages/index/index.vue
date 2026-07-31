@@ -245,6 +245,7 @@ function stopAutoRefresh() {
 onShow(async () => {
   errorType.value = null
   initDarkMode()
+  loadHomeModules()
 
   const saved = uni.getStorageSync(CACHE.CITY_KEY) as string
   if (saved) {
@@ -686,10 +687,18 @@ const displayWeather = computed(() => {
   return w
 })
 
-const homeModules = computed(() => {
-  const s = getUnitSettings()
-  return s.modules || { detail: true, hourly: true, lifetips: true, temptr: true, preciptr: true }
+const homeModules = ref<{ modules: Record<string, boolean>; order: string[] }>({
+  modules: { detail: true, aqi: true, forecast: true, hourly: true, lifetips: true, temptr: true, preciptr: true },
+  order: ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr"],
 })
+
+function loadHomeModules() {
+  const s = getUnitSettings()
+  homeModules.value = {
+    modules: s.modules as Record<string, boolean>,
+    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr"],
+  }
+}
 
 const displayHourly = computed(() => {
   if (!weather.value?.hourly) return []
@@ -835,26 +844,28 @@ const weatherScene = computed(() => {
 
       <WeatherHero :temp="displayWeather!.temp" :feelsLike="displayWeather!.feelsLike" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
 
-      <DetailGrid v-if="homeModules.detail" :weather="displayWeather!" />
+      <template v-for="key in homeModules.order" :key="key">
+        <DetailGrid v-if="key === 'detail' && homeModules.modules.detail" :weather="displayWeather!" />
 
-      <AqiCard v-if="displayWeather!.aqi !== '--'" :weather="displayWeather!" />
+        <AqiCard v-if="key === 'aqi' && homeModules.modules.aqi && displayWeather!.aqi !== '--'" :weather="displayWeather!" />
 
-      <ForecastCard :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
+        <ForecastCard v-if="key === 'forecast' && homeModules.modules.forecast" :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
 
-      <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="homeModules.hourly && displayHourly.length > 0">
-        <view class="section-header">
-          <view class="section-decor" />
-          <text class="section-title">逐时天气</text>
+        <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="key === 'hourly' && homeModules.modules.hourly && displayHourly.length > 0">
+          <view class="section-header">
+            <view class="section-decor" />
+            <text class="section-title">逐时天气</text>
+          </view>
+          <HourlyTrend :hourly="displayHourly" />
+          <HourlyScroll :hourly="displayHourly" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
         </view>
-        <HourlyTrend :hourly="displayHourly" />
-        <HourlyScroll :hourly="displayHourly" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
-      </view>
 
-      <LifeTips v-if="homeModules.lifetips" class="lazy-render" :weather="displayWeather!" />
+        <LifeTips v-if="key === 'lifetips' && homeModules.modules.lifetips" class="lazy-render" :weather="displayWeather!" />
 
-      <TempTrend v-if="homeModules.temptr" class="lazy-render" :forecast="displayForecast" />
+        <TempTrend v-if="key === 'temptr' && homeModules.modules.temptr" class="lazy-render" :forecast="displayForecast" />
 
-      <PrecipTrend v-if="homeModules.preciptr" class="lazy-render" :forecast="displayForecast" />
+        <PrecipTrend v-if="key === 'preciptr' && homeModules.modules.preciptr" class="lazy-render" :forecast="displayForecast" />
+      </template>
 
       <view class="entry-cards lazy-render anim-fade-in-up" style="animation-delay: 0.3s">
         <view class="entry-card typhoon-entry" @tap="uni.navigateTo({ url: '/pages/typhoon/typhoon' })">
@@ -949,6 +960,7 @@ const weatherScene = computed(() => {
   padding-bottom: calc(32px + var(--safe-area-bottom));
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
 }
 
 .container::before {
