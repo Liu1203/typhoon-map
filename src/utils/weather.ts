@@ -1,19 +1,24 @@
+export function gradientColors(w: string): [string, string, string] {
+  if (w.includes("雷")) return ["#3A4458", "#566076", "#788098"]
+  if (w.includes("大") && w.includes("阵")) return ["#4A6070", "#6C8292", "#90A4B4"]
+  if (w.includes("暴") && w.includes("雨")) return ["#4A6070", "#6C8292", "#90A4B4"]
+  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return ["#C8D8E8", "#DDE8F2", "#EDF3FA"]
+  if (w.includes("雾") || w.includes("霾")) return ["#B8C4D0", "#D0DAE4", "#E4EBF2"]
+  if (w.includes("大") && w.includes("雨")) return ["#587080", "#7890A0", "#98AEBE"]
+  if (w.includes("阵雨")) return ["#688088", "#889EA8", "#A8BCC6"]
+  if (w.includes("中") && w.includes("雨")) return ["#6E8890", "#8EA4AE", "#AEC0C8"]
+  if (w.includes("小") && w.includes("雨")) return ["#789098", "#98ACB4", "#B6C8CE"]
+  if (w.includes("毛毛")) return ["#7C969E", "#9EB0B8", "#BCCAD0"]
+  if (w.includes("雨")) return ["#789098", "#98AEB6", "#B8CAD0"]
+  if (w.includes("阴")) return ["#98ACB6", "#B8C8D2", "#D4E0E8"]
+  if (w.includes("多云")) return ["#78A8C0", "#A0C4D8", "#CCE0EC"]
+  if (w.includes("晴")) return ["#6DB4E0", "#98CAE8", "#C4E0F2"]
+  return ["#7AB8D8", "#A8D4E8", "#D8ECF8"]
+}
+
 export function gradientFor(w: string): string {
-  if (w.includes("雷")) return "linear-gradient(175deg, #3A4458 0%, #566076 40%, #788098 100%)"
-  if (w.includes("大") && w.includes("阵")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
-  if (w.includes("暴") && w.includes("雨")) return "linear-gradient(175deg, #4A6070 0%, #6C8292 40%, #90A4B4 100%)"
-  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return "linear-gradient(175deg, #C8D8E8 0%, #DDE8F2 40%, #EDF3FA 100%)"
-  if (w.includes("雾") || w.includes("霾")) return "linear-gradient(175deg, #B8C4D0 0%, #D0DAE4 50%, #E4EBF2 100%)"
-  if (w.includes("大") && w.includes("雨")) return "linear-gradient(175deg, #587080 0%, #7890A0 40%, #98AEBE 100%)"
-  if (w.includes("阵雨")) return "linear-gradient(175deg, #688088 0%, #889EA8 50%, #A8BCC6 100%)"
-  if (w.includes("中") && w.includes("雨")) return "linear-gradient(175deg, #6E8890 0%, #8EA4AE 50%, #AEC0C8 100%)"
-  if (w.includes("小") && w.includes("雨")) return "linear-gradient(175deg, #789098 0%, #98ACB4 50%, #B6C8CE 100%)"
-  if (w.includes("毛毛")) return "linear-gradient(175deg, #7C969E 0%, #9EB0B8 50%, #BCCAD0 100%)"
-  if (w.includes("雨")) return "linear-gradient(175deg, #789098 0%, #98AEB6 50%, #B8CAD0 100%)"
-  if (w.includes("阴")) return "linear-gradient(175deg, #98ACB6 0%, #B8C8D2 50%, #D4E0E8 100%)"
-  if (w.includes("多云")) return "linear-gradient(175deg, #78A8C0 0%, #A0C4D8 40%, #CCE0EC 100%)"
-  if (w.includes("晴")) return "linear-gradient(175deg, #6DB4E0 0%, #98CAE8 35%, #C4E0F2 100%)"
-  return "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)"
+  const c = gradientColors(w)
+  return `linear-gradient(175deg, ${c[0]} 0%, ${c[1]} 40%, ${c[2]} 100%)`
 }
 
 export function accentFor(w: string): string {
@@ -34,11 +39,6 @@ export function accentFor(w: string): string {
 
 export function lightFor(w: string): boolean {
   return w.includes("雪") || w.includes("雾") || w.includes("霾") || w.includes("阴") || w.includes("毛毛")
-}
-
-export function windArrow(dir: string): string {
-  const m: Record<string, string> = { "北风": "↓", "东北风": "↙", "东风": "←", "东南风": "↖", "南风": "↑", "西南风": "↗", "西风": "→", "西北风": "↘" }
-  return m[dir] || dir
 }
 
 export function hourLabel(t: string): string {
@@ -70,15 +70,45 @@ export function sunHour(sun: string): number {
   return h
 }
 
-export const UNITS_DEFAULT = { temp: "c" as const, wind: "kmh" as const, refresh: 30 }
-export type UnitSettings = typeof UNITS_DEFAULT
+export interface ModuleConfig {
+  detail: boolean
+  hourly: boolean
+  lifetips: boolean
+  temptr: boolean
+  preciptr: boolean
+}
+
+export const UNITS_DEFAULT = {
+  temp: "c" as const,
+  wind: "kmh" as const,
+  refresh: 30,
+  pressure: "hpa" as const,
+  visibility: "km" as const,
+  modules: { detail: true, hourly: true, lifetips: true, temptr: true, preciptr: true },
+}
+
+export type UnitSettings = {
+  temp: "c" | "f"
+  wind: "kmh" | "ms"
+  refresh: number
+  pressure: "hpa" | "inhg"
+  visibility: "km" | "mi"
+  modules: ModuleConfig
+}
 
 export function getUnitSettings(): UnitSettings {
   try {
     const raw = uni.getStorageSync("unit_settings") as string
-    if (raw) return { ...UNITS_DEFAULT, ...JSON.parse(raw) }
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      return {
+        ...UNITS_DEFAULT,
+        ...parsed,
+        modules: { ...UNITS_DEFAULT.modules, ...(parsed.modules || {}) },
+      }
+    }
   } catch {}
-  return { ...UNITS_DEFAULT }
+  return { ...UNITS_DEFAULT, modules: { ...UNITS_DEFAULT.modules } }
 }
 
 export function formatTemp(val: string, toF: boolean): string {
@@ -94,6 +124,26 @@ export function formatWind(val: string, unit: string): string {
   if (isNaN(n)) return val
   if (unit === "ms") return (n / 3.6).toFixed(1)
   return String(Math.round(n))
+}
+
+export function formatPressure(val: string, unit: string): string {
+  if (!val || val === "--") return val
+  const m = String(val).match(/[\d.]+/)
+  if (!m) return val
+  const n = parseFloat(m[0])
+  if (isNaN(n)) return val
+  if (unit === "inhg") return (n * 0.02953).toFixed(2) + " inHg"
+  return Math.round(n) + " hPa"
+}
+
+export function formatVisibility(val: string, unit: string): string {
+  if (!val || val === "--") return val
+  const m = String(val).match(/[\d.]+/)
+  if (!m) return val
+  const n = parseFloat(m[0])
+  if (isNaN(n)) return val
+  if (unit === "mi") return (n * 0.621371).toFixed(1) + " mi"
+  return n.toFixed(1) + " km"
 }
 
 const LUNAR_CYCLE = 29.53058867
@@ -113,25 +163,4 @@ export function moonPhase(date?: Date): { phase: string; icon: string } {
   return { phase: "残月", icon: "🌘" }
 }
 
-export function moonriseMoonset(lat: number, lon: number, date?: Date): Promise<{ rise: string; set: string } | null> {
-  const d = date || new Date()
-  const ds = d.toISOString().slice(0, 10)
-  return new Promise((resolve) => {
-    uni.request({
-      url: `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=moonrise,moonset&timezone=auto&start_date=${ds}&end_date=${ds}`,
-      timeout: 5000,
-      success(r: any) {
-        const daily = r?.data?.daily
-        if (daily?.moonrise?.[0] && daily?.moonset?.[0]) {
-          resolve({
-            rise: daily.moonrise[0].slice(11, 16),
-            set: daily.moonset[0].slice(11, 16),
-          })
-        } else {
-          resolve(null)
-        }
-      },
-      fail() { resolve(null) },
-    })
-  })
-}
+

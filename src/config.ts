@@ -2,7 +2,7 @@ export const API = {
   OPEN_METEO: "https://api.open-meteo.com/v1/forecast",
   AQI: "https://air-quality-api.open-meteo.com/v1/air-quality",
   GEOCODING: "https://geocoding-api.open-meteo.com/v1/search",
-  NMC_TYPHOON: "http://typhoon.nmc.cn/weatherservice/typhoon/jsons/",
+  NMC_TYPHOON: "https://typhoon.nmc.cn/weatherservice/typhoon/jsons/",
   USGS: "https://earthquake.usgs.gov/fdsnws/event/1/query",
   GFZ: "https://geofon.gfz-potsdam.de/fdsnws/event/1/query",
   EMSC: "https://www.seismicportal.eu/fdsnws/event/1/query",
@@ -28,10 +28,11 @@ export const CACHE = {
   CITY_KEY: "selected_city",
   DARK_MODE_KEY: "dark_mode",
   AUTO_REFRESH_MS: 30 * 60 * 1000,
+  TTL_MS: 2 * 60 * 60 * 1000,
 } as const
 
 export const WEATHER = {
-  FORECAST_DAYS_SHOWN: 4,
+  FORECAST_DAYS_SHOWN: 7,
   HOURLY_DIVISOR: 1.852,
 } as const
 

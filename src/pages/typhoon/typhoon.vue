@@ -1,8 +1,10 @@
 ﻿<script setup lang="ts">
 import { ref, onMounted } from "vue"
+import { getCityCoords } from "@/api/weather"
 
 const mapSrc = ref("/hybrid/html/leaflet.html")
 const loaded = ref(false)
+const failed = ref(false)
 
 onMounted(() => {
   // #ifdef H5
@@ -11,16 +13,41 @@ onMounted(() => {
   // #ifdef APP-PLUS
   mapSrc.value = "/hybrid/html/leaflet.html"
   // #endif
+  const city = (uni.getStorageSync("selected_city") as string) || "北京"
+  const coords = getCityCoords(city)
+  if (coords) {
+    mapSrc.value += "?lat=" + coords.lat.toFixed(4) + "&lon=" + coords.lon.toFixed(4)
+  }
 })
+
+function onWebViewError() {
+  failed.value = true
+  loaded.value = true
+}
+
+function retry() {
+  failed.value = false
+  loaded.value = false
+  const s = mapSrc.value
+  mapSrc.value = ""
+  setTimeout(() => { mapSrc.value = s }, 50)
+}
 </script>
 
 <template>
   <view class="page">
-    <view class="loading-overlay" v-if="!loaded">
+    <view class="loading-overlay" v-if="!loaded && !failed">
       <view class="spinner" />
       <text class="loading-text">加载台风数据...</text>
     </view>
-    <web-view class="wv" :src="mapSrc" @load="loaded = true" />
+    <view class="error-overlay" v-if="failed">
+      <text class="error-icon">🌪</text>
+      <text class="error-text">加载失败</text>
+      <view class="retry-btn" @tap="retry">
+        <text>重新加载</text>
+      </view>
+    </view>
+    <web-view class="wv" :src="mapSrc" @load="loaded = true" @error="onWebViewError" />
   </view>
 </template>
 
@@ -60,6 +87,35 @@ onMounted(() => {
   font-size: 14px;
   color: #8B9CAD;
 }
+.error-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #F0F5FA;
+}
+.error-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+.error-text {
+  font-size: 16px;
+  color: #8B9CAD;
+}
+.retry-btn {
+  background: #5B8FC0;
+  border-radius: 20px;
+  padding: 10px 32px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  transition: opacity .15s;
+}
+.retry-btn:active { opacity: .75; }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

@@ -37,6 +37,10 @@ const DIR_DEG: Record<string, number> = {
           <view :class="['rain-tag', parseInt(h.rainChance) > 30 ? 'rain-heavy' : parseInt(h.rainChance) > 0 ? 'rain-light' : 'rain-none']">
             <text>{{ parseInt(h.rainChance) > 0 ? h.rainChance + '%' : '无雨' }}</text>
           </view>
+          <view v-if="h.precip" class="precip-section">
+            <view class="precip-bar" :style="{ height: Math.min(18, Math.max(2, parseFloat(h.precip) * 5)) + 'px', background: parseFloat(h.precip) > 2 ? '#3B82F6' : parseFloat(h.precip) > 0.5 ? '#93C5FD' : '#DBEAFE' }"></view>
+            <text class="precip-label">{{ h.precip }}mm</text>
+          </view>
         </view>
       </view>
     </scroll-view>
@@ -74,7 +78,7 @@ const DIR_DEG: Record<string, number> = {
   border-radius: var(--radius-md);
   background: var(--color-paper);
   border: 1px solid transparent;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 .hourly-item.is-sun {
   background: rgba(212,168,83,0.12);
@@ -147,4 +151,9 @@ const DIR_DEG: Record<string, number> = {
 .rain-heavy { background: rgba(91,140,122,0.12); color: var(--color-jade); }
 .rain-light { background: rgba(91,140,122,0.06); color: var(--color-jade-light); }
 .rain-none { color: var(--color-ash); }
+.precip-section { display: flex; flex-direction: column; align-items: center; gap: 1px; width: 100%; position: relative; z-index: 1; }
+.precip-bar { width: 14px; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 2px; }
+.precip-label { font-size: 8px; color: var(--color-ash); white-space: nowrap; }
+.hourly-item.is-now .precip-label { color: rgba(255,255,255,.7); }
+.hourly-item.is-now .precip-bar { background: rgba(255,255,255,.6) !important; }
 </style>

@@ -39,6 +39,30 @@
         "animationType": "slide-in-right",
         "animationDuration": 300
       }
+    },
+    {
+      "path": "pages/cities/cities",
+      "style": {
+        "navigationBarTitleText": "城市管理",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
+    },
+    {
+      "path": "pages/alerts/alerts",
+      "style": {
+        "navigationBarTitleText": "天气预警",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
+    },
+    {
+      "path": "pages/compare/compare",
+      "style": {
+        "navigationBarTitleText": "城市对比",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
     }
   ],
   "globalStyle": {

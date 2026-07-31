@@ -2,8 +2,9 @@
 import { ref, computed, onUnmounted } from "vue"
 import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
 import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
+import { fetchActiveTyphoons, typhoonDistanceKm, pointDistanceKm, type TyphoonBrief } from "@/api/typhoon"
 import { TIMEOUT, CACHE } from "@/config"
-import { gradientFor, accentFor, lightFor, getUnitSettings, formatTemp, formatWind } from "@/utils/weather"
+import { gradientFor, gradientColors, accentFor, lightFor, getUnitSettings, formatTemp, formatWind, formatPressure, formatVisibility, uvLabel } from "@/utils/weather"
 import { loadDarkMode, toggleDarkMode } from "@/utils/theme"
 import WeatherHero from "@/components/WeatherHero.vue"
 import DetailGrid from "@/components/DetailGrid.vue"
@@ -11,6 +12,10 @@ import ForecastCard from "@/components/ForecastCard.vue"
 import HourlyScroll from "@/components/HourlyScroll.vue"
 import SkeletonLoader from "@/components/SkeletonLoader.vue"
 import TempTrend from "@/components/TempTrend.vue"
+import LifeTips from "@/components/LifeTips.vue"
+import PrecipTrend from "@/components/PrecipTrend.vue"
+import HourlyTrend from "@/components/HourlyTrend.vue"
+import AqiCard from "@/components/AqiCard.vue"
 
 const locateError = ref("")
 const isOffline = ref(false)
@@ -93,6 +98,7 @@ interface CacheEntry {
 }
 
 const currentCity = ref("北京")
+const weatherCity = ref("")
 const weather = ref<CurrentWeather | null>(null)
 const loading = ref(true)
 const updateTime = ref("")
@@ -112,19 +118,64 @@ function initDarkMode() {
   darkMode.value = loadDarkMode()
 }
 
-function getCache(): CacheEntry | null {
+function isLegacyCache(obj: any): boolean {
+  return obj && typeof obj === "object" && obj.data && typeof obj.data === "object" && typeof obj.city === "string" && !obj[obj.city]
+}
+
+function getCache(city?: string): CacheEntry | null {
   try {
     const raw = uni.getStorageSync(CACHE.WEATHER_KEY) as string
     if (raw) {
       const obj = JSON.parse(raw)
-      if (obj && obj.data && obj.city) return obj as CacheEntry
+      if (isLegacyCache(obj)) {
+        if (Date.now() - obj.ts < CACHE.TTL_MS) return obj as CacheEntry
+        try { uni.removeStorageSync(CACHE.WEATHER_KEY) } catch {}
+        return null
+      }
+      if (city && obj[city]) {
+        const entry = obj[city] as CacheEntry
+        if (Date.now() - entry.ts < CACHE.TTL_MS) return entry
+        delete obj[city]
+        try { uni.setStorageSync(CACHE.WEATHER_KEY, JSON.stringify(obj)) } catch {}
+      }
     }
   } catch { }
   return null
 }
 
+function getCachedCities(): string[] {
+  try {
+    const raw = uni.getStorageSync(CACHE.WEATHER_KEY) as string
+    if (raw) {
+      const obj = JSON.parse(raw)
+      if (isLegacyCache(obj)) return [obj.city]
+      return Object.keys(obj).filter(k => obj[k] && obj[k].data && typeof obj[k].ts === "number")
+    }
+  } catch { }
+  return []
+}
+
 function setCache(data: CurrentWeather, city: string) {
-  uni.setStorageSync(CACHE.WEATHER_KEY, JSON.stringify({ data, city, ts: Date.now() }))
+  try {
+    const raw = uni.getStorageSync(CACHE.WEATHER_KEY) as string
+    let map: Record<string, CacheEntry> = {}
+    try {
+      const obj = raw ? JSON.parse(raw) : {}
+      if (isLegacyCache(obj)) {
+        map[obj.city] = { data: obj.data, city: obj.city, ts: obj.ts }
+      } else {
+        map = obj
+      }
+    } catch { map = {} }
+    map[city] = { data, city, ts: Date.now() }
+    // 限制缓存城市数量
+    const keys = Object.keys(map)
+    if (keys.length > 12) {
+      const sorted = keys.sort((a, b) => (map[a].ts || 0) - (map[b].ts || 0))
+      delete map[sorted[0]]
+    }
+    uni.setStorageSync(CACHE.WEATHER_KEY, JSON.stringify(map))
+  } catch { }
 }
 
 function applyWeatherData(res: CurrentWeather) {
@@ -140,23 +191,39 @@ async function fetchAndUpdate(city: string) {
     if (!weather.value) errorType.value = "server"
     return
   }
+  const mySeq = ++fetchSeq
   const start = Date.now()
   const res = await getWeather(coords.lat, coords.lon)
+  if (mySeq !== fetchSeq) return
   if (res) {
     errorType.value = null
     forecastHourlys.value = {}
     expandedIndex.value = -1
+    weatherCity.value = city
     applyWeatherData(res)
     setCache(res, city)
     if (res.alerts?.length) checkAlertsAndNotify(res.alerts)
-  } else if (!weather.value) {
-    errorType.value = isOffline.value ? "network" : (Date.now() - start >= TIMEOUT.OPEN_METEO * 3 ? "timeout" : "server")
-  } else if (isOffline.value) {
-    errorType.value = "network"
+    notifyRainIfNeeded()
+    checkTempAlert()
+  } else {
+    const cached = getCache(city)
+    if (cached && cached.city === city) {
+      forecastHourlys.value = {}
+      expandedIndex.value = -1
+      weatherCity.value = city
+      applyWeatherData(cached.data)
+      errorType.value = null
+      if (isOffline.value) uni.showToast({ title: "离线显示缓存数据", icon: "none", duration: 2000 })
+    } else if (!weather.value || weatherCity.value !== city) {
+      errorType.value = isOffline.value ? "network" : (Date.now() - start >= TIMEOUT.OPEN_METEO * 3 ? "timeout" : "server")
+    } else if (isOffline.value) {
+      errorType.value = "network"
+    }
   }
 }
 
 let firstLoad = true
+let fetchSeq = 0
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 function startAutoRefresh() {
@@ -194,10 +261,11 @@ onShow(async () => {
     })
   }
 
-  const cache = getCache()
+  const cache = getCache(currentCity.value)
   const cacheHit = cache && cache.city === currentCity.value
 
   if (cacheHit) {
+    weatherCity.value = currentCity.value
     applyWeatherData(cache.data)
     updateTime.value = new Date(cache.ts).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
   }
@@ -212,6 +280,7 @@ onShow(async () => {
   await fetchAndUpdate(currentCity.value)
   loading.value = false
   startAutoRefresh()
+  if (!isOffline.value) checkTyphoon()
 })
 
 onHide(() => {
@@ -232,6 +301,7 @@ onUnmounted(() => {
 async function locateMe() {
   if (locating.value) return
   locating.value = true
+  fetchSeq++
   const coords = await detectCoords()
   if (!coords) {
     uni.showToast({ title: "定位失败: " + locateError.value, icon: "none", duration: 3000 })
@@ -246,6 +316,7 @@ async function locateMe() {
   if (result) {
     currentCity.value = result.placeName
     uni.setStorageSync(CACHE.CITY_KEY, result.placeName)
+    weatherCity.value = result.placeName
     applyWeatherData(result.weather)
     setCache(result.weather, result.placeName)
   } else {
@@ -254,6 +325,7 @@ async function locateMe() {
   }
   loading.value = false
   locating.value = false
+  if (!isOffline.value) checkTyphoon()
 }
 
 async function toggleForecast(idx: number) {
@@ -263,40 +335,304 @@ async function toggleForecast(idx: number) {
   }
   expandedIndex.value = idx
   if (!forecastHourlys.value[idx] && weather.value) {
-    const coords = getCityCoords(currentCity.value)
     const date = weather.value.forecast[idx]?.date
-    if (coords && date) {
-      forecastHourlys.value[idx] = await getHourlyForecast(coords.lat, coords.lon, date)
+    if (date && weather.value.hourlyByDate?.[date]) {
+      forecastHourlys.value[idx] = weather.value.hourlyByDate[date]
+    } else if (date) {
+      const coords = getCityCoords(currentCity.value)
+      if (coords) {
+        forecastHourlys.value[idx] = await getHourlyForecast(coords.lat, coords.lon, date)
+      }
     }
   }
 }
 
 function showAllAlerts() {
-  if (!weather.value?.alerts) return
-  const list = weather.value.alerts.map((a, i) =>
-    `${i + 1}. ${a.event}${a.severity ? " (" + a.severity + ")" : ""}\n   时间: ${a.start || "—"} 至 ${a.end || "—"}\n   ${a.description || "暂无详细描述"}`
-  ).join("\n\n")
-  uni.showModal({
-    title: `天气预警 (${weather.value.alerts.length})`,
-    content: list,
-    showCancel: false,
-    confirmText: "知道了",
+  if (!weather.value?.alerts?.length) return
+  try { uni.setStorageSync("current_alerts", JSON.stringify(weather.value.alerts)) } catch {}
+  uni.navigateTo({ url: "/pages/alerts/alerts" })
+}
+
+function roundRectCtx(ctx: any, x: number, y: number, w: number, h: number, r: number) {
+  r = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+
+function drawShareCard(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const w = displayWeather.value!
+    const city = currentCity.value
+    const W = 500, H = 700, P = 30
+    const colors = gradientColors(w.weather)
+    const textColor = w.weather.includes('雪') ? '#2c3e50' : '#ffffff'
+    const muted = (a: number) => w.weather.includes('雪') ? `rgba(44,62,80,${a})` : `rgba(255,255,255,${a})`
+
+    const ctx = uni.createCanvasContext('shareCanvas')
+
+    const grad = ctx.createLinearGradient(0, 0, 0, H)
+    grad.addColorStop(0, colors[0])
+    grad.addColorStop(0.5, colors[1])
+    grad.addColorStop(1, colors[2])
+    ctx.setFillStyle(grad)
+    ctx.fillRect(0, 0, W, H)
+
+    ctx.setGlobalAlpha(0.06)
+    ctx.setFillStyle('#ffffff')
+    ctx.beginPath()
+    ctx.arc(W - 20, -20, 160, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(W - 140, -80, 100, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.setGlobalAlpha(1)
+
+    ctx.setGlobalAlpha(0.04)
+    ctx.beginPath()
+    ctx.arc(250, H, 300, Math.PI, 0)
+    ctx.fill()
+    ctx.setGlobalAlpha(1)
+
+    ctx.setFontSize(30)
+    ctx.setFillStyle(textColor)
+    ctx.setTextAlign('center')
+    ctx.setTextBaseline('top')
+    ctx.fillText(city, W / 2, P + 8)
+
+    const now = new Date()
+    const dateStr = now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日'
+    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+    ctx.setFontSize(13)
+    ctx.setGlobalAlpha(0.6)
+    ctx.setFillStyle(textColor)
+    ctx.fillText(dateStr + ' ' + weekdays[now.getDay()], W / 2, P + 48)
+    ctx.setGlobalAlpha(1)
+
+    ctx.setFontSize(96)
+    ctx.setFillStyle(textColor)
+    ctx.fillText(w.temp + '°', W / 2, P + 90)
+
+    ctx.setFontSize(20)
+    ctx.setGlobalAlpha(0.85)
+    ctx.setFillStyle(textColor)
+    ctx.fillText(w.weather, W / 2, P + 200)
+    ctx.setFontSize(14)
+    ctx.setGlobalAlpha(0.6)
+    ctx.fillText('体感 ' + w.feelsLike + '°', W / 2, P + 232)
+    ctx.setGlobalAlpha(1)
+
+    ctx.setFontSize(18)
+    ctx.setFillStyle(textColor)
+    ctx.fillText('↑ ' + w.high + '°    ↓ ' + w.low + '°', W / 2, P + 270)
+
+    const details: { label: string; value: string }[] = [
+      { label: '湿度', value: w.humidity + '%' },
+      { label: w.windDir || '风向', value: w.windLevel || '--' },
+      { label: '紫外线', value: uvLabel(w.uvIndex) },
+      { label: '气压', value: w.pressure },
+      { label: '能见度', value: w.visibility },
+      { label: '日出', value: w.sunrise },
+    ]
+
+    const cols = 3
+    const cardW = (W - P * 2 - 12) / 3
+    const cardH = 58
+    const gridStartY = P + 315
+
+    details.forEach((d, i) => {
+      const col = i % cols
+      const row = Math.floor(i / cols)
+      const x = P + col * (cardW + 6)
+      const y = gridStartY + row * (cardH + 6)
+
+      ctx.setFillStyle(muted(0.13))
+      roundRectCtx(ctx, x, y, cardW, cardH, 8)
+      ctx.fill()
+
+      ctx.setFontSize(11)
+      ctx.setTextAlign('center')
+      ctx.setTextBaseline('top')
+      ctx.setGlobalAlpha(0.6)
+      ctx.setFillStyle(textColor)
+      ctx.fillText(d.label, x + cardW / 2, y + 8)
+      ctx.setFontSize(15)
+      ctx.setGlobalAlpha(1)
+      ctx.fillText(d.value, x + cardW / 2, y + 28)
+    })
+
+    const sunsetY = gridStartY + 2 * (cardH + 6) + 16
+    ctx.setGlobalAlpha(0.12)
+    ctx.setStrokeStyle(textColor)
+    ctx.setLineWidth(1)
+    ctx.beginPath()
+    ctx.moveTo(P, sunsetY)
+    ctx.lineTo(W - P, sunsetY)
+    ctx.stroke()
+    ctx.setGlobalAlpha(1)
+
+    ctx.setFontSize(13)
+    ctx.setGlobalAlpha(0.6)
+    ctx.setFillStyle(textColor)
+    ctx.setTextAlign('center')
+    ctx.fillText('日落 ' + w.sunset, W / 2, sunsetY + 12)
+    ctx.setGlobalAlpha(1)
+
+    ctx.setFontSize(13)
+    ctx.setGlobalAlpha(0.4)
+    ctx.setFillStyle(textColor)
+    ctx.fillText('清清天气 · 知冷暖 观风雨', W / 2, H - 36)
+    ctx.setGlobalAlpha(1)
+
+    ctx.draw(false, () => {
+      uni.canvasToTempFilePath({
+        canvasId: 'shareCanvas',
+        success: (res: any) => resolve(res.tempFilePath),
+        fail: (err: any) => reject(err),
+      })
+    })
   })
 }
 
-function shareWeather() {
+async function shareWeather() {
   if (!weather.value || !displayWeather.value) return
-  const w = displayWeather.value
-  const text = `🌤 ${currentCity.value} · 清清天气\n\n${w.temp}°C · ${w.weather}\n↑ ${w.high}° ↓ ${w.low}°C\n体感 ${w.feelsLike}°C · 💧 ${w.humidity}%\n日出 ${w.sunrise} · 日落 ${w.sunset}`
-  uni.setClipboardData({ data: text, success() { uni.showToast({ title: '天气信息已复制', icon: 'none' }) } })
+  try {
+    const tempPath = await drawShareCard()
+    uni.saveImageToPhotosAlbum({
+      filePath: tempPath,
+      success() {
+        uni.showToast({ title: '天气卡片已保存到相册', icon: 'none' })
+      },
+      fail(err: any) {
+        if (String(err.errMsg || '').includes('deny') || String(err.errMsg || '').includes('permission')) {
+          uni.showModal({
+            title: '需要相册权限',
+            content: '请在系统设置中允许本应用访问相册',
+            confirmText: '去设置',
+            success(res: any) {
+              if (res.confirm) uni.openSetting({})
+            },
+          })
+        } else {
+          uni.showToast({ title: '保存失败: ' + (err.errMsg || ''), icon: 'none' })
+        }
+      },
+    })
+  } catch (e: any) {
+    uni.showToast({ title: '生成卡片失败', icon: 'none' })
+  }
+}
+
+const showCityPicker = ref(false)
+const showMoreMenu = ref(false)
+const favCities = ref<string[]>([])
+
+function loadFavCities() {
+  try {
+    const raw = uni.getStorageSync("fav_cities") as string
+    favCities.value = raw ? JSON.parse(raw) as string[] : []
+  } catch { favCities.value = [] }
+}
+
+function toggleCityPicker() {
+  if (!showCityPicker.value) loadFavCities()
+  showCityPicker.value = !showCityPicker.value
+}
+
+function switchCity(name: string) {
+  showCityPicker.value = false
+  if (name === currentCity.value) return
+  currentCity.value = name
+  uni.setStorageSync("selected_city", name)
+  forecastHourlys.value = {}
+  expandedIndex.value = -1
+  fetchAndUpdate(name)
+  if (!isOffline.value) checkTyphoon()
 }
 
 function goSearch() {
+  showCityPicker.value = false
   uni.navigateTo({ url: "/pages/search/search" })
+}
+
+function goCities() {
+  showCityPicker.value = false
+  uni.navigateTo({ url: "/pages/cities/cities" })
+}
+
+function goCompare() {
+  showCityPicker.value = false
+  uni.navigateTo({ url: "/pages/compare/compare" })
+}
+
+function goTyphoon() {
+  uni.navigateTo({ url: "/pages/typhoon/typhoon" })
 }
 
 function goSettings() {
   uni.navigateTo({ url: "/pages/settings/settings" })
+}
+
+function openMoreMenu() {
+  showMoreMenu.value = true
+}
+
+function onMoreAction(idx: number) {
+  showMoreMenu.value = false
+  if (idx === 0) toggleDark()
+  else if (idx === 1) shareWeather()
+  else if (idx === 2) goSettings()
+}
+
+const RAIN_NOTIFIED_KEY = "rain_notified"
+
+function checkTempAlert() {
+  try {
+    const raw = uni.getStorageSync("temp_alert_settings") as string
+    if (!raw) return
+    const s = JSON.parse(raw)
+    if (!s.enabled || !weather.value) return
+    const t = parseFloat(weather.value.temp)
+    if (isNaN(t)) return
+    let level = ""
+    if (s.high != null && t >= s.high) level = "高温"
+    else if (s.low != null && t <= s.low) level = "低温"
+    if (!level) return
+    const key = currentCity.value + "_" + new Date().toDateString() + "_" + level
+    const stored = uni.getStorageSync("temp_alert_notified") as string
+    if (stored === key) return
+    uni.setStorageSync("temp_alert_notified", key)
+    if (typeof uni.createPushMessage === "function") {
+      uni.createPushMessage({
+        title: level + "提醒 · " + currentCity.value,
+        content: "当前气温 " + weather.value.temp + "°C，" + (level === "高温" ? "注意防暑降温" : "注意保暖"),
+      })
+    }
+  } catch {}
+}
+
+function notifyRainIfNeeded() {
+  if (!rainAlarm.value) return
+  try {
+    const key = currentCity.value + "_" + new Date().toDateString() + "_" + rainAlarm.value.maxPct
+    const stored = uni.getStorageSync(RAIN_NOTIFIED_KEY) as string
+    if (stored === key) return
+    uni.setStorageSync(RAIN_NOTIFIED_KEY, key)
+    if (typeof uni.createPushMessage === "function") {
+      uni.createPushMessage({
+        title: "🌧 降雨提醒 · " + currentCity.value,
+        content: "未来" + rainAlarm.value.count + "小时可能降雨（" + rainAlarm.value.maxPct + "%），出门记得带伞",
+      })
+    }
+  } catch {}
 }
 
 const ALERT_NOTIFIED_KEY = "alert_notified"
@@ -345,7 +681,14 @@ const displayWeather = computed(() => {
     w.windScale = formatWind(w.windScale, s.wind)
     w.windGust = formatWind(w.windGust, s.wind)
   }
+  w.pressure = formatPressure(w.pressure, s.pressure)
+  w.visibility = formatVisibility(w.visibility, s.visibility)
   return w
+})
+
+const homeModules = computed(() => {
+  const s = getUnitSettings()
+  return s.modules || { detail: true, hourly: true, lifetips: true, temptr: true, preciptr: true }
 })
 
 const displayHourly = computed(() => {
@@ -354,6 +697,7 @@ const displayHourly = computed(() => {
   return weather.value.hourly.map(h => ({
     ...h,
     temp: formatTemp(h.temp, s.temp === "f"),
+    feelsLike: h.feelsLike != null ? formatTemp(h.feelsLike, s.temp === "f") : h.feelsLike,
     windScale: s.wind !== "kmh" ? formatWind(h.windScale, s.wind) : h.windScale,
   }))
 })
@@ -383,13 +727,67 @@ const rainAlarm = computed(() => {
   return { count: risky.length, maxPct }
 })
 
+const typhoonAlert = ref<{ name: string; distance: number; minPath: number; windSpeed: number; grade: string } | null>(null)
+let typhoonCheckInFlight = false
+
+async function checkTyphoon() {
+  if (typhoonCheckInFlight) return
+  typhoonCheckInFlight = true
+  try {
+    const coords = getCityCoords(currentCity.value)
+    if (!coords) { typhoonAlert.value = null; return }
+    const typhoons = await fetchActiveTyphoons()
+    if (!typhoons.length) { typhoonAlert.value = null; return }
+    let nearest: TyphoonBrief | null = null
+    let nearestDist = Infinity
+    for (const t of typhoons) {
+      const d = typhoonDistanceKm(t, coords.lat, coords.lon)
+      if (d < nearestDist) { nearestDist = d; nearest = t }
+    }
+    if (nearest && nearestDist <= 2500) {
+      let minPath = nearestDist
+      if (nearest.path?.length) {
+        for (const p of nearest.path) {
+          const pd = pointDistanceKm(coords.lat, coords.lon, p.lat, p.lon)
+          if (pd < minPath) minPath = pd
+        }
+      }
+      typhoonAlert.value = {
+        name: nearest.nameCn || nearest.nameEn || "台风",
+        distance: Math.round(nearestDist),
+        minPath: Math.round(minPath),
+        windSpeed: nearest.windSpeed,
+        grade: nearest.grade,
+      }
+    } else {
+      typhoonAlert.value = null
+    }
+  } catch {
+    typhoonAlert.value = null
+  } finally {
+    typhoonCheckInFlight = false
+  }
+}
+
 const weatherGradient = computed(() => weather.value ? gradientFor(weather.value.weather) : "linear-gradient(175deg, #7AB8D8 0%, #A8D4E8 35%, #D8ECF8 100%)")
 const accentColor = computed(() => weather.value ? accentFor(weather.value.weather) : "#E09050")
 const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
+const weatherScene = computed(() => {
+  if (!weather.value) return ""
+  const w = weather.value.weather
+  if (w.includes("雷")) return "scene-thunder"
+  if (w.includes("雪") || w.includes("冰雹") || w.includes("雹")) return "scene-snow"
+  if (w.includes("雨")) return "scene-rain"
+  if (w.includes("雾") || w.includes("霾")) return "scene-fog"
+  if (w.includes("晴")) return "scene-sunny"
+  if (w.includes("多云")) return "scene-cloudy"
+  if (w.includes("阴")) return "scene-overcast"
+  return ""
+})
 </script>
 
 <template>
-    <view class="container" :class="{ 'light-bg': lightBg, 'dark-mode': darkMode }" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }">
+    <view class="container" :class="[{ 'light-bg': lightBg, 'dark-mode': darkMode }, weatherScene]" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }">
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -398,24 +796,18 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 
     <template v-else-if="weather">
       <view class="header-section anim-fade-in-down">
-        <view class="city-row" @tap="goSearch">
+        <view class="city-row" @tap="toggleCityPicker">
           <view class="city-left">
             <text class="city-name">{{ currentCity }}</text>
             <text class="city-arrow">&#9662;</text>
           </view>
           <view class="header-actions">
-            <view class="locate-btn" @tap.stop="toggleDark">
-              <text class="locate-icon">{{ darkMode ? '☀️' : '🌙' }}</text>
-            </view>
             <view :class="['locate-btn', locating && 'is-locating']" @tap.stop="locateMe">
               <text class="locate-icon">{{ locating ? '◎' : '◎' }}</text>
               <text class="locate-text">{{ locating ? '定位中' : '定位' }}</text>
             </view>
-            <view class="locate-btn" @tap.stop="shareWeather">
-              <text class="locate-icon">📤</text>
-            </view>
-            <view class="locate-btn" @tap.stop="goSettings">
-              <text class="locate-icon">⚙</text>
+            <view class="locate-btn more-btn" @tap.stop="openMoreMenu">
+              <text class="locate-icon">⋯</text>
             </view>
           </view>
         </view>
@@ -432,27 +824,39 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
         <text class="rain-alarm-icon">☔</text>
         <text class="rain-alarm-text">未来{{ rainAlarm.count }}小时可能降雨（{{ rainAlarm.maxPct }}%），出门记得带伞</text>
       </view>
+      <view v-if="typhoonAlert" class="typhoon-alert-banner anim-fade-in-down" style="animation-delay: 0.1s" @tap="goTyphoon">
+        <text class="typhoon-alert-icon">🌀</text>
+        <text class="typhoon-alert-text">台风「{{ typhoonAlert.name }}」距 {{ currentCity }} 约 {{ typhoonAlert.distance }}km{{ typhoonAlert.minPath < typhoonAlert.distance ? '，路径最近约 ' + typhoonAlert.minPath + 'km' : '' }}，点击查看路径</text>
+        <text class="typhoon-alert-arrow">›</text>
+      </view>
       <view v-if="isOffline" class="offline-banner">
         <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
       </view>
 
       <WeatherHero :temp="displayWeather!.temp" :feelsLike="displayWeather!.feelsLike" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
 
-      <DetailGrid :weather="displayWeather!" />
+      <DetailGrid v-if="homeModules.detail" :weather="displayWeather!" />
+
+      <AqiCard v-if="displayWeather!.aqi !== '--'" :weather="displayWeather!" />
 
       <ForecastCard :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
 
-      <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="displayHourly.length > 0">
+      <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="homeModules.hourly && displayHourly.length > 0">
         <view class="section-header">
           <view class="section-decor" />
           <text class="section-title">逐时天气</text>
         </view>
+        <HourlyTrend :hourly="displayHourly" />
         <HourlyScroll :hourly="displayHourly" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
       </view>
 
-      <TempTrend :forecast="displayForecast" />
+      <LifeTips v-if="homeModules.lifetips" class="lazy-render" :weather="displayWeather!" />
 
-      <view class="entry-cards anim-fade-in-up" style="animation-delay: 0.3s">
+      <TempTrend v-if="homeModules.temptr" class="lazy-render" :forecast="displayForecast" />
+
+      <PrecipTrend v-if="homeModules.preciptr" class="lazy-render" :forecast="displayForecast" />
+
+      <view class="entry-cards lazy-render anim-fade-in-up" style="animation-delay: 0.3s">
         <view class="entry-card typhoon-entry" @tap="uni.navigateTo({ url: '/pages/typhoon/typhoon' })">
           <view class="entry-icon-wrap">
             <image src="/static/typhoon-entry.svg" class="entry-icon-svg" mode="aspectFit" />
@@ -483,6 +887,57 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
         <text>重新加载</text>
       </view>
     </view>
+    <view class="city-picker-overlay" v-if="showCityPicker" @tap="showCityPicker = false">
+      <view class="city-picker-card" @tap.stop>
+        <view class="picker-header">
+          <text class="picker-title">切换城市</text>
+          <text class="picker-close" @tap="showCityPicker = false">✕</text>
+        </view>
+        <scroll-view class="picker-list" scroll-y>
+          <view class="picker-item current" @tap="switchCity(currentCity)">
+            <text class="picker-city">{{ currentCity }}</text>
+            <text class="picker-tag">当前</text>
+          </view>
+          <view class="picker-divider" v-if="favCities.length > 0" />
+          <view class="picker-item" v-for="c in favCities" :key="c" @tap="switchCity(c)" :class="{ active: c === currentCity }">
+            <text class="picker-city">{{ c }}</text>
+            <text class="picker-check" v-if="c === currentCity">✓</text>
+          </view>
+        </scroll-view>
+        <view class="picker-footer" @tap="goSearch">
+          <text class="picker-search-icon">🔍</text>
+          <text>搜索更多城市</text>
+        </view>
+        <view class="picker-footer manage-footer" @tap="goCities">
+          <text class="picker-search-icon">📋</text>
+          <text>管理收藏城市</text>
+        </view>
+        <view class="picker-footer manage-footer" @tap="goCompare">
+          <text class="picker-search-icon">⚖</text>
+          <text>城市对比</text>
+        </view>
+      </view>
+    </view>
+    <canvas canvas-id="shareCanvas" class="share-canvas"></canvas>
+    <view class="more-overlay" v-if="showMoreMenu" @tap="showMoreMenu = false">
+      <view class="more-menu" :style="{ top: (statusBarHeight + 64) + 'px' }" @tap.stop>
+        <view class="more-item" @tap.stop="onMoreAction(0)">
+          <text class="more-icon">{{ darkMode ? '☀️' : '🌙' }}</text>
+          <text class="more-text">{{ darkMode ? '浅色模式' : '深色模式' }}</text>
+          <text class="more-check" v-if="darkMode">●</text>
+        </view>
+        <view class="more-divider" />
+        <view class="more-item" @tap.stop="onMoreAction(1)">
+          <text class="more-icon">📤</text>
+          <text class="more-text">分享天气卡片</text>
+        </view>
+        <view class="more-divider" />
+        <view class="more-item" @tap.stop="onMoreAction(2)">
+          <text class="more-icon">⚙</text>
+          <text class="more-text">设置</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -493,6 +948,74 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
   padding-right: var(--spacing-lg);
   padding-bottom: calc(32px + var(--safe-area-bottom));
   min-height: 100vh;
+  position: relative;
+}
+
+.container::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  will-change: opacity;
+}
+
+.lazy-render {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+
+.container.scene-sunny::before {
+  background: radial-gradient(ellipse at 30% 15%, rgba(255,220,100,0.1) 0%, transparent 50%);
+  animation: sunny-glow 5s ease-in-out infinite;
+}
+.container.scene-rain::before {
+  background: linear-gradient(180deg, rgba(180,210,240,0.06) 0%, rgba(180,210,240,0.12) 50%, transparent 100%);
+  animation: rain-fade 4s ease-in-out infinite;
+}
+.container.scene-snow::before {
+  background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.12) 0%, transparent 60%);
+  animation: snow-fall 8s ease-in-out infinite;
+}
+.container.scene-thunder::before {
+  background: radial-gradient(ellipse at 50% 30%, rgba(180,160,200,0.08) 0%, transparent 50%);
+  animation: thunder-flash 8s ease-in-out infinite;
+}
+.container.scene-fog::before {
+  background: linear-gradient(90deg, rgba(200,210,220,0.06) 0%, rgba(200,210,220,0.12) 50%, rgba(200,210,220,0.06) 100%);
+  animation: fog-drift 8s ease-in-out infinite;
+}
+.container.scene-cloudy::before,
+.container.scene-overcast::before {
+  background: radial-gradient(ellipse at 60% 20%, rgba(255,255,255,0.06) 0%, transparent 50%);
+  animation: cloudy-drift 6s ease-in-out infinite;
+}
+
+@keyframes sunny-glow {
+  0%, 100% { opacity: .6; }
+  50% { opacity: 1; }
+}
+@keyframes rain-fade {
+  0%, 100% { opacity: .4; }
+  50% { opacity: .8; }
+}
+@keyframes snow-fall {
+  0%, 100% { opacity: .3; }
+  50% { opacity: .7; }
+}
+@keyframes thunder-flash {
+  0%, 90%, 100% { opacity: .2; }
+  92% { opacity: .8; }
+  94% { opacity: .1; }
+  96% { opacity: .6; }
+}
+@keyframes fog-drift {
+  0%, 100% { opacity: .3; }
+  50% { opacity: .6; }
+}
+@keyframes cloudy-drift {
+  0%, 100% { opacity: .3; }
+  50% { opacity: .6; }
 }
 
 .light-bg .city-name,
@@ -545,6 +1068,7 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
   color: rgba(255,255,255,0.7);
   opacity: 0;
   transition: opacity var(--transition-fast);
+  will-change: opacity;
 }
 
 .city-row:active .city-arrow {
@@ -564,14 +1088,22 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
   padding: 7px 14px;
   border-radius: var(--radius-full);
   background: rgba(255,255,255,0.22);
-  backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.3);
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), background var(--transition-fast);
 }
 
 .locate-btn.is-locating {
   background: rgba(255,255,255,0.35);
   border-color: rgba(255,255,255,0.5);
+}
+
+.more-btn {
+  padding: 7px 12px;
+}
+.more-btn .locate-icon {
+  font-size: 18px;
+  line-height: 1;
+  font-weight: var(--font-weight-bold);
 }
 
 .locate-btn:active {
@@ -636,6 +1168,34 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
   color: rgba(255,255,255,0.95);
 }
 
+.typhoon-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0 var(--spacing-md) var(--spacing-sm);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(216, 91, 79, 0.22);
+  border: 1px solid rgba(216, 91, 79, 0.4);
+}
+.typhoon-alert-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.typhoon-alert-text {
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.95);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.typhoon-alert-arrow {
+  font-size: 16px;
+  color: rgba(255,255,255,0.6);
+  flex-shrink: 0;
+}
+
 .alert-banner {
   display: flex;
   align-items: center;
@@ -675,12 +1235,12 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 
 .card {
   background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
   box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03);
   margin-bottom: var(--spacing-md);
   border: 1px solid rgba(255,255,255,0.6);
+  transform: translateZ(0);
 }
 
 .section-header {
@@ -716,11 +1276,11 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
   gap: var(--spacing-md);
   padding: var(--spacing-lg) var(--spacing-xl);
   background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
   border-radius: var(--radius-xl);
   box-shadow: 0 2px 16px rgba(0,0,0,0.06);
   border: 1px solid rgba(255,255,255,0.6);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  transform: translateZ(0);
 }
 
 .entry-card:active {
@@ -831,7 +1391,164 @@ const lightBg = computed(() => weather.value && lightFor(weather.value.weather))
 .dark-mode .card { background: rgba(30,36,48,0.85); border-color: rgba(255,255,255,0.08); box-shadow: 0 2px 16px rgba(0,0,0,0.2); }
 .dark-mode .entry-card { background: rgba(30,36,48,0.85); }
 
+.city-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+.city-picker-card {
+  width: 320px;
+  max-height: 70vh;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+}
+.picker-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+.picker-close {
+  font-size: 18px;
+  color: #999;
+  padding: 4px;
+}
+.picker-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  transition: background .1s;
+}
+.picker-item:active { background: #f0f4f8; }
+.picker-item.current { background: #f7fafc; }
+.picker-item.active .picker-city { color: #5B8FC0; }
+.picker-city {
+  font-size: 16px;
+  color: #2c3e50;
+  font-weight: 500;
+}
+.picker-tag {
+  font-size: 10px;
+  color: #5B8FC0;
+  background: rgba(91,143,192,0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.picker-check {
+  font-size: 16px;
+  color: #5B8FC0;
+  font-weight: 700;
+}
+.picker-divider {
+  height: 1px;
+  background: #eef2f6;
+  margin: 4px 16px;
+}
+.picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 20px;
+  border-top: 1px solid #eef2f6;
+  color: #5B8FC0;
+  font-size: 14px;
+  font-weight: 500;
+}
+.picker-footer:active { background: #f7fafc; }
+.picker-search-icon { font-size: 14px; }
 
+.dark-mode .city-picker-card { background: #1e2430; }
+.dark-mode .picker-title { color: #E0E6ED; }
+.dark-mode .picker-item { color: #C8D0DC; }
+.dark-mode .picker-item:active { background: rgba(255,255,255,0.05); }
+.dark-mode .picker-item.current { background: rgba(255,255,255,0.05); }
+.dark-mode .picker-city { color: #C8D0DC; }
+.dark-mode .picker-divider { background: rgba(255,255,255,0.08); }
+.dark-mode .picker-footer { border-color: rgba(255,255,255,0.08); color: #6B9FD0; }
+.dark-mode .picker-close { color: #6A7A8A; }
+
+.share-canvas {
+  width: 500px;
+  height: 700px;
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+}
+.more-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+}
+.more-menu {
+  position: fixed;
+  right: var(--spacing-lg);
+  width: 176px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 10px 32px rgba(0,0,0,0.18);
+  border: 1px solid rgba(0,0,0,0.06);
+  overflow: hidden;
+  z-index: 951;
+  animation: menu-pop 0.16s ease-out;
+}
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  transition: background 0.12s;
+}
+.more-item:active { background: #f0f4f8; }
+.more-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+.more-text {
+  font-size: 14px;
+  color: #2c3e50;
+  font-weight: 500;
+}
+.more-check {
+  margin-left: auto;
+  color: #5B8FC0;
+  font-size: 10px;
+}
+.more-divider {
+  height: 1px;
+  background: #eef2f6;
+}
+@keyframes menu-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.dark-mode .more-menu { background: #1e2430; border-color: rgba(255,255,255,0.08); box-shadow: 0 10px 32px rgba(0,0,0,0.4); }
+.dark-mode .more-text { color: #C8D0DC; }
+.dark-mode .more-item:active { background: rgba(255,255,255,0.06); }
+.dark-mode .more-divider { background: rgba(255,255,255,0.08); }
+.dark-mode .more-check { color: #6B9FD0; }
 </style>
 <style>
 ::-webkit-scrollbar { display: none; width: 0; height: 0; }

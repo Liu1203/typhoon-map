@@ -101,6 +101,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .info-stat{flex:1;padding:10px 8px;background:#EDF2F8;border-radius:8px;min-width:0}
 .info-stat-label{font-size:11px;color:#B0BDCC;margin-bottom:4px}
 .info-stat-value{font-size:13px;font-weight:600;color:#2C3E50;font-variant-numeric:tabular-nums}
+.info-dist{margin-top:8px;padding:7px 12px;border-radius:8px;background:rgba(216,91,79,.1);border:1px solid rgba(216,91,79,.25);font-size:12px;font-weight:600;color:#D85B4F;text-align:center;display:none}
 
 .point-card{display:none;padding:12px 16px 14px}
 .point-card.show{display:block}
@@ -135,6 +136,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .cyclone-label{position:absolute;top:-22px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:600;color:#fff;padding:2px 8px;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 @keyframes spin{to{transform:rotate(-360deg)}}
 @keyframes pulse-ring{0%{transform:scale(.75);opacity:.6}100%{transform:scale(1.45);opacity:0}}
+.trend-wrap{margin-top:8px;display:none}.trend-wrap.show{display:block}.trend-title{font-size:11px;color:#B0BDCC;margin-bottom:4px}.trend-chart{display:flex;align-items:flex-end;gap:2px;height:50px;overflow-x:auto}.trend-bar-w{flex:1 0 18px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}.trend-bar{width:100%;border-radius:2px 2px 0 0;min-height:2px}.trend-bar-lb{font-size:7px;color:#B0BDCC;white-space:nowrap;margin-top:1px}
+.replay-wrap{display:none;align-items:center;gap:8px;padding:4px 16px 8px}.replay-wrap.show{display:flex}.rp-btn{flex-shrink:0;padding:4px 10px;border:none;border-radius:6px;background:#EDF2F8;font-size:11px;color:#5B8FC0;cursor:pointer}.rp-btn.on{background:#5B8FC0;color:#fff}.rp-prog{flex:1;height:4px;background:#EDF2F8;border-radius:2px;overflow:hidden}.rp-bar{height:100%;background:#5B8FC0;border-radius:2px;width:0;transition:width .2s}.rp-lb{font-size:10px;color:#B0BDCC;min-width:30px;text-align:right}
 .leaflet-container{background:#E8EEF5;font:12px/1.4 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
 .leaflet-control-layers:not(.leaflet-control-layers-expanded){background:none!important;border:none!important;box-shadow:none!important}
 .leaflet-control-layers-expanded{background:rgba(255,255,255,.96)!important;border:none!important;border-radius:12px!important;box-shadow:0 2px 12px rgba(0,0,0,.12)!important;padding:8px 12px!important;font-size:13px;color:#2C3E50;max-height:220px}
@@ -229,6 +232,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
         <div class="info-stat"><div class="info-stat-label">中心气压</div><div class="info-stat-value" id="infoPres">—</div></div>
         <div class="info-stat"><div class="info-stat-label">位置</div><div class="info-stat-value" id="infoPos">—</div></div>
       </div>
+      <div class="info-dist" id="infoDist"></div>
+      <div class="trend-wrap" id="trendWrap"><div class="trend-title">强度演变</div><div class="trend-chart" id="trendChart"></div></div>
     </div>
     <div class="point-card" id="pointCard">
       <div class="point-head">
@@ -254,6 +259,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
         </div>
       </div>
       <div class="point-close" id="pClose">轻触关闭详情</div>
+    </div>
+    <div class="replay-wrap" id="replayWrap">
+      <button class="rp-btn" id="rpBtn" type="button">&#9654;</button>
+      <div class="rp-prog"><div class="rp-bar" id="rpBar"></div></div>
+      <span class="rp-lb" id="rpLb">—</span>
     </div>
   </div>
 </div>
@@ -281,15 +291,38 @@ function parseJsonp(text){
   return m?JSON.parse(m[0]):null
 }
 function req(url){
+  var keyUrl=url.replace(/[?&]t=\d+/,'')
+  var cacheKey='typhoon_api_'+keyUrl
+  try{
+    var cached=localStorage.getItem(cacheKey)
+    if(cached){
+      var obj=JSON.parse(cached)
+      if(Date.now()-obj.ts<5*60*1000)return Promise.resolve(obj.text)
+    }
+  }catch(e){}
   return new Promise(function(resolve){
     var x=new XMLHttpRequest()
     x.open('GET',url,true)
     x.timeout=8000
-    x.onload=function(){resolve(x.status>=200&&x.status<300?x.responseText:null)}
+    x.onload=function(){
+      if(x.status>=200&&x.status<300){
+        try{
+          localStorage.setItem(cacheKey,JSON.stringify({ts:Date.now(),text:x.responseText}))
+          var ks=Object.keys(localStorage).filter(function(k){return k.indexOf('typhoon_api_')===0})
+          if(ks.length>30){ks.sort();localStorage.removeItem(ks[0])}
+        }catch(e){}
+        resolve(x.responseText)
+      }else resolve(null)
+    }
     x.onerror=function(){resolve(null)}
     x.ontimeout=function(){resolve(null)}
     x.send()
   })
+}
+function clearApiCache(){
+  try{
+    Object.keys(localStorage).forEach(function(k){if(k.indexOf('typhoon_api_')===0)localStorage.removeItem(k)})
+  }catch(e){}
 }
 
 function getYearList(){
@@ -300,7 +333,9 @@ function getYearList(){
 
 function mapList(data){
   if(!data||!data.typhoonList)return[]
-  return data.typhoonList.map(function(v){return{id:v[0],nameCn:v[2],nameEn:v[1],tcNum:v[4]}})
+  return data.typhoonList
+    .filter(function(v){return v[7]==='start'})
+    .map(function(v){return{id:v[0],nameCn:v[2],nameEn:v[1],tcNum:v[4]}})
 }
 
 function parseDetail(raw){
@@ -409,6 +444,16 @@ var listExpanded=true
 var selectedPoint=null
 var map=null,layers=[],mapData=null,selectedKey=null
 var refreshTimer=null,lastUpdateTime=null
+var replayTimer=null,replayIdx=0
+var userCoords=(function(){
+  var m=location.search.match(/lat=([\d.\-]+)/)
+  var n=location.search.match(/lon=([\d.\-]+)/)
+  if(m&&n){
+    var lat=parseFloat(m[1]),lon=parseFloat(n[1])
+    if(isFinite(lat)&&isFinite(lon))return{lat:lat,lon:lon}
+  }
+  return null
+})()
 
 /* ===== DOM ===== */
 var $=function(id){return document.getElementById(id)}
@@ -478,6 +523,7 @@ function renderInfo(){
     }else{
       $('pDir').textContent='—';$('pDist').textContent='—';$('pSpeed').textContent='—'
     }
+    setShow($('replayWrap'),false)
   }else if(detail&&detail.history.length){
     setShow(point,false);setShow(info,true)
     var cp=detail.history[detail.history.length-1]
@@ -489,8 +535,27 @@ function renderInfo(){
     $('infoWind').textContent=cp.windSpeed+' m/s'
     $('infoPres').textContent=cp.pressure+' hPa'
     $('infoPos').textContent=cp.lat.toFixed(1)+'°N '+cp.lon.toFixed(1)+'°E'
+    if(userCoords&&validLL(cp)){
+      var d=haversine(userCoords.lat,userCoords.lon,cp.lat,cp.lon)
+      var minD=d
+      var fp=(detail.forecasts&&detail.forecasts.BABJ)||[]
+      for(var i=0;i<fp.length;i++){
+        if(validLL(fp[i])){
+          var pd=haversine(userCoords.lat,userCoords.lon,fp[i].lat,fp[i].lon)
+          if(pd<minD)minD=pd
+        }
+      }
+      var distText='🌀 距你当前位置约 '+Math.round(d)+' km'
+      if(minD<d)distText+='，路径最近约 '+Math.round(minD)+' km'
+      $('infoDist').textContent=distText
+      $('infoDist').style.display='block'
+    }else{
+      $('infoDist').style.display='none'
+    }
+    setShow($('replayWrap'),true)
+    renderTrend()
   }else{
-    setShow(info,false);setShow(point,false)
+    setShow(info,false);setShow(point,false);setShow($('replayWrap'),false)
   }
   invalidateMap()
 }
@@ -630,6 +695,10 @@ function renderMap(fit){
 
   if(cp&&validLL(cp)){
     var cg=ng(cp.grade),cc=gc(cg)
+    var ws=cp.windSpeed||20
+    add(L.circle([cp.lat,cp.lon],{radius:ws*800,color:'transparent',fillColor:'#D95B4F',fillOpacity:.04,weight:0}).addTo(map))
+    add(L.circle([cp.lat,cp.lon],{radius:ws*400,color:'rgba(200,60,60,.08)',fillColor:'#D95B4F',fillOpacity:.06,weight:1.5}).addTo(map))
+    add(L.circle([cp.lat,cp.lon],{radius:ws*150,color:'rgba(200,60,60,.16)',fillColor:'#D95B4F',fillOpacity:.08,weight:1.5}).addTo(map))
     var html='<div class="cyclone-wrap">'+
       '<div class="cyclone-label" style="background:'+cc+'">'+(cp.windSpeed!=null?cp.windSpeed:'-')+' m/s</div>'+
       '<div class="cyclone-ring" style="border-color:'+cc+'"></div>'+
@@ -756,6 +825,7 @@ async function loadHistory(year){
 }
 
 async function selectTyphoon(t){
+  if(replayTimer)stopReplay()
   selected=t
   selectedPoint=null
   selectedKey=null
@@ -769,6 +839,51 @@ async function selectTyphoon(t){
   renderCollapsed();renderInfo();renderMap(true)
 }
 
+function renderTrend(){
+  var wrap=$('trendWrap')
+  if(!detail||!detail.history||detail.history.length<2){wrap.classList.remove('show');return}
+  var hist=detail.history,chart=$('trendChart')
+  var maxW=0
+  hist.forEach(function(p){if(p.windSpeed>maxW)maxW=p.windSpeed})
+  if(maxW<1)maxW=50
+  var html=''
+  var step=Math.max(1,Math.floor(hist.length/30))
+  for(var i=0;i<hist.length;i+=step){
+    var p=hist[i],h=Math.max(2,(p.windSpeed/maxW)*44)
+    html+='<div class="trend-bar-w"><div class="trend-bar" style="height:'+h+'px;background:'+gc(p.grade)+'"></div><div class="trend-bar-lb">'+p.windSpeed+'</div></div>'
+  }
+  chart.innerHTML=html
+  wrap.classList.add('show')
+}
+function startReplay(){
+  if(!detail||!detail.history||detail.history.length<2)return
+  if(replayTimer){stopReplay();return}
+  replayIdx=0
+  $('rpBtn').textContent='\u25A0'
+  $('rpBtn').classList.add('on')
+  var hist=detail.history
+  function step(){
+    if(replayIdx>=hist.length){stopReplay();return}
+    var p=hist[replayIdx],key=nodeKey('history',replayIdx)
+    if(validLL(p)){try{map.setView([p.lat,p.lon],Math.max(map.getZoom(),6),{animate:true})}catch(e){}}
+    selectedKey=key
+    selectedPoint={point:p,type:'history'}
+    var pct=((replayIdx+1)/hist.length*100)
+    $('rpBar').style.width=Math.min(pct,100)+'%'
+    $('rpLb').textContent=(replayIdx+1)+'/'+hist.length
+    renderInfo();renderMap(false)
+    replayIdx++
+  }
+  step()
+  replayTimer=setInterval(step,800)
+}
+function stopReplay(){
+  if(replayTimer){clearInterval(replayTimer);replayTimer=null}
+  $('rpBtn').textContent='\u25B6'
+  $('rpBtn').classList.remove('on')
+  $('rpBar').style.width='0'
+  $('rpLb').textContent='\u2014'
+}
 function renderAgencyLegend(){
   var el=$('legendAgencies'),html='',ci=0
   if(detail&&detail.forecasts){
@@ -814,7 +929,9 @@ function bindUI(){
     var hide=$('legendBody').classList.toggle('hide')
     $('legendToggle').textContent=hide?'展开':'收起'
   }
+  $('rpBtn').onclick=function(){startReplay()}
   $('refreshBtn').onclick=function(){
+    clearApiCache()
     if(tabMode==='active')loadActive()
     else loadHistory(selectedYear)
   }

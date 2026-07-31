@@ -110,7 +110,7 @@ const scale = computed(() => props.size / 56)
         <view class="cloud-bump bc"></view>
         <view class="cloud-bump br"></view>
       </view>
-      <view class="drops" v-for="i in 4" :key="i" :style="{ '--d': i * 0.2 + 's', '--x': (i - 2.5) * 5 + 'px' }"></view>
+      <view class="drops" v-for="i in 3" :key="i" :style="{ '--d': i * 0.25 + 's', '--x': (i - 2) * 6 + 'px' }"></view>
     </view>
 
     <!-- 大阵雨 / 暴风雨 -->
@@ -121,7 +121,7 @@ const scale = computed(() => props.size / 56)
         <view class="cloud-bump bc"></view>
         <view class="cloud-bump br"></view>
       </view>
-      <view class="drops" v-for="i in 4" :key="i" :style="{ '--d': i * 0.15 + 's', '--x': (i - 2.5) * 5 + 'px' }"></view>
+      <view class="drops" v-for="i in 3" :key="i" :style="{ '--d': i * 0.2 + 's', '--x': (i - 2) * 6 + 'px' }"></view>
     </view>
 
     <!-- 雷阵雨 -->
@@ -133,7 +133,7 @@ const scale = computed(() => props.size / 56)
         <view class="cloud-bump br"></view>
       </view>
       <view class="bolt"></view>
-      <view class="drops" v-for="i in 4" :key="i" :style="{ '--d': i * 0.25 + 's', '--x': (i - 2.5) * 5 + 'px' }"></view>
+      <view class="drops" v-for="i in 3" :key="i" :style="{ '--d': i * 0.3 + 's', '--x': (i - 2) * 6 + 'px' }"></view>
     </view>
 
     <!-- 雪 -->

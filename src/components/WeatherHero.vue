@@ -16,13 +16,20 @@ const props = defineProps<{
 const daylightPct = computed(() => {
   if (!props.sunrise || !props.sunset || props.sunrise === "--" || props.sunset === "--") return 0
   const now = new Date()
-  const today = now.toISOString().slice(0, 10)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const today = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate())
   const rise = new Date(`${today}T${props.sunrise}:00`).getTime()
   const set = new Date(`${today}T${props.sunset}:00`).getTime()
   const current = now.getTime()
   if (current < rise) return 0
   if (current > set) return 100
   return ((current - rise) / (set - rise)) * 100
+})
+
+const arcAngle = computed(() => (daylightPct.value / 100) * 180 - 90)
+const nowTime = computed(() => {
+  const d = new Date()
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")
 })
 </script>
 
@@ -44,11 +51,12 @@ const daylightPct = computed(() => {
     </view>
     <view class="daylight-row" v-if="sunrise && sunrise !== '--'">
       <text class="daylight-label">{{ sunrise }}</text>
-      <view class="daylight-track">
-        <view class="daylight-bar">
-          <view class="daylight-fill" :style="{ width: daylightPct + '%' }" />
-          <view class="daylight-dot" :style="{ left: daylightPct + '%' }" />
+      <view class="sun-arc">
+        <view class="arc-guide"></view>
+        <view class="sun-orbit" :style="{ transform: 'rotate(' + arcAngle + 'deg) translateY(-40px)' }">
+          <view class="sun-dot"></view>
         </view>
+        <view class="arc-now">{{ nowTime }}</view>
       </view>
       <text class="daylight-label">{{ sunset }}</text>
     </view>
@@ -137,35 +145,51 @@ const daylightPct = computed(() => {
   min-width: 36px;
   text-align: center;
 }
-.daylight-track {
-  flex: 1;
-  height: 20px;
-  display: flex;
-  align-items: center;
-}
-.daylight-bar {
-  width: 100%;
-  height: 6px;
-  background: rgba(255,255,255,0.18);
-  border-radius: 3px;
+.sun-arc {
   position: relative;
-  overflow: visible;
+  flex: 1;
+  height: 46px;
 }
-.daylight-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #FFD700, #FF8C00, #FF6347);
-  border-radius: 3px;
-  transition: width 1s ease;
-}
-.daylight-dot {
+.arc-guide {
   position: absolute;
-  top: 50%;
-  width: 12px;
-  height: 12px;
-  background: #fff;
+  left: 50%;
+  bottom: 0;
+  width: 80px;
+  height: 40px;
+  margin-left: -40px;
+  border: 2px solid rgba(255,255,255,0.22);
+  border-bottom: none;
+  border-radius: 40px 40px 0 0;
+}
+.sun-orbit {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  transform-origin: 0 0;
+  transition: transform 1s ease;
+}
+.sun-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
   border-radius: 50%;
-  transform: translate(-50%, -50%);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-  transition: left 1s ease;
+  background: #FFD54F;
+  box-shadow: 0 0 14px rgba(255,213,79,0.9), 0 1px 4px rgba(0,0,0,0.3);
+}
+.arc-now {
+  position: absolute;
+  bottom: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(255,255,255,0.75);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
 }
 </style>

@@ -67,12 +67,12 @@ const emit = defineEmits<{
 <style scoped>
 .card {
   background: rgba(255,255,255,0.92);
-  backdrop-filter: blur(12px);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
   box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03);
   margin-bottom: var(--spacing-md);
   border: 1px solid rgba(255,255,255,0.6);
+  transform: translateZ(0);
 }
 .section-header {
   display: flex;

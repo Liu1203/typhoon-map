@@ -63,14 +63,41 @@ export function groupCitiesByPinyin(): Record<string, string[]> {
   return sorted
 }
 
+const DYNAMIC_COORDS_KEY = "dynamic_city_coords"
 const DYNAMIC_COORDS: Record<string, { lat: number; lon: number }> = {}
+
+try {
+  const raw = uni.getStorageSync(DYNAMIC_COORDS_KEY) as string
+  if (raw) Object.assign(DYNAMIC_COORDS, JSON.parse(raw))
+} catch {}
 
 export function setDynamicCity(name: string, lat: number, lon: number) {
   DYNAMIC_COORDS[name] = { lat, lon }
+  try {
+    const keys = Object.keys(DYNAMIC_COORDS)
+    if (keys.length > 30) {
+      delete DYNAMIC_COORDS[keys[0]]
+    }
+    uni.setStorageSync(DYNAMIC_COORDS_KEY, JSON.stringify(DYNAMIC_COORDS))
+  } catch {}
 }
 
 export function getCityCoords(name: string): { lat: number; lon: number } | null {
   return CITY_COORDS[name] || DYNAMIC_COORDS[name] || null
+}
+
+export function getCachedWeather(city: string): CurrentWeather | null {
+  try {
+    const raw = uni.getStorageSync("weather_cache") as string
+    if (!raw) return null
+    const obj = JSON.parse(raw)
+    if (obj && obj.data && obj.city && typeof obj.city === "string" && !obj[obj.city]) {
+      return obj.city === city ? (obj.data as CurrentWeather) : null
+    }
+    const entry = obj && obj[city]
+    if (entry && entry.data && typeof entry.ts === "number") return entry.data as CurrentWeather
+  } catch {}
+  return null
 }
 
 export interface GeoCity {
@@ -136,6 +163,9 @@ export interface HourlyItem {
   rainChance: string
   windDir: string
   windScale: string
+  precip?: string
+  feelsLike?: string
+  humidity?: string
 }
 
 export interface AlertItem {
@@ -169,6 +199,7 @@ export interface CurrentWeather {
   aqiDetail?: AQIDetail
   forecast: ForecastDay[]
   hourly: HourlyItem[]
+  hourlyByDate?: Record<string, HourlyItem[]>
   alerts: AlertItem[]
 }
 
@@ -275,13 +306,14 @@ export interface AQIDetail {
   no2?: string
   o3?: string
   so2?: string
+  hourly?: { time: string; aqi: number }[]
 }
 
 async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
   try {
-    const res = await new Promise<{ data?: { current?: { european_aqi?: number; pm2_5?: number; pm10?: number; nitrogen_dioxide?: number; ozone?: number; sulphur_dioxide?: number } } } | null>((resolve) => {
+    const res = await new Promise<{ data?: { current?: { european_aqi?: number; pm2_5?: number; pm10?: number; nitrogen_dioxide?: number; ozone?: number; sulphur_dioxide?: number }; hourly?: { time?: string[]; european_aqi?: number[] } } } | null>((resolve) => {
       uni.request({
-        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide`,
+        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide&hourly=european_aqi&timezone=auto`,
         timeout: TIMEOUT.OPEN_METEO_HOURLY,
         success(r) { resolve(r as any) },
         fail() { resolve(null) },
@@ -291,6 +323,16 @@ async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
     if (!cur || cur.european_aqi == null) return null
     const aqi = Math.round(cur.european_aqi)
     const label = aqi <= 20 ? "优" : aqi <= 40 ? "良" : aqi <= 60 ? "轻度" : aqi <= 80 ? "中度" : aqi <= 100 ? "重度" : "严重"
+    const hourly: { time: string; aqi: number }[] = []
+    const ht = res?.data?.hourly?.time
+    const ha = res?.data?.hourly?.european_aqi
+    if (Array.isArray(ht) && Array.isArray(ha)) {
+      for (let i = 0; i < ht.length; i++) {
+        const v = ha[i]
+        if (v == null) continue
+        hourly.push({ time: String(ht[i]).slice(11, 16), aqi: Math.round(v) })
+      }
+    }
     return {
       aqi, label,
       pm25: cur.pm2_5 != null ? cur.pm2_5.toFixed(1) : undefined,
@@ -298,6 +340,7 @@ async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
       no2: cur.nitrogen_dioxide != null ? cur.nitrogen_dioxide.toFixed(1) : undefined,
       o3: cur.ozone != null ? cur.ozone.toFixed(1) : undefined,
       so2: cur.sulphur_dioxide != null ? cur.sulphur_dioxide.toFixed(1) : undefined,
+      hourly: hourly.length ? hourly : undefined,
     }
   } catch (e) {
     console.error("AQI fetch error:", e)
@@ -311,7 +354,7 @@ async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
     `longitude=${lon}`,
     "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index,precipitation,surface_pressure,visibility,dew_point_2m,cloud_cover,wind_gusts_10m",
     "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max,precipitation_sum",
-    "hourly=temperature_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
+    "hourly=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
     "timezone=auto",
     "forecast_days=7",
     "alerts=true",
@@ -372,23 +415,33 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
   }
 
   const hourlyItems: HourlyItem[] = []
+  const hourlyByDate: Record<string, HourlyItem[]> = {}
   if (hourly?.time) {
     for (let i = 0; i < hourly.time.length; i++) {
       const iso = hourly.time[i] as string
       const dateStr = iso.slice(0, 10)
       const hh = parseHourTime(iso)
-      if (dateStr !== todayDate || hh < currentHour) continue
 
       const hcode = hourly.weather_code?.[i] ?? 0
       const hp = hourly.precipitation?.[i] ?? 0
-      hourlyItems.push({
+      const item: HourlyItem = {
         time: hh + ":00",
         temp: String(hourly.temperature_2m?.[i] ?? "--"),
         weather: weatherByPrecip(hcode, hp) || OM_WX[hcode] || translateWeather(String(hcode)),
         rainChance: String(hourly.precipitation_probability?.[i] ?? 0),
         windDir: degToDir(hourly.wind_direction_10m?.[i] ?? 0),
-        windScale: String(Math.round((hourly.wind_speed_10m?.[i] ?? 0) / 1.852)),
-      })
+        windScale: String(Math.round(hourly.wind_speed_10m?.[i] ?? 0)),
+        precip: hp > 0 ? (hp < 0.1 ? "0.1" : hp.toFixed(1)) : undefined,
+        feelsLike: hourly.apparent_temperature?.[i] != null ? String(hourly.apparent_temperature[i]) : undefined,
+        humidity: hourly.relative_humidity_2m?.[i] != null ? String(hourly.relative_humidity_2m[i]) : undefined,
+      }
+
+      if (!hourlyByDate[dateStr]) hourlyByDate[dateStr] = []
+      hourlyByDate[dateStr].push(item)
+
+      if (dateStr === todayDate && hh >= currentHour) {
+        hourlyItems.push(item)
+      }
     }
   }
 
@@ -428,6 +481,7 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
     aqiDetail: aqiResult || undefined,
     forecast,
     hourly: hourlyItems,
+    hourlyByDate,
     alerts,
   }
 }
@@ -453,7 +507,7 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
     const endDate = date || startDate
     const res = await new Promise<any>((resolve) => {
       uni.request({
-        url: `${API.OPEN_METEO}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
+        url: `${API.OPEN_METEO}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
         timeout: TIMEOUT.OPEN_METEO_HOURLY,
         success(r) { resolve(r) },
         fail() { resolve(null) },
@@ -477,7 +531,10 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
         weather: weatherByPrecip(wcode, hp) || OM_WX[wcode] || translateWeather(String(wcode)),
         rainChance: String(h.precipitation_probability?.[i] ?? 0),
         windDir: degToDir(h.winddirection_10m?.[i] ?? 0),
-        windScale: String(Math.round((h.windspeed_10m?.[i] ?? 0) / WEATHER.HOURLY_DIVISOR)),
+        windScale: String(Math.round(h.windspeed_10m?.[i] ?? 0)),
+        precip: hp > 0 ? (hp < 0.1 ? "0.1" : hp.toFixed(1)) : undefined,
+        feelsLike: h.apparent_temperature?.[i] != null ? String(h.apparent_temperature[i]) : undefined,
+        humidity: h.relative_humidity_2m?.[i] != null ? String(h.relative_humidity_2m[i]) : undefined,
       })
     }
     return result

@@ -64,6 +64,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .legend-row{display:flex;align-items:center;gap:6px;padding:2px 0}
 .legend-dot{width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 1.5px #fff,0 1px 2px rgba(0,0,0,.08)}
 
+.sort-bar{flex-shrink:0;display:flex;gap:6px;padding:4px 14px 6px;background:#fff;border-bottom:1px solid #DDE4ED;z-index:20}
+.sort-btn{padding:3px 10px;border-radius:6px;border:1px solid transparent;background:#EDF2F8;font-size:11px;color:#8B9CAD;cursor:pointer;font-weight:500;transition:all .12s}
+.sort-btn.active{background:#5B8FC0;color:#fff;border-color:#5B8FC0}
+.freq-stats{margin-left:auto;font-size:11px;color:#B0BDCC;display:flex;gap:10px}
+.freq-stat{display:flex;gap:3px}
+.freq-num{font-weight:700;color:#5B8FC0}
+
 .empty{
   position:absolute;inset:0;z-index:900;display:none;align-items:center;justify-content:center;
   background:rgba(240,245,250,.45)
@@ -130,6 +137,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 
 <div class="sub-bar">
   <span><span class="sub-count-num" id="quakeCount">0</span> 次地震 <span class="sub-src" id="subSrc"></span></span>
+  <span class="freq-stats" id="freqStats">
+    <span class="freq-stat"><span class="freq-num" id="freqM3">0</span> M3+</span>
+    <span class="freq-stat"><span class="freq-num" id="freqM5">0</span> M5+</span>
+    <span class="freq-stat"><span class="freq-num" id="freqM7">0</span> M7+</span>
+  </span>
   <span class="sub-toggle" id="listToggle">收起 ▲</span>
 </div>
 
@@ -138,6 +150,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
   <button class="filter-btn" data-min="3" type="button">M3+</button>
   <button class="filter-btn" data-min="5" type="button">M5+</button>
   <button class="filter-btn" data-min="7" type="button">M7+</button>
+</div>
+<div class="sort-bar" id="sortBar">
+  <button class="sort-btn active" data-sort="mag" type="button">震级 ▼</button>
+  <button class="sort-btn" data-sort="time" type="button">时间 ▼</button>
+  <button class="sort-btn" data-sort="depth" type="button">深度 ▼</button>
 </div>
 <div class="quake-list" id="quakeList"></div>
 
@@ -215,7 +232,7 @@ function getDateStr(offset){
 }
 function pad2(n){return String(n).padStart(2,'0')}
 
-var region='global',queryDate=getDateStr(),allQuakes=[],quakes=[],selected=null,listExpanded=true,minMagFilter=0
+var region='global',queryDate=getDateStr(),allQuakes=[],quakes=[],selected=null,listExpanded=true,minMagFilter=0,sortBy='mag',sortDir=-1
 var map=null,layers=[],mapData=[],selectedKey=null
 var refreshTimer=null
 
@@ -227,10 +244,25 @@ function invalidateMap(){
   setTimeout(function(){try{map.invalidateSize(false)}catch(e){}},60)
 }
 
+function applySort(){
+  quakes.sort(function(a,b){
+    var va=a[sortBy],vb=b[sortBy]
+    if(typeof va==='string')return sortDir*va.localeCompare(vb)
+    return sortDir*(va-vb)
+  })
+}
+function updateFreq(){
+  var m3=allQuakes.filter(function(q){return q.mag>=3}).length
+  var m5=allQuakes.filter(function(q){return q.mag>=5}).length
+  var m7=allQuakes.filter(function(q){return q.mag>=7}).length
+  $('freqM3').textContent=m3;$('freqM5').textContent=m5;$('freqM7').textContent=m7
+}
 function applyFilter(){
   quakes=minMagFilter>0?allQuakes.filter(function(q){return q.mag>=minMagFilter}):allQuakes.slice()
+  applySort()
   selected=quakes.length?quakes[0]:null
   $('quakeCount').textContent=quakes.length
+  updateFreq()
   if(!allQuakes.length)setEmpty(true,'该日期暂无地震数据')
   else setEmpty(quakes.length===0,'该震级范围内暂无数据')
   renderList();renderBottom();renderMap(true)
@@ -302,8 +334,9 @@ function renderMap(fit){
   var markers=[]
   quakes.forEach(function(q,i){
     var r=magRadius(q.mag),c=magColor(q.mag)
+    var depthOp=Math.max(0.2,Math.min(0.9,1-q.depth/700))
     var m=add(L.circleMarker([q.lat,q.lon],{
-      radius:i===0?r+4:r,color:'#fff',weight:2,fillColor:c,fillOpacity:0.75
+      radius:i===0?r+4:r,color:'#fff',weight:2,fillColor:c,fillOpacity:depthOp
     }).addTo(map))
     m.on('click',function(e){
       L.DomEvent.stopPropagation(e)
@@ -330,6 +363,14 @@ function selectQuake(q){
 
 /* ===== data ===== */
 function fetchQuakes(url,timeout){
+  var cacheKey='quake_api_'+url
+  try{
+    var cached=localStorage.getItem(cacheKey)
+    if(cached){
+      var obj=JSON.parse(cached)
+      if(Date.now()-obj.ts<3*60*1000)return Promise.resolve(obj.data)
+    }
+  }catch(e){}
   return new Promise(function(resolve){
     var x=new XMLHttpRequest()
     x.open('GET',url,true)
@@ -347,6 +388,11 @@ function fetchQuakes(url,timeout){
               var time=typeof p.time==='string'?new Date(p.time).getTime():p.time||0
               return{id:String(f.id||p.unid||''),mag:p.mag||0,place:place,time:time,lat:lat,lon:lon,depth:depth,source:p.net||''}
             })
+            try{
+              localStorage.setItem(cacheKey,JSON.stringify({ts:Date.now(),data:items}))
+              var ks=Object.keys(localStorage).filter(function(k){return k.indexOf('quake_api_')===0})
+              if(ks.length>30){ks.sort();localStorage.removeItem(ks[0])}
+            }catch(e){}
             resolve(items)
           }else resolve([])
         }catch(e){resolve([])}
@@ -356,6 +402,11 @@ function fetchQuakes(url,timeout){
     x.ontimeout=function(){resolve([])}
     x.send()
   })
+}
+function clearQuakeCache(){
+  try{
+    Object.keys(localStorage).forEach(function(k){if(k.indexOf('quake_api_')===0)localStorage.removeItem(k)})
+  }catch(e){}
 }
 
 function dedup(list){
@@ -430,7 +481,7 @@ function bindUI(){
   di.value=queryDate
   di.onchange=function(){if(di.value){queryDate=di.value;$('dateText').textContent=queryDate;loadData()}}
   $('dateWrap').onclick=function(e){if(e.target!==di)di.showPicker()}
-  $('refreshBtn').onclick=function(){loadData()}
+  $('refreshBtn').onclick=function(){clearQuakeCache();loadData()}
   $('todayBtn').onclick=function(){queryDate=getDateStr();$('dateInput').value=queryDate;$('dateText').textContent=queryDate;loadData()}
   $('emptyRetry').onclick=function(){loadData()}
   $('listToggle').onclick=function(){listExpanded=!listExpanded;renderList();invalidateMap()}
@@ -440,6 +491,18 @@ function bindUI(){
       filterBtns.forEach(function(b){b.className='filter-btn'})
       btn.className='filter-btn active'
       minMagFilter=parseFloat(btn.getAttribute('data-min'))||0
+      applyFilter()
+    }
+  })
+  var sortBtns=$('sortBar').querySelectorAll('.sort-btn')
+  sortBtns.forEach(function(btn){
+    btn.onclick=function(){
+      var s=btn.getAttribute('data-sort')
+      if(sortBy===s)sortDir*=-1
+      else{sortBy=s;sortDir=-1}
+      sortBtns.forEach(function(b){b.className='sort-btn'})
+      btn.className='sort-btn active'
+      btn.textContent={mag:'震级',time:'时间',depth:'深度'}[s]+' '+(sortDir===-1?'\u25BC':'\u25B2')
       applyFilter()
     }
   })

@@ -6,10 +6,41 @@ import { loadDarkMode } from "@/utils/theme"
 const darkMode = ref(false)
 const query = ref("")
 const favCities = ref<string[]>([])
+const recentSearches = ref<string[]>([])
 const geoResults = ref<GeoCity[]>([])
 const geoLoading = ref(false)
 
 const FAV_KEY = "fav_cities"
+const RECENT_KEY = "recent_searches"
+const SEARCH_CACHE_KEY = "search_cache"
+const SEARCH_CACHE_TTL = 30 * 60 * 1000
+
+function getSearchCache(q: string): GeoCity[] | null {
+  try {
+    const raw = uni.getStorageSync(SEARCH_CACHE_KEY + "_" + q) as string
+    if (raw) {
+      const obj = JSON.parse(raw)
+      if (obj && obj.data && Date.now() - obj.ts < SEARCH_CACHE_TTL) return obj.data as GeoCity[]
+    }
+  } catch {}
+  return null
+}
+
+function setSearchCache(q: string, data: GeoCity[]) {
+  try {
+    uni.setStorageSync(SEARCH_CACHE_KEY + "_" + q, JSON.stringify({ data, ts: Date.now() }))
+    const info = uni.getStorageInfoSync()
+    const keys = (info.keys || []).filter((k: string) => String(k).startsWith(SEARCH_CACHE_KEY + "_"))
+    if (keys.length > 20) {
+      keys.sort((a: string, b: string) => {
+        const ta = (uni.getStorageSync(a) as string) || ""
+        const tb = (uni.getStorageSync(b) as string) || ""
+        try { return (JSON.parse(ta).ts || 0) - (JSON.parse(tb).ts || 0) } catch { return 0 }
+      })
+      keys.slice(0, keys.length - 20).forEach((k: string) => { try { uni.removeStorageSync(k) } catch {} })
+    }
+  } catch {}
+}
 
 onMounted(() => {
   darkMode.value = loadDarkMode()
@@ -17,7 +48,22 @@ onMounted(() => {
     const raw = uni.getStorageSync(FAV_KEY) as string
     if (raw) favCities.value = JSON.parse(raw)
   } catch {}
+  try {
+    const raw = uni.getStorageSync(RECENT_KEY) as string
+    if (raw) recentSearches.value = JSON.parse(raw)
+  } catch {}
 })
+
+function addRecent(name: string) {
+  if (!name) return
+  recentSearches.value = [name, ...recentSearches.value.filter(c => c !== name)].slice(0, 8)
+  try { uni.setStorageSync(RECENT_KEY, JSON.stringify(recentSearches.value)) } catch {}
+}
+
+function clearRecent() {
+  recentSearches.value = []
+  try { uni.removeStorageSync(RECENT_KEY) } catch {}
+}
 
 const filteredCities = computed(() => {
   const q = query.value
@@ -34,8 +80,12 @@ watch(query, (val) => {
   if (geoDebounce) clearTimeout(geoDebounce)
   if (!val || val.length < 1) { geoResults.value = []; return }
   geoDebounce = setTimeout(async () => {
+    const cached = getSearchCache(val)
+    if (cached) { geoResults.value = cached; return }
     geoLoading.value = true
-    geoResults.value = await searchCities(val)
+    const result = await searchCities(val)
+    if (result.length) setSearchCache(val, result)
+    geoResults.value = result
     geoLoading.value = false
   }, 400)
 })
@@ -53,12 +103,16 @@ function selectCity(name: string) {
   const geo = geoResults.value.find(g => g.name === name)
   if (geo) setDynamicCity(geo.name, geo.lat, geo.lon)
   uni.setStorageSync("selected_city", name)
+  addRecent(name)
+  uni.hideKeyboard()
   uni.navigateBack()
 }
 
 function selectGeoCity(city: GeoCity) {
   setDynamicCity(city.name, city.lat, city.lon)
   uni.setStorageSync("selected_city", city.name)
+  addRecent(city.name)
+  uni.hideKeyboard()
   uni.navigateBack()
 }
 
@@ -95,6 +149,18 @@ function scrollToLetter(letter: string) {
         <view v-for="city in favCities" :key="city" class="fav-tag" @tap="selectCity(city)">
           <text>{{ city }}</text>
           <text class="fav-star filled" @tap.stop="toggleFav(city)">★</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="fav-section" v-if="recentSearches.length > 0 && !query">
+      <view class="recent-head">
+        <text class="fav-title">最近搜索</text>
+        <text class="recent-clear" @tap="clearRecent">清除</text>
+      </view>
+      <view class="fav-list">
+        <view v-for="city in recentSearches" :key="city" class="recent-tag" @tap="selectCity(city)">
+          <text>{{ city }}</text>
         </view>
       </view>
     </view>
@@ -210,6 +276,33 @@ function scrollToLetter(letter: string) {
 .fav-tag .fav-star {
   color: #FFD700;
   font-size: 14px;
+}
+.recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+.recent-clear {
+  font-size: var(--font-size-xs);
+  color: var(--color-ash);
+  padding: 4px 8px;
+}
+.recent-tag {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--color-paper);
+  border-radius: var(--radius-full);
+  border: 1px dashed var(--color-paper-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-medium);
+}
+.recent-tag:active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
 }
 .city-grid {
   display: flex;

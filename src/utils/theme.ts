@@ -1,5 +1,7 @@
 import { CACHE } from "@/config"
 
+export type DarkModeState = "auto" | "dark" | "light"
+
 export function loadDarkMode(): boolean {
   const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
   if (stored === "1") return true
@@ -8,16 +10,29 @@ export function loadDarkMode(): boolean {
   return sys.theme === "dark"
 }
 
-export function toggleDarkMode(): boolean {
+export function getDarkModeState(): DarkModeState {
   const stored = uni.getStorageSync(CACHE.DARK_MODE_KEY) as string
-  if (!stored) {
+  if (stored === "1") return "dark"
+  if (stored === "0") return "light"
+  return "auto"
+}
+
+export function setDarkMode(mode: DarkModeState): boolean {
+  if (mode === "dark") {
     uni.setStorageSync(CACHE.DARK_MODE_KEY, "1")
     return true
   }
-  if (stored === "1") {
+  if (mode === "light") {
     uni.setStorageSync(CACHE.DARK_MODE_KEY, "0")
     return false
   }
   uni.removeStorageSync(CACHE.DARK_MODE_KEY)
   return uni.getSystemInfoSync().theme === "dark"
+}
+
+export function toggleDarkMode(): boolean {
+  const state = getDarkModeState()
+  if (state === "auto") return setDarkMode("dark")
+  if (state === "dark") return setDarkMode("light")
+  return setDarkMode("auto")
 }

@@ -105,7 +105,7 @@ const data = computed(() => {
   background: linear-gradient(180deg, var(--color-gold), var(--color-primary));
   position: absolute;
   min-height: 4px;
-  transition: all 0.3s ease;
+  transition: height 0.3s ease;
 }
 .trend-low {
   font-size: 11px;
