@@ -1,23 +1,25 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { getCityCoords } from "@/api/weather"
 import { loadDarkMode } from "@/utils/theme"
 
-const mapSrc = ref("/hybrid/html/leaflet.html")
+const mapSrc = ref("/hybrid/html/leaflet-radar.html")
 const loaded = ref(false)
 const failed = ref(false)
 
 onMounted(() => {
   // #ifdef H5
-  mapSrc.value = "/static/leaflet.html"
+  mapSrc.value = "/static/leaflet-radar.html"
   // #endif
   // #ifdef APP-PLUS
-  mapSrc.value = "/hybrid/html/leaflet.html"
+  mapSrc.value = "/hybrid/html/leaflet-radar.html"
   // #endif
   const params: string[] = []
   const city = (uni.getStorageSync("selected_city") as string) || "北京"
   const coords = getCityCoords(city)
-  if (coords) params.push("lat=" + coords.lat.toFixed(4), "lon=" + coords.lon.toFixed(4))
+  if (coords) {
+    params.push("lat=" + coords.lat.toFixed(4), "lon=" + coords.lon.toFixed(4), "name=" + encodeURIComponent(city))
+  }
   params.push("dark=" + (loadDarkMode() ? "1" : "0"))
   mapSrc.value += "?" + params.join("&")
 })
@@ -40,10 +42,10 @@ function retry() {
   <view class="page">
     <view class="loading-overlay" v-if="!loaded && !failed">
       <view class="spinner" />
-      <text class="loading-text">加载台风数据...</text>
+      <text class="loading-text">加载雷达地图...</text>
     </view>
     <view class="error-overlay" v-if="failed">
-      <text class="error-icon">🌪</text>
+      <text class="error-icon">🌧</text>
       <text class="error-text">加载失败</text>
       <view class="retry-btn" @tap="retry">
         <text>重新加载</text>

@@ -341,7 +341,7 @@ function scrollToLetter(letter: string) {
 }
 .city-sections {
   height: calc(100vh - 150px);
-  padding-bottom: var(--spacing-4xl);
+  padding-bottom: calc(var(--spacing-4xl) + var(--window-bottom, 0px));
 }
 .city-section {
   margin-bottom: var(--spacing-md);

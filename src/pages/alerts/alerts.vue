@@ -80,7 +80,7 @@ function goBack() { uni.navigateBack() }
   min-height: 100vh;
   background: var(--color-bg);
   padding: var(--spacing-lg);
-  padding-bottom: var(--spacing-4xl);
+  padding-bottom: calc(var(--spacing-4xl) + var(--window-bottom, 0px));
 }
 .top-bar {
   display: flex;

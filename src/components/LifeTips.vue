@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import type { CurrentWeather } from "@/api/weather"
+import { heatIndexC, windChillC } from "@/utils/weather"
 
 const props = defineProps<{
   weather: CurrentWeather
@@ -22,6 +23,10 @@ const tips = computed((): Tip[] => {
   const maxRainPct = Math.max(...rainChances, 0)
   const isRainy = w.weather.includes("雨") || w.weather.includes("雷") || maxRainPct > 30
   const windSpeed = parseFloat(w.windScale)
+  const temp = parseFloat(w.temp)
+  const heatIdx = heatIndexC(temp, parseFloat(w.humidity))
+  const chill = windChillC(temp, windSpeed)
+  const eff = temp > 10 && heatIdx > feels ? heatIdx : (temp <= 10 && chill < feels ? chill : feels)
 
   const r: Tip[] = []
 
@@ -41,15 +46,15 @@ const tips = computed((): Tip[] => {
     r.push({ icon: "🌿", label: "防晒", level: "低", tip: "无需防护" })
   }
 
-  if (feels <= -10) {
+  if (eff <= -10) {
     r.push({ icon: "🧣", label: "穿衣", level: "极寒", tip: "羽绒服+围巾手套" })
-  } else if (feels <= 0) {
+  } else if (eff <= 0) {
     r.push({ icon: "🧥", label: "穿衣", level: "寒冷", tip: "棉服/羽绒服" })
-  } else if (feels <= 10) {
+  } else if (eff <= 10) {
     r.push({ icon: "🧥", label: "穿衣", level: "较冷", tip: "外套/夹克" })
-  } else if (feels <= 20) {
+  } else if (eff <= 20) {
     r.push({ icon: "👕", label: "穿衣", level: "舒适", tip: "长袖单衣" })
-  } else if (feels <= 30) {
+  } else if (eff <= 30) {
     r.push({ icon: "👕", label: "穿衣", level: "温暖", tip: "短袖/薄衫" })
   } else {
     r.push({ icon: "🩳", label: "穿衣", level: "炎热", tip: "短袖短裤" })
@@ -59,8 +64,8 @@ const tips = computed((): Tip[] => {
     r.push({ icon: "🏠", label: "运动", level: "不宜", tip: "建议室内运动" })
   } else if (windSpeed >= 6) {
     r.push({ icon: "🏋️", label: "运动", level: "谨慎", tip: "风力较大，建议室内" })
-  } else if (feels >= 35) {
-    r.push({ icon: "🏊", label: "运动", level: "谨慎", tip: "注意防暑降温" })
+  } else if (heatIdx >= 35) {
+    r.push({ icon: "🏊", label: "运动", level: "谨慎", tip: "体感炎热，谨防中暑" })
   } else if (feels >= 15 && feels <= 28) {
     r.push({ icon: "🏃", label: "运动", level: "适宜", tip: "适合户外运动" })
   } else {

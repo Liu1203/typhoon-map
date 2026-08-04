@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
-import { uvLabel, moonPhase } from "@/utils/weather"
+import { uvLabel, moonPhase, heatIndexC, windChillC } from "@/utils/weather"
+import { formatLunar } from "@/utils/lunar"
 import type { CurrentWeather } from "@/api/weather"
 
 const props = defineProps<{
@@ -8,6 +9,21 @@ const props = defineProps<{
 }>()
 
 const moon = computed(() => moonPhase())
+const lunar = computed(() => formatLunar())
+
+const heatVal = computed(() => {
+  const t = parseFloat(props.weather.temp)
+  const h = parseFloat(props.weather.humidity)
+  if (isNaN(t) || isNaN(h)) return "--"
+  return heatIndexC(t, h) + "°"
+})
+
+const windChillVal = computed(() => {
+  const t = parseFloat(props.weather.temp)
+  const w = parseFloat(props.weather.windScale)
+  if (isNaN(t) || isNaN(w)) return "--"
+  return windChillC(t, w) + "°"
+})
 </script>
 
 <template>
@@ -61,10 +77,21 @@ const moon = computed(() => moonPhase())
       <text class="detail-label">空气质量</text>
       <text class="detail-value">{{ weather.aqi }} {{ weather.aqiLabel }}</text>
     </view>
+    <view class="detail-item" v-if="heatVal !== '--'">
+      <text class="detail-label">热指数</text>
+      <text class="detail-value">{{ heatVal }}</text>
+    </view>
+    <view class="detail-item" v-if="windChillVal !== '--'">
+      <text class="detail-label">风寒</text>
+      <text class="detail-value">{{ windChillVal }}</text>
+    </view>
   </view>
   <view class="moon-row">
     <text class="moon-icon">{{ moon.icon }}</text>
-    <text class="moon-text">{{ moon.phase }}</text>
+    <view class="moon-info">
+      <text class="moon-text">{{ moon.phase }}</text>
+      <text class="lunar-text">{{ lunar }}</text>
+    </view>
   </view>
 </template>
 
@@ -119,9 +146,19 @@ const moon = computed(() => moonPhase())
 .moon-icon {
   font-size: 18px;
 }
+.moon-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
 .moon-text {
   font-size: var(--font-size-sm);
   color: rgba(255,255,255,0.85);
   font-weight: var(--font-weight-medium);
+}
+.lunar-text {
+  font-size: 10px;
+  color: rgba(255,255,255,0.55);
 }
 </style>

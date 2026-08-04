@@ -154,6 +154,9 @@ export interface ForecastDay {
   sunset?: string
   uvMax?: string
   precip?: string
+  moonrise?: string
+  moonset?: string
+  moonPhase?: number
 }
 
 export interface HourlyItem {
@@ -166,6 +169,7 @@ export interface HourlyItem {
   precip?: string
   feelsLike?: string
   humidity?: string
+  cloud?: string
 }
 
 export interface AlertItem {
@@ -197,6 +201,9 @@ export interface CurrentWeather {
   aqi: string
   aqiLabel: string
   aqiDetail?: AQIDetail
+  moonrise?: string
+  moonset?: string
+  moonPhase?: number
   forecast: ForecastDay[]
   hourly: HourlyItem[]
   hourlyByDate?: Record<string, HourlyItem[]>
@@ -307,13 +314,26 @@ export interface AQIDetail {
   o3?: string
   so2?: string
   hourly?: { time: string; aqi: number }[]
+  pollen?: { level: string; top?: string; grains?: number }
+  forecast?: { date: string; aqi: number; label: string }[]
+}
+
+function aqiLabel(v: number): string {
+  return v <= 20 ? "优" : v <= 40 ? "良" : v <= 60 ? "轻度" : v <= 80 ? "中度" : v <= 100 ? "重度" : "严重"
+}
+
+function pollenLevel(grains: number): string {
+  if (grains >= 500) return "很高"
+  if (grains >= 100) return "较高"
+  if (grains >= 25) return "中等"
+  return "较低"
 }
 
 async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
   try {
-    const res = await new Promise<{ data?: { current?: { european_aqi?: number; pm2_5?: number; pm10?: number; nitrogen_dioxide?: number; ozone?: number; sulphur_dioxide?: number }; hourly?: { time?: string[]; european_aqi?: number[] } } } | null>((resolve) => {
+    const res = await new Promise<{ data?: { current?: { european_aqi?: number; pm2_5?: number; pm10?: number; nitrogen_dioxide?: number; ozone?: number; sulphur_dioxide?: number; alder_pollen?: number; birch_pollen?: number; grass_pollen?: number; olive_pollen?: number; ragweed_pollen?: number }; hourly?: { time?: string[]; european_aqi?: number[] }; daily?: { time?: string[]; european_aqi?: number[] } } } | null>((resolve) => {
       uni.request({
-        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide&hourly=european_aqi&timezone=auto&forecast_days=1`,
+        url: `${API.AQI}?latitude=${lat}&longitude=${lon}&current=european_aqi,pm2_5,pm10,nitrogen_dioxide,ozone,sulphur_dioxide,alder_pollen,birch_pollen,grass_pollen,olive_pollen,ragweed_pollen&hourly=european_aqi&daily=european_aqi&timezone=auto&forecast_days=3`,
         timeout: TIMEOUT.OPEN_METEO_HOURLY,
         success(r) { resolve(r as any) },
         fail() { resolve(null) },
@@ -322,7 +342,7 @@ async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
     const cur = res?.data?.current
     if (!cur || cur.european_aqi == null) return null
     const aqi = Math.round(cur.european_aqi)
-    const label = aqi <= 20 ? "优" : aqi <= 40 ? "良" : aqi <= 60 ? "轻度" : aqi <= 80 ? "中度" : aqi <= 100 ? "重度" : "严重"
+    const label = aqiLabel(aqi)
     const hourly: { time: string; aqi: number }[] = []
     const ht = res?.data?.hourly?.time
     const ha = res?.data?.hourly?.european_aqi
@@ -333,6 +353,27 @@ async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
         hourly.push({ time: String(ht[i]).slice(11, 16), aqi: Math.round(v) })
       }
     }
+    const pollenCands: { name: string; v?: number }[] = [
+      { name: "桤木", v: cur.alder_pollen },
+      { name: "桦木", v: cur.birch_pollen },
+      { name: "禾本科", v: cur.grass_pollen },
+      { name: "橄榄", v: cur.olive_pollen },
+      { name: "豚草", v: cur.ragweed_pollen },
+    ].filter(x => x.v != null)
+    let pollen: AQIDetail["pollen"]
+    if (pollenCands.length) {
+      const max = pollenCands.reduce((a, b) => (b.v! > a.v! ? b : a))
+      pollen = { level: pollenLevel(max.v!), top: max.name, grains: Math.round(max.v!) }
+    }
+    const forecast: AQIDetail["forecast"] = []
+    const dt = res?.data?.daily?.time
+    const da = res?.data?.daily?.european_aqi
+    if (Array.isArray(dt) && Array.isArray(da)) {
+      for (let i = 0; i < dt.length && i < 3; i++) {
+        const v = Math.round(da[i] || 0)
+        forecast.push({ date: String(dt[i]).slice(5), aqi: v, label: aqiLabel(v) })
+      }
+    }
     return {
       aqi, label,
       pm25: cur.pm2_5 != null ? cur.pm2_5.toFixed(1) : undefined,
@@ -341,6 +382,8 @@ async function fetchAQI(lat: number, lon: number): Promise<AQIDetail | null> {
       o3: cur.ozone != null ? cur.ozone.toFixed(1) : undefined,
       so2: cur.sulphur_dioxide != null ? cur.sulphur_dioxide.toFixed(1) : undefined,
       hourly: hourly.length ? hourly : undefined,
+      pollen,
+      forecast: forecast.length ? forecast : undefined,
     }
   } catch (e) {
     console.error("AQI fetch error:", e)
@@ -353,8 +396,8 @@ async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
     `latitude=${lat}`,
     `longitude=${lon}`,
     "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index,precipitation,surface_pressure,visibility,dew_point_2m,cloud_cover,wind_gusts_10m",
-    "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max,precipitation_sum",
-    "hourly=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
+    "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max,precipitation_sum,moonrise,moonset,moon_phase",
+    "hourly=temperature_2m,apparent_temperature,relative_humidity_2m,cloud_cover,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
     "timezone=auto",
     "forecast_days=7",
     "alerts=true",
@@ -410,6 +453,9 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
         sunset: daily.sunset?.[i] ? extractTime(daily.sunset[i]) : undefined,
         uvMax: daily.uv_index_max?.[i] != null ? String(daily.uv_index_max[i]) : undefined,
         precip: dp > 0 ? String(dp) + "mm" : undefined,
+        moonrise: daily.moonrise?.[i] ? extractTime(daily.moonrise[i]) : undefined,
+        moonset: daily.moonset?.[i] ? extractTime(daily.moonset[i]) : undefined,
+        moonPhase: daily.moon_phase?.[i] != null ? Number(daily.moon_phase[i]) : undefined,
       })
     }
   }
@@ -434,6 +480,7 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
         precip: hp > 0 ? (hp < 0.1 ? "0.1" : hp.toFixed(1)) : undefined,
         feelsLike: hourly.apparent_temperature?.[i] != null ? String(hourly.apparent_temperature[i]) : undefined,
         humidity: hourly.relative_humidity_2m?.[i] != null ? String(hourly.relative_humidity_2m[i]) : undefined,
+        cloud: hourly.cloud_cover?.[i] != null ? String(hourly.cloud_cover[i]) : undefined,
       }
 
       if (!hourlyByDate[dateStr]) hourlyByDate[dateStr] = []
@@ -479,6 +526,9 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
     aqi: aqiResult ? String(aqiResult.aqi) : "--",
     aqiLabel: aqiResult ? aqiResult.label : "",
     aqiDetail: aqiResult || undefined,
+    moonrise: daily?.moonrise?.[0] ? extractTime(daily.moonrise[0]) : "--",
+    moonset: daily?.moonset?.[0] ? extractTime(daily.moonset[0]) : "--",
+    moonPhase: daily?.moon_phase?.[0] != null ? Number(daily.moon_phase[0]) : undefined,
     forecast,
     hourly: hourlyItems,
     hourlyByDate,
@@ -507,7 +557,7 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
     const endDate = date || startDate
     const res = await new Promise<any>((resolve) => {
       uni.request({
-        url: `${API.OPEN_METEO}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
+        url: `${API.OPEN_METEO}?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,cloud_cover,weathercode,precipitation_probability,precipitation,windspeed_10m,winddirection_10m&timezone=auto&start_date=${startDate}&end_date=${endDate}`,
         timeout: TIMEOUT.OPEN_METEO_HOURLY,
         success(r) { resolve(r) },
         fail() { resolve(null) },
@@ -535,6 +585,7 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
         precip: hp > 0 ? (hp < 0.1 ? "0.1" : hp.toFixed(1)) : undefined,
         feelsLike: h.apparent_temperature?.[i] != null ? String(h.apparent_temperature[i]) : undefined,
         humidity: h.relative_humidity_2m?.[i] != null ? String(h.relative_humidity_2m[i]) : undefined,
+        cloud: h.cloud_cover?.[i] != null ? String(h.cloud_cover[i]) : undefined,
       })
     }
     return result

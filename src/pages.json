@@ -63,6 +63,22 @@
         "animationType": "slide-in-right",
         "animationDuration": 300
       }
+    },
+    {
+      "path": "pages/radar/radar",
+      "style": {
+        "navigationBarTitleText": "雷达降水",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
+    },
+    {
+      "path": "pages/astronomy/astronomy",
+      "style": {
+        "navigationBarTitleText": "观星天文",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
     }
   ],
   "globalStyle": {

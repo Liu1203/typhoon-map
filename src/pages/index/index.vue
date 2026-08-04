@@ -16,6 +16,8 @@ import LifeTips from "@/components/LifeTips.vue"
 import PrecipTrend from "@/components/PrecipTrend.vue"
 import HourlyTrend from "@/components/HourlyTrend.vue"
 import AqiCard from "@/components/AqiCard.vue"
+import WeatherParticles from "@/components/WeatherParticles.vue"
+import StargazingCard from "@/components/StargazingCard.vue"
 
 const locateError = ref("")
 const isOffline = ref(false)
@@ -282,6 +284,7 @@ onShow(async () => {
   loading.value = false
   startAutoRefresh()
   if (!isOffline.value) checkTyphoon()
+  sendDailyDigest()
 })
 
 onHide(() => {
@@ -578,6 +581,21 @@ function goTyphoon() {
   uni.navigateTo({ url: "/pages/typhoon/typhoon" })
 }
 
+function goQuake() {
+  uni.navigateTo({ url: "/pages/earthquake/earthquake" })
+}
+
+function goRadar() {
+  uni.navigateTo({ url: "/pages/radar/radar" })
+}
+
+function goAstronomy() {
+  uni.navigateTo({
+    url: "/pages/astronomy/astronomy",
+    fail: () => uni.showToast({ title: "页面打开失败", icon: "none" }),
+  })
+}
+
 function goSettings() {
   uni.navigateTo({ url: "/pages/settings/settings" })
 }
@@ -590,10 +608,56 @@ function onMoreAction(idx: number) {
   showMoreMenu.value = false
   if (idx === 0) toggleDark()
   else if (idx === 1) shareWeather()
-  else if (idx === 2) goSettings()
+  else if (idx === 2) copyTextSummary()
+  else if (idx === 3) goSettings()
+}
+
+function copyTextSummary() {
+  if (!weather.value || !displayWeather.value) return
+  const w = displayWeather.value
+  const hrs = weather.value.hourly?.slice(0, 8) || []
+  const maxRain = hrs.length ? Math.max(...hrs.map(h => parseInt(h.rainChance) || 0)) : 0
+  const lines = [
+    "【今日天气 · " + currentCity.value + "】" + w.weather + " " + w.high + "° / " + w.low + "°",
+    "体感 " + w.feelsLike + "° · 湿度 " + w.humidity + "% · " + w.windLevel,
+    "降水 " + (maxRain > 0 ? maxRain + "%" : "暂无") + " · 紫外线 " + uvLabel(w.uvIndex) + (w.aqi !== "--" ? " · 空气 " + w.aqiLabel + "(" + w.aqi + ")" : ""),
+    "—— 清清天气",
+  ]
+  uni.setClipboardData({
+    data: lines.join("\n"),
+    success() { uni.showToast({ title: "天气摘要已复制", icon: "none" }) },
+    fail() { uni.showToast({ title: "复制失败", icon: "none" }) },
+  })
 }
 
 const RAIN_NOTIFIED_KEY = "rain_notified"
+
+const DIGEST_NOTIFIED_KEY = "digest_sent"
+
+function sendDailyDigest() {
+  try {
+    const raw = uni.getStorageSync("digest_settings") as string
+    if (raw && JSON.parse(raw).enabled === false) return
+    if (!weather.value) return
+    const today = new Date().toDateString()
+    const key = currentCity.value + "_" + today
+    if (uni.getStorageSync(DIGEST_NOTIFIED_KEY) === key) return
+    const w = weather.value
+    const hrs = w.hourly?.slice(0, 8) || []
+    const maxRain = hrs.length ? Math.max(...hrs.map(h => parseInt(h.rainChance) || 0)) : 0
+    let content = w.weather + "，" + w.high + "° / " + w.low + "°"
+    if (maxRain >= 30) content += "。未来几小时降水概率 " + maxRain + "%，记得带伞"
+    content += "。紫外线 " + uvLabel(w.uvIndex)
+    if (w.aqi !== "--") content += "，空气" + w.aqiLabel
+    uni.setStorageSync(DIGEST_NOTIFIED_KEY, key)
+    if (typeof uni.createPushMessage === "function") {
+      uni.createPushMessage({
+        title: "今日天气 · " + currentCity.value,
+        content,
+      })
+    }
+  } catch {}
+}
 
 function checkTempAlert() {
   try {
@@ -688,15 +752,15 @@ const displayWeather = computed(() => {
 })
 
 const homeModules = ref<{ modules: Record<string, boolean>; order: string[] }>({
-  modules: { detail: true, aqi: true, forecast: true, hourly: true, lifetips: true, temptr: true, preciptr: true },
-  order: ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr"],
+  modules: { detail: true, aqi: true, forecast: true, hourly: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true },
+  order: ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
 })
 
 function loadHomeModules() {
   const s = getUnitSettings()
   homeModules.value = {
-    modules: s.modules as Record<string, boolean>,
-    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr"],
+    modules: s.modules as unknown as Record<string, boolean>,
+    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
   }
 }
 
@@ -736,7 +800,7 @@ const rainAlarm = computed(() => {
   return { count: risky.length, maxPct }
 })
 
-const typhoonAlert = ref<{ name: string; distance: number; minPath: number; windSpeed: number; grade: string } | null>(null)
+const typhoonAlert = ref<{ name: string; distance: number; minPath: number; minPathHours: number; windSpeed: number; grade: string } | null>(null)
 let typhoonCheckInFlight = false
 
 async function checkTyphoon() {
@@ -755,16 +819,21 @@ async function checkTyphoon() {
     }
     if (nearest && nearestDist <= 2500) {
       let minPath = nearestDist
+      let minPathHours = 0
       if (nearest.path?.length) {
         for (const p of nearest.path) {
           const pd = pointDistanceKm(coords.lat, coords.lon, p.lat, p.lon)
-          if (pd < minPath) minPath = pd
+          if (pd < minPath) {
+            minPath = pd
+            minPathHours = p.hours || 0
+          }
         }
       }
       typhoonAlert.value = {
         name: nearest.nameCn || nearest.nameEn || "台风",
         distance: Math.round(nearestDist),
         minPath: Math.round(minPath),
+        minPathHours,
         windSpeed: nearest.windSpeed,
         grade: nearest.grade,
       }
@@ -797,6 +866,7 @@ const weatherScene = computed(() => {
 
 <template>
     <view class="container" :class="[{ 'light-bg': lightBg, 'dark-mode': darkMode }, weatherScene]" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }">
+    <WeatherParticles :weather="displayWeather?.weather || ''" />
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -835,7 +905,7 @@ const weatherScene = computed(() => {
       </view>
       <view v-if="typhoonAlert" class="typhoon-alert-banner anim-fade-in-down" style="animation-delay: 0.1s" @tap="goTyphoon">
         <text class="typhoon-alert-icon">🌀</text>
-        <text class="typhoon-alert-text">台风「{{ typhoonAlert.name }}」距 {{ currentCity }} 约 {{ typhoonAlert.distance }}km{{ typhoonAlert.minPath < typhoonAlert.distance ? '，路径最近约 ' + typhoonAlert.minPath + 'km' : '' }}，点击查看路径</text>
+        <text class="typhoon-alert-text">台风「{{ typhoonAlert.name }}」距 {{ currentCity }} 约 {{ typhoonAlert.distance }}km{{ typhoonAlert.minPath < typhoonAlert.distance ? '，路径最近约 ' + typhoonAlert.minPath + 'km' + (typhoonAlert.minPathHours > 0 ? '（约 ' + typhoonAlert.minPathHours + ' 小时后）' : '') : '' }}，点击查看路径</text>
         <text class="typhoon-alert-arrow">›</text>
       </view>
       <view v-if="isOffline" class="offline-banner">
@@ -865,36 +935,56 @@ const weatherScene = computed(() => {
         <TempTrend v-if="key === 'temptr' && homeModules.modules.temptr" class="lazy-render" :forecast="displayForecast" />
 
         <PrecipTrend v-if="key === 'preciptr' && homeModules.modules.preciptr" class="lazy-render" :forecast="displayForecast" />
-      </template>
 
-      <view class="entry-cards lazy-render anim-fade-in-up" style="animation-delay: 0.3s">
-        <view class="entry-card typhoon-entry" @tap="uni.navigateTo({ url: '/pages/typhoon/typhoon' })">
-          <view class="entry-icon-wrap">
-            <image src="/static/typhoon-entry.svg" class="entry-icon-svg" mode="aspectFit" />
+        <view v-if="key === 'typhoon' && homeModules.modules.typhoon" class="entry-module">
+          <view class="entry-card typhoon-entry" @tap="goTyphoon">
+            <view class="entry-icon-wrap">
+              <image src="/static/typhoon-entry.svg" class="entry-icon-svg" mode="aspectFit" />
+            </view>
+            <view class="entry-text-wrap">
+              <text class="entry-title">台风路径</text>
+              <text class="entry-subtitle">查看实时台风动态</text>
+            </view>
+            <text class="entry-arrow">›</text>
           </view>
-          <view class="entry-text-wrap">
-            <text class="entry-title">台风路径</text>
-            <text class="entry-subtitle">查看实时台风动态</text>
-          </view>
-          <text class="entry-arrow">›</text>
         </view>
-        <view class="entry-card quake-entry" @tap="uni.navigateTo({ url: '/pages/earthquake/earthquake' })">
-          <view class="entry-icon-wrap">
-            <text class="entry-icon">🌍</text>
+
+        <view v-if="key === 'quake' && homeModules.modules.quake" class="entry-module">
+          <view class="entry-card quake-entry" @tap="goQuake">
+            <view class="entry-icon-wrap">
+              <text class="entry-icon">🌍</text>
+            </view>
+            <view class="entry-text-wrap">
+              <text class="entry-title">地震信息</text>
+              <text class="entry-subtitle">全球地震数据查询</text>
+            </view>
+            <text class="entry-arrow">›</text>
           </view>
-          <view class="entry-text-wrap">
-            <text class="entry-title">地震信息</text>
-            <text class="entry-subtitle">全球地震数据查询</text>
-          </view>
-          <text class="entry-arrow">›</text>
         </view>
-      </view>
+
+        <view v-if="key === 'radar' && homeModules.modules.radar" class="entry-module">
+          <view class="entry-card radar-entry" @tap="goRadar">
+            <view class="entry-icon-wrap">
+              <text class="entry-icon">🌧</text>
+            </view>
+            <view class="entry-text-wrap">
+              <text class="entry-title">雷达降水</text>
+              <text class="entry-subtitle">实时降雨雷达图</text>
+            </view>
+            <text class="entry-arrow">›</text>
+          </view>
+        </view>
+
+        <view v-if="key === 'stargazing' && homeModules.modules.stargazing" @tap="goAstronomy">
+          <StargazingCard :weather="displayWeather!" />
+        </view>
+      </template>
     </template>
 
     <view v-else class="error-view">
       <text class="error-icon">{{ errorType === "network" ? "📡" : "☁" }}</text>
       <text class="error-text">{{ errorType === "network" ? "网络已断开，请检查连接" : errorType === "timeout" ? "请求超时，服务器未响应" : "无法获取天气数据" }}</text>
-      <view class="retry-btn" @tap="fetchAndUpdate(currentCity.value)">
+      <view class="retry-btn" @tap="fetchAndUpdate(currentCity)">
         <text>重新加载</text>
       </view>
     </view>
@@ -944,6 +1034,11 @@ const weatherScene = computed(() => {
         </view>
         <view class="more-divider" />
         <view class="more-item" @tap.stop="onMoreAction(2)">
+          <text class="more-icon">📋</text>
+          <text class="more-text">复制天气摘要</text>
+        </view>
+        <view class="more-divider" />
+        <view class="more-item" @tap.stop="onMoreAction(3)">
           <text class="more-icon">⚙</text>
           <text class="more-text">设置</text>
         </view>
@@ -957,9 +1052,10 @@ const weatherScene = computed(() => {
   box-sizing: border-box;
   padding-left: var(--spacing-lg);
   padding-right: var(--spacing-lg);
-  padding-bottom: calc(32px + var(--safe-area-bottom));
+  padding-bottom: calc(32px + var(--window-bottom, 0px));
   min-height: 100vh;
   position: relative;
+  z-index: 0;
   overflow-x: hidden;
 }
 
@@ -1281,6 +1377,9 @@ const weatherScene = computed(() => {
   gap: var(--spacing-sm);
   margin-top: var(--spacing-lg);
 }
+.entry-module {
+  margin-bottom: var(--spacing-md);
+}
 
 .entry-card {
   display: flex;
@@ -1312,6 +1411,7 @@ const weatherScene = computed(() => {
 
 .typhoon-entry .entry-icon-wrap { background: rgba(91,143,192,0.1); }
 .quake-entry .entry-icon-wrap { background: rgba(109,175,152,0.1); }
+.radar-entry .entry-icon-wrap { background: rgba(109,175,152,0.1); }
 
 .entry-icon { font-size: 22px; }
 

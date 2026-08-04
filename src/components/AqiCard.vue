@@ -29,8 +29,32 @@ const info = computed(() => {
       { name: "SO₂", val: a.so2 },
     ].filter(p => p.val != null),
     hourly: (a.hourly || []).slice(-24),
+    pollen: a.pollen
+      ? { level: a.pollen.level, top: a.pollen.top, real: true }
+      : a.aqi >= 80
+        ? { level: "较高", real: false }
+        : a.aqi >= 60
+          ? { level: "中等", real: false }
+          : { level: "较低", real: false },
+    forecast: a.forecast || [],
   }
 })
+
+const pollenAdvice = computed(() => {
+  const p = info.value?.pollen
+  if (!p) return ""
+  if (p.real) {
+    if (p.level === "很高") return "花粉浓度高，过敏人群避免外出"
+    if (p.level === "较高") return "花粉较多，建议佩戴口罩"
+    if (p.level === "中等") return "花粉中等，敏感人群注意防护"
+    return "花粉较少，可放心外出"
+  }
+  if (p.level === "较高") return "空气污染较重，敏感人群减少外出"
+  if (p.level === "中等") return "空气一般，敏感人群注意防护"
+  return "空气良好，当前无花粉浓度数据"
+})
+
+const dayName = computed(() => ["今天", "明天", "后天"])
 
 const barPct = computed(() => {
   if (!info.value) return 0
@@ -80,6 +104,22 @@ const trendTimes = computed(() => {
       <view v-for="p in info.pollutants" :key="p.name" class="aqi-po">
         <text class="po-name">{{ p.name }}</text>
         <text class="po-val">{{ p.val }}</text>
+      </view>
+    </view>
+
+    <view class="pollen-row" v-if="info.pollen">
+      <text class="pollen-icon">🌸</text>
+      <view class="pollen-info">
+        <text class="pollen-title">{{ info.pollen.real ? '花粉过敏：' + info.pollen.level : '过敏提示：' + info.pollen.level }}<text v-if="info.pollen.real && info.pollen.top" class="pollen-top">（{{ info.pollen.top }} 为主）</text></text>
+        <text class="pollen-advice">{{ pollenAdvice }}</text>
+      </view>
+    </view>
+
+    <view class="aqi-forecast" v-if="info.forecast.length">
+      <view class="fc-item" v-for="(f, i) in info.forecast" :key="i">
+        <text class="fc-day">{{ dayName[i] || f.date }}</text>
+        <text class="fc-num" :style="{ color: aqiColor(f.aqi) }">{{ f.aqi }}</text>
+        <text class="fc-label" :style="{ color: aqiColor(f.aqi) }">{{ f.label }}</text>
       </view>
     </view>
 
@@ -176,6 +216,55 @@ const trendTimes = computed(() => {
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--color-ink);
+}
+.pollen-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: var(--spacing-md);
+  padding: 10px 12px;
+  background: rgba(232,184,74,0.1);
+  border-radius: var(--radius-md);
+}
+.pollen-icon { font-size: 18px; }
+.pollen-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.pollen-title {
+  font-size: var(--font-size-xs);
+  color: var(--color-ink);
+  font-weight: var(--font-weight-semibold);
+}
+.pollen-top { color: var(--color-ash); font-weight: normal; }
+.pollen-advice {
+  font-size: 10px;
+  color: var(--color-ink-light);
+}
+.aqi-forecast {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+}
+.fc-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+}
+.fc-day {
+  font-size: 10px;
+  color: var(--color-ash);
+}
+.fc-num {
+  font-size: 20px;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+}
+.fc-label {
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
 }
 .aqi-trend {
   margin-top: var(--spacing-md);

@@ -84,9 +84,9 @@ function draw() {
     fpts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)))
     ctx.setStrokeStyle("#E09050")
     ctx.setLineWidth(1.5)
-    ctx.setLineDash([4, 4])
+    ctx.setLineDash([4, 4], 0)
     ctx.stroke()
-    ctx.setLineDash([])
+    ctx.setLineDash([], 0)
   }
 
   // 温度面积渐变

@@ -9,7 +9,7 @@ export interface TyphoonBrief {
   lon: number
   windSpeed: number
   grade: string
-  path?: { lat: number; lon: number }[]
+  path?: { lat: number; lon: number; hours: number }[]
 }
 
 function parseJsonp(text: string): any | null {
@@ -54,12 +54,15 @@ export async function fetchActiveTyphoons(): Promise<TyphoonBrief[]> {
       const timeStr = last?.[1] ? String(last[1]) : ""
       const stale = timeStr.length === 12 && Date.now() - Date.UTC(+timeStr.slice(0,4), +timeStr.slice(4,6) - 1, +timeStr.slice(6,8), +timeStr.slice(8,10), +timeStr.slice(10,12)) > 48 * 3600000
       if (last && isFinite(lon) && isFinite(lat) && !(lon === 0 && lat === 0) && !stale) {
-        const path: { lat: number; lon: number }[] = []
+        const path: { lat: number; lon: number; hours: number }[] = []
+        path.push({ lat, lon, hours: 0 })
         const babj = last?.[11]?.BABJ
         if (Array.isArray(babj)) {
           for (const f of babj) {
             const flon = Number(f?.[2]), flat = Number(f?.[3])
-            if (isFinite(flon) && isFinite(flat) && !(flon === 0 && flat === 0)) path.push({ lat: flat, lon: flon })
+            if (isFinite(flon) && isFinite(flat) && !(flon === 0 && flat === 0)) {
+              path.push({ lat: flat, lon: flon, hours: Number(f?.[0]) || 0 })
+            }
           }
         }
         result.push({

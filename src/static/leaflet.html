@@ -151,6 +151,53 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .leaflet-control-layers-base label span,.leaflet-control-layers-overlays label span{font-size:13px;color:#2C3E50}
 .leaflet-control-layers-selector{margin:0!important;width:16px;height:16px;accent-color:#5B8FC0}
 .leaflet-control-layers-separator{display:none!important}
+
+/* ===== dark mode ===== */
+html.dark,html.dark body{background:#12161E;color:#C8D0DC}
+html.dark .top-bar{background:#1A202A;box-shadow:none}
+html.dark .tab-row{background:#232A36}
+html.dark .tab{color:#8B9CAD}
+html.dark .tab.active{background:#1E2430;color:#6B9FD0;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+html.dark .year-wrap,html.dark .refresh-btn{background:#232A36;color:#6B9FD0}
+html.dark .update-time{color:#6A7A8A}
+html.dark .chip-bar,html.dark .collapsed,html.dark .loading-hint,html.dark .bottom{background:#1A202A;border-color:rgba(255,255,255,.08)}
+html.dark .chip{background:#232A36;border-color:transparent}
+html.dark .chip-name,html.dark .c-name,html.dark .c-wind{color:#C8D0DC}
+html.dark .c-grade{color:#fff}
+html.dark .chip.active{background:linear-gradient(135deg,#3D6A94,#2A4A6B);box-shadow:0 3px 12px rgba(0,0,0,.4)}
+html.dark .chip.active .chip-num{color:rgba(255,255,255,.8)}
+html.dark .map-wrap,#map,html.dark .map-wrap{background:#12161E}
+html.dark .legend{background:rgba(26,32,42,.96);border-color:rgba(255,255,255,.1);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+html.dark .legend-title{color:#E0E6ED}
+html.dark .legend{color:#8B9CAD}
+html.dark .legend-sep{background:rgba(255,255,255,.1)}
+html.dark .legend-row{color:#9AA7B5}
+html.dark .empty-card{background:rgba(30,36,48,.96);border-color:rgba(255,255,255,.1)}
+html.dark .empty-text{color:#8B9CAD}
+html.dark .fetching{background:rgba(18,22,30,.8);color:#8B9CAD}
+html.dark .info-bar,html.dark .point-card{background:#1A202A}
+html.dark .info-title{color:#6B9FD0}
+html.dark .info-sub{color:#6A7A8A}
+html.dark .info-stat,.dark .point-stat{background:#232A36}
+html.dark .info-stat-label,.dark .point-stat-label{color:#6A7A8A}
+html.dark .info-stat-value,.dark .point-stat-value{color:#E0E6ED}
+html.dark .info-dist{background:rgba(216,91,79,.18);border-color:rgba(216,91,79,.35);color:#E89A90}
+html.dark .trend-title{color:#6A7A8A}
+html.dark .trend-bar-lb,.dark .rp-lb{color:#6A7A8A}
+html.dark .rp-btn{background:#232A36;color:#6B9FD0}
+html.dark .rp-btn.on{background:#5B8FC0;color:#fff}
+html.dark .rp-prog{background:#232A36}
+html.dark .point-time{color:#E0E6ED}
+html.dark .point-motion{border-color:rgba(255,255,255,.08)}
+html.dark .motion-key{color:#6A7A8A}
+html.dark .motion-val{color:#C8D0DC}
+html.dark .tag-h{background:rgba(109,175,152,.15);color:#6DAF98}
+html.dark .tag-f{background:rgba(212,165,80,.15);color:#D4A550}
+html.dark .c-arrow{color:#6A7A8A}
+html.dark .leaflet-control-layers-expanded{background:rgba(30,36,48,.97)!important;color:#C8D0DC;box-shadow:0 2px 12px rgba(0,0,0,.5)!important}
+html.dark .leaflet-control-layers-toggle{background-color:rgba(30,36,48,.97)!important}
+html.dark .leaflet-control-layers-base label span,.dark .leaflet-control-layers-overlays label span{color:#C8D0DC}
+html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers-overlays label:hover{background:#232A36}
 </style>
 </head>
 <body>
@@ -445,6 +492,7 @@ var selectedPoint=null
 var map=null,layers=[],mapData=null,selectedKey=null
 var refreshTimer=null,lastUpdateTime=null
 var replayTimer=null,replayIdx=0
+var ERR='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 var userCoords=(function(){
   var m=location.search.match(/lat=([\d.\-]+)/)
   var n=location.search.match(/lon=([\d.\-]+)/)
@@ -454,6 +502,8 @@ var userCoords=(function(){
   }
   return null
 })()
+var isDark=location.search.indexOf('dark=1')>=0
+if(isDark)document.documentElement.className='dark'
 
 /* ===== DOM ===== */
 var $=function(id){return document.getElementById(id)}
@@ -538,15 +588,23 @@ function renderInfo(){
     if(userCoords&&validLL(cp)){
       var d=haversine(userCoords.lat,userCoords.lon,cp.lat,cp.lon)
       var minD=d
+      var minHours=0
       var fp=(detail.forecasts&&detail.forecasts.BABJ)||[]
       for(var i=0;i<fp.length;i++){
         if(validLL(fp[i])){
           var pd=haversine(userCoords.lat,userCoords.lon,fp[i].lat,fp[i].lon)
-          if(pd<minD)minD=pd
+          if(pd<minD){
+            minD=pd
+            var h=timeDiffHours(fp[i].time,cp.time)
+            if(h>0)minHours=Math.round(h)
+          }
         }
       }
       var distText='🌀 距你当前位置约 '+Math.round(d)+' km'
-      if(minD<d)distText+='，路径最近约 '+Math.round(minD)+' km'
+      if(minD<d){
+        distText+='，路径最近约 '+Math.round(minD)+' km'
+        if(minHours>0)distText+='（约 '+minHours+' 小时后）'
+      }
       $('infoDist').textContent=distText
       $('infoDist').style.display='block'
     }else{
@@ -720,21 +778,21 @@ function renderMap(fit){
       forecasts[k].forEach(function(p){if(validLL(p))all.push([p.lat,p.lon])})
     })
     if(all.length){
-      try{map.fitBounds(all,{padding:[40,40],maxZoom:8,animate:false})}
+      try{map.fitBounds(all,{padding:[40,40],minZoom:3,maxZoom:12,animate:false})}
       catch(e){if(cp)map.setView([cp.lat,cp.lon],5)}
     }
   }
 }
 
 function initMap(){
-  map=L.map('map',{center:[20,130],zoom:4,zoomControl:false,attributionControl:false,preferCanvas:true})
+  map=L.map('map',{center:[20,130],zoom:4,minZoom:2,maxZoom:17,zoomControl:false,attributionControl:false,preferCanvas:true})
   var layers={
-    '街道图（Carto）':L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'}),
-    '卫星图（ESRI）':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}),
-    '地形图（OSM）':L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17}),
-    '暗色图（Carto）':L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'})
+    '街道图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR}),
+    '卫星图（ESRI）':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,errorTileUrl:ERR}),
+    '地形图（OSM）':L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,errorTileUrl:ERR}),
+    '暗色图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR})
   }
-  layers['街道图（Carto）'].addTo(map)
+  layers[(isDark?'暗色图（Carto）':'街道图（Carto）')].addTo(map)
   L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
   map.on('zoomend',function(){
     if(!detail)return

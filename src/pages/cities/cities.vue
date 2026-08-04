@@ -97,6 +97,7 @@ function goBack() { uni.navigateBack() }
 <style scoped>
 .container {
   padding: var(--spacing-lg);
+  padding-bottom: calc(var(--spacing-lg) + var(--window-bottom, 0px));
   min-height: 100vh;
   background: var(--color-bg);
 }

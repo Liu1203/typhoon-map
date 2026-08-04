@@ -15,6 +15,7 @@ const refreshOptions = [
   { label: "关闭", value: 0 },
 ]
 const tempAlert = ref({ enabled: false, high: 35, low: 0 })
+const digestEnabled = ref(true)
 const moduleList: { key: keyof ModuleConfig; label: string }[] = [
   { key: "detail", label: "天气详情网格" },
   { key: "aqi", label: "空气质量" },
@@ -23,6 +24,10 @@ const moduleList: { key: keyof ModuleConfig; label: string }[] = [
   { key: "lifetips", label: "生活指数" },
   { key: "temptr", label: "温度趋势" },
   { key: "preciptr", label: "降水趋势" },
+  { key: "typhoon", label: "台风入口" },
+  { key: "quake", label: "地震入口" },
+  { key: "radar", label: "雷达降水" },
+  { key: "stargazing", label: "观星指数" },
 ]
 
 const orderedModules = computed(() => {
@@ -121,7 +126,16 @@ onMounted(() => {
     const raw = uni.getStorageSync("temp_alert_settings") as string
     if (raw) tempAlert.value = { enabled: false, high: 35, low: 0, ...JSON.parse(raw) }
   } catch {}
+  try {
+    const raw = uni.getStorageSync("digest_settings") as string
+    if (raw) digestEnabled.value = JSON.parse(raw).enabled !== false
+  } catch {}
 })
+
+function toggleDigest() {
+  digestEnabled.value = !digestEnabled.value
+  uni.setStorageSync("digest_settings", JSON.stringify({ enabled: digestEnabled.value }))
+}
 
 function setDark(state: DarkModeState) {
   darkState.value = state
@@ -311,6 +325,17 @@ function checkUpdate() {
     </view>
 
     <view class="section">
+      <text class="section-title">每日天气简报</text>
+      <view class="setting-row" @tap="toggleDigest">
+        <text class="setting-label">每日打开应用时推送今日天气摘要</text>
+        <view class="toggle" :class="{ on: digestEnabled }">
+          <view class="toggle-knob" />
+        </view>
+      </view>
+      <view class="section-note">包含最高/最低温、天气、降水概率、紫外线等信息</view>
+    </view>
+
+    <view class="section">
       <text class="section-title">自动刷新</text>
       <view class="setting-row" v-for="opt in refreshOptions" :key="opt.value" @tap="setRefresh(opt.value)">
         <text class="setting-label">{{ opt.label }}</text>
@@ -361,7 +386,7 @@ function checkUpdate() {
   min-height: 100vh;
   background: var(--color-bg);
   padding: var(--spacing-lg);
-  padding-bottom: var(--spacing-4xl);
+  padding-bottom: calc(var(--spacing-4xl) + var(--window-bottom, 0px));
 }
 .section {
   background: var(--color-paper);

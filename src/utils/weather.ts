@@ -61,6 +61,26 @@ export function uvLabel(index: string): string {
   return "极端"
 }
 
+export function heatIndexC(tempC: number, humidity: number): number {
+  if (isNaN(tempC) || isNaN(humidity)) return tempC
+  const T = tempC * 9 / 5 + 32
+  const RH = humidity
+  if (T < 80) return tempC
+  const hi = -42.379 + 2.04901523 * T + 10.14333127 * RH - 0.22475541 * T * RH
+    - 0.00683783 * T * T - 0.05481717 * RH * RH
+    + 0.00122874 * T * T * RH + 0.00085282 * T * RH * RH - 0.00000199 * T * T * RH * RH
+  return Math.round((hi - 32) * 5 / 9)
+}
+
+export function windChillC(tempC: number, windKmh: number): number {
+  if (isNaN(tempC) || isNaN(windKmh)) return tempC
+  if (tempC > 10 || windKmh < 4.8) return tempC
+  const T = tempC * 9 / 5 + 32
+  const V = windKmh / 1.609344
+  const wci = 35.74 + 0.6215 * T - 35.75 * Math.pow(V, 0.16) + 0.4275 * T * Math.pow(V, 0.16)
+  return Math.round((wci - 32) * 5 / 9)
+}
+
 export function sunHour(sun: string): number {
   const parts = sun.split(":")
   const h = parseInt(parts[0]) || 6
@@ -78,9 +98,13 @@ export interface ModuleConfig {
   lifetips: boolean
   temptr: boolean
   preciptr: boolean
+  typhoon: boolean
+  quake: boolean
+  radar: boolean
+  stargazing: boolean
 }
 
-export const MODULE_ORDER_DEFAULT = ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr"]
+export const MODULE_ORDER_DEFAULT = ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"]
 
 export const UNITS_DEFAULT = {
   temp: "c" as const,
@@ -96,6 +120,10 @@ export const UNITS_DEFAULT = {
     lifetips: true,
     temptr: true,
     preciptr: true,
+    typhoon: true,
+    quake: true,
+    radar: true,
+    stargazing: true,
   },
   moduleOrder: [...MODULE_ORDER_DEFAULT],
 }

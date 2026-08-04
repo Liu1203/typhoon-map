@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
+import { loadDarkMode } from "@/utils/theme"
 
 const mapSrc = ref("/hybrid/html/leaflet-quake.html")
 const loaded = ref(false)
@@ -12,6 +13,7 @@ onMounted(() => {
   // #ifdef APP-PLUS
   mapSrc.value = "/hybrid/html/leaflet-quake.html"
   // #endif
+  mapSrc.value += "?dark=" + (loadDarkMode() ? "1" : "0")
 })
 
 function onWebViewError() {

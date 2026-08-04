@@ -115,6 +115,47 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .leaflet-control-layers-toggle{width:36px!important;height:36px!important;background:rgba(255,255,255,.94) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235B8FC0'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E") center/20px no-repeat!important;border-radius:8px!important;box-shadow:0 2px 8px rgba(0,0,0,.15)!important}
 .leaflet-touch .leaflet-control-layers-toggle{width:36px!important;height:36px!important}
 .leaflet-retina .leaflet-control-layers-toggle{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%235B8FC0'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z'/%3E%3C/svg%3E")!important;background-size:20px 20px!important}
+
+/* ===== dark mode ===== */
+html.dark,html.dark body{background:#12161E;color:#C8D0DC}
+html.dark .top-bar,html.dark .sub-bar,html.dark .filter-bar,html.dark .sort-bar,html.dark .quake-list,html.dark .loading-hint,html.dark .bottom{background:#1A202A;border-color:rgba(255,255,255,.08)}
+html.dark .tab-row{background:#232A36}
+html.dark .tab{color:#8B9CAD}
+html.dark .tab.active{background:#1E2430;color:#6B9FD0;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+html.dark .date-wrap{background:#232A36;color:#6B9FD0}
+html.dark .today-btn{background:#3D6A94}
+html.dark .refresh-btn{background:#232A36;color:#6B9FD0}
+html.dark .update-time{color:#6A7A8A}
+html.dark .sub-count-num{color:#6B9FD0}
+html.dark .sub-src,.dark .freq-stats{color:#6A7A8A}
+html.dark .freq-num{color:#6B9FD0}
+html.dark .sub-toggle{background:#232A36;color:#6B9FD0}
+html.dark .filter-btn{border-color:rgba(255,255,255,.12);color:#8B9CAD}
+html.dark .filter-btn.active{background:#5B8FC0;border-color:#5B8FC0;color:#fff}
+html.dark .sort-btn{background:#232A36;color:#8B9CAD}
+html.dark .sort-btn.active{background:#5B8FC0;color:#fff}
+html.dark .quake-item{background:transparent;border-color:rgba(255,255,255,.06)}
+html.dark .quake-item:hover{background:rgba(255,255,255,.04)}
+html.dark .quake-item.active{background:rgba(91,143,192,.12)}
+html.dark .qi-place{color:#E0E6ED}
+html.dark .qi-meta{color:#8B9CAD}
+html.dark .qi-depth{color:#6A7A8A}
+html.dark .map-wrap,#map,html.dark .map-wrap{background:#12161E}
+html.dark .legend{background:rgba(26,32,42,.96);border-color:rgba(255,255,255,.1);box-shadow:0 2px 8px rgba(0,0,0,.4)}
+html.dark .legend-title{color:#E0E6ED}
+html.dark .legend{color:#8B9CAD}
+html.dark .legend-row{color:#9AA7B5}
+html.dark .empty-card{background:rgba(30,36,48,.96);border-color:rgba(255,255,255,.1)}
+html.dark .empty-text{color:#8B9CAD}
+html.dark .fetching{background:rgba(18,22,30,.8);color:#8B9CAD}
+html.dark .info-card{background:#1A202A}
+html.dark .info-time,.dark .info-place{color:#E0E6ED}
+html.dark .info-coords,.dark .info-stat-lbl{color:#8B9CAD}
+html.dark .info-stat-val{color:#E0E6ED}
+html.dark .leaflet-control-layers-expanded{background:rgba(30,36,48,.97)!important;color:#C8D0DC;box-shadow:0 2px 12px rgba(0,0,0,.5)!important}
+html.dark .leaflet-control-layers-toggle{background-color:rgba(30,36,48,.97)!important}
+html.dark .leaflet-control-layers-base label span,.dark .leaflet-control-layers-overlays label span{color:#C8D0DC}
+html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers-overlays label:hover{background:#232A36}
 </style>
 </head>
 <body>
@@ -210,6 +251,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 </div>
 
 <script>
+var isDark=location.search.indexOf('dark=1')>=0
+if(isDark)document.documentElement.className='dark'
+var ERR='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 var MAG_COLORS={7:'#E5606E',5:'#F09050',3:'#E8B84A',0:'#5BAA6A'}
 var FEEL={7:'破坏性',5:'强烈',3:'有感',0:'轻微'}
 
@@ -348,7 +392,7 @@ function renderMap(fit){
     var bounds=[]
     quakes.forEach(function(q){bounds.push([q.lat,q.lon])})
     if(bounds.length){
-      try{map.fitBounds(bounds,{padding:[40,40],maxZoom:7,animate:false})}
+      try{map.fitBounds(bounds,{padding:[40,40],minZoom:3,maxZoom:12,animate:false})}
       catch(e){map.setView([20,130],2)}
     }
   }
@@ -455,14 +499,14 @@ async function loadData(){
 }
 
 function initMap(){
-  map=L.map('map',{center:[20,130],zoom:2,zoomControl:false,attributionControl:false,preferCanvas:true})
+  map=L.map('map',{center:[20,130],zoom:2,minZoom:2,maxZoom:18,zoomControl:false,attributionControl:false,preferCanvas:true})
   var layers={
-    '街道图（Carto）':L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'}),
-    '卫星图（ESRI）':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18}),
-    '地形图（OSM）':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}),
-    '暗色图（Carto）':L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,subdomains:'abcd'})
+    '街道图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR}),
+    '卫星图（ESRI）':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,errorTileUrl:ERR}),
+    '地形图（OSM）':L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,errorTileUrl:ERR}),
+    '暗色图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR})
   }
-  layers['街道图（Carto）'].addTo(map)
+  layers[(isDark?'暗色图（Carto）':'街道图（Carto）')].addTo(map)
   L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
   invalidateMap()
 }

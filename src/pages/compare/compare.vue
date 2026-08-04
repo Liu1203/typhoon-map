@@ -22,7 +22,7 @@ interface CityResult {
 }
 
 const ordered = computed<CityResult[]>(() =>
-  selected.value.map(name => ({ name, status: "loading", ...(results.value[name] || {}) }))
+  selected.value.map(name => ({ name, ...(results.value[name] || { status: "loading" }) }))
 )
 
 const allCandidates = computed<string[]>(() => {
@@ -171,6 +171,7 @@ function goBack() { uni.navigateBack() }
   min-height: 100vh;
   background: var(--color-bg);
   padding: var(--spacing-lg);
+  padding-bottom: calc(var(--spacing-lg) + var(--window-bottom, 0px));
 }
 .top-bar {
   display: flex;
