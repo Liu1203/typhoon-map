@@ -319,8 +319,13 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
 var GRADE_COLORS={TD:'#6BA3D4',TS:'#E8C84A',STS:'#E08A3C',TY:'#D95B4F',STY:'#8B6BB8',SuperTY:'#E85A9B'}
 var GRADE_MAP={TD:'热带低压',TS:'热带风暴',STS:'强热带风暴',TY:'台风',STY:'强台风',SuperTY:'超强台风'}
 var COMPASS=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW']
-var AGENCIES={BABJ:{name:'中国（NMC）',color:'#D95B4F'},RJTD:{name:'日本（JMA）',color:'#E08A3C'},WTPN:{name:'美国（JTWC）',color:'#8B6BB8'},VHHH:{name:'香港（HKO）',color:'#5BAA6A'},RKSL:{name:'韩国（KMA）',color:'#4A90D9'}}
+var AGENCIES={BABJ:{name:'中国（NMC）',color:'#D95B4F'},RJTD:{name:'日本（JMA）',color:'#E08A3C'},WTPN:{name:'美国（JTWC）',color:'#8B6BB8'},VHHH:{name:'香港（HKO）',color:'#5BAA6A'},RKSL:{name:'韩国（KMA）',color:'#4A90D9'},CWB:{name:'台湾（CWB）',color:'#2BA9A9'}}
 var AGENCY_COLORS=['#6BA3D4','#E8C84A','#E85A9B','#E08A3C','#5A6E80','#B0BDCC','#3D6A94','#A07D38','#6DAF98','#90A4AE']
+var ZJ_GRADE={'热带低压':'TD','热带风暴':'TS','强热带风暴':'STS','台风':'TY','强台风':'STY','超强台风':'SuperTY'}
+function zjGrade(st){var g=ZJ_GRADE[String(st||'').trim()];return g||ng(String(st||''))}
+function zjAgencyKey(tm){var s=String(tm);if(s.indexOf('台湾')>=0)return'CWB';if(s.indexOf('日本')>=0)return'RJTD';if(s.indexOf('美国')>=0)return'WTPN';if(s.indexOf('香港')>=0)return'VHHH';if(s.indexOf('韩国')>=0)return'RKSL';return null}
+function zjTime(s){var m=String(s).match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);return m?m[1]+m[2]+m[3]+m[4]+m[5]:''}
+var zjByEn={},zjByCn={}
 
 function gc(g){return GRADE_COLORS[ng(g)]||'#90A4AE'}
 function ng(g){
@@ -365,6 +370,77 @@ function req(url){
     x.ontimeout=function(){resolve(null)}
     x.send()
   })
+}
+function zjReq(url){
+  var cacheKey='zj_api_'+url
+  try{
+    var cached=localStorage.getItem(cacheKey)
+    if(cached){
+      var obj=JSON.parse(cached)
+      if(Date.now()-obj.ts<10*60*1000)return Promise.resolve(obj.text)
+    }
+  }catch(e){}
+  return new Promise(function(resolve){
+    var x=new XMLHttpRequest()
+    x.open('GET',url,true)
+    x.timeout=8000
+    x.onload=function(){
+      if(x.status>=200&&x.status<300){resolve(x.responseText)}else resolve(null)
+    }
+    x.onerror=function(){resolve(null)}
+    x.ontimeout=function(){resolve(null)}
+    x.send()
+  })
+}
+async function loadZjList(){
+  zjByEn={};zjByCn={}
+  try{
+    var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyhoonActivity')
+    var data=text?JSON.parse(text):null
+    if(Array.isArray(data)){
+      data.forEach(function(t){
+        if(!t||!t.tfid)return
+        if(t.enname)zjByEn[(t.enname+'').toLowerCase()]=t.tfid
+        if(t.name)zjByCn[t.name]=t.tfid
+      })
+    }
+  }catch(e){}
+}
+function zjForecastPoints(pts){
+  if(!Array.isArray(pts))return[]
+  var out=[]
+  pts.forEach(function(v){
+    var lon=Number(v&&v.lng),lat=Number(v&&v.lat)
+    if(!isFinite(lon)||!isFinite(lat)||(lon===0&&lat===0))return
+    var g=zjGrade(v.strong)
+    out.push({time:zjTime(v.time),lon:lon,lat:lat,pressure:v.pressure?Number(v.pressure)||0:0,windSpeed:v.speed?Number(v.speed)||0:0,grade:g,gradeText:gt(g)})
+  })
+  return out
+}
+function mergeZjForecasts(zj,detail){
+  if(!zj||!zj.points||!zj.points.length||!detail)return
+  var last=zj.points[zj.points.length-1]
+  if(!last||!Array.isArray(last.forecast))return
+  var fc=detail.forecasts||{}
+  last.forecast.forEach(function(f){
+    if(!f||!f.forecastpoints)return
+    var key=zjAgencyKey(f.tm||'')
+    if(!key)return
+    var pts=zjForecastPoints(f.forecastpoints)
+    if(pts.length<2)return
+    fc[key]=pts
+  })
+}
+async function loadZjDetail(t){
+  var tfid=null
+  var tEn=((t&&t.nameEn)||'').toLowerCase()
+  if(tEn&&zjByEn[tEn])tfid=zjByEn[tEn]
+  else if(t&&t.nameCn&&zjByCn[t.nameCn])tfid=zjByCn[t.nameCn]
+  if(!tfid)return null
+  try{
+    var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyphoonInfo/'+tfid)
+    return text?JSON.parse(text):null
+  }catch(e){return null}
 }
 function clearApiCache(){
   try{
@@ -547,22 +623,30 @@ function renderInfo(){
   if(selectedPoint){
     setShow(info,false);setShow(point,true)
     var p=selectedPoint.point,type=selectedPoint.type
+    var agency=selectedPoint.agency||null
+    var isAgent=type==='agent'
     var g=ng(p.grade)
-    $('pDot').style.background=gc(g)
+    var dotC=isAgent?(AGENCIES[agency]?AGENCIES[agency].color:gc(g)):gc(g)
+    $('pDot').style.background=dotC
     $('pTime').innerHTML=fmtTime(p.time)+' <span style="font-size:10px;color:#B0BDCC;font-weight:400">'+timeAgo(p.time)+'</span>'
     $('pGrade').className='grade-badge g-'+g
     $('pGrade').textContent=p.gradeText||gt(g)
     $('pWind').textContent=p.windSpeed+' m/s'
     $('pPres').textContent=p.pressure+' hPa'
     $('pPos').textContent=p.lat.toFixed(1)+'°N '+p.lon.toFixed(1)+'°E'
-    $('pTag').className='tag '+(type==='forecast'?'tag-f':'tag-h')
-    $('pTag').textContent=type==='forecast'?'预报':'实况'
-    var arr=type==='history'?detail.history:detail.forecast
+    $('pTag').className='tag '+(isAgent?'tag-f':(type==='forecast'?'tag-f':'tag-h'))
+    var tagText=type==='forecast'?(agency?(AGENCIES[agency]?AGENCIES[agency].name:agency)+' · 预报':'预报'):(type==='history'?'实况':(AGENCIES[agency]?AGENCIES[agency].name:'预报'))
+    $('pTag').textContent=tagText
+    var arr=isAgent?(detail.forecasts&&detail.forecasts[agency])||[]:(type==='history'?detail.history:detail.forecast)
     var idx=-1
-    for(var i=0;i<arr.length;i++){
-      if(arr[i].lat===p.lat&&arr[i].lon===p.lon&&String(arr[i].time)===String(p.time)){idx=i;break}
+    if(isAgent&&selectedPoint.idx!=null){
+      idx=selectedPoint.idx
+    }else{
+      for(var i=0;i<arr.length;i++){
+        if(arr[i].lat===p.lat&&arr[i].lon===p.lon&&String(arr[i].time)===String(p.time)){idx=i;break}
+      }
     }
-    if(idx>0){
+    if(idx>0&&arr[idx-1]){
       var prev=arr[idx-1]
       var b=bearing(prev.lat,prev.lon,p.lat,p.lon)
       var dist=haversine(prev.lat,prev.lon,p.lat,p.lon)
@@ -729,6 +813,23 @@ function renderMap(fit){
     drawSegs(babj,true)
   }
 
+  function addAgencyDot(p,key,idx){
+    if(!validLL(p))return
+    var a=AGENCIES[key],ac=a?a.color:AGENCY_COLORS[idx%AGENCY_COLORS.length]
+    var nk=nodeKey('agent_'+key,idx)
+    var selected=selectedKey===nk
+    var m=add(L.circleMarker([p.lat,p.lon],{
+      radius:selected?8:5,
+      color:'#fff',weight:selected?3:1.5,fillColor:ac,fillOpacity:0.85,opacity:1
+    }).addTo(map))
+    m.on('click',function(e){
+      L.DomEvent.stopPropagation(e)
+      selectedKey=nk
+      selectedPoint={point:p,type:'agent',agency:key,idx:idx}
+      renderInfo();renderMap(false)
+    })
+  }
+
   function addDot(p,type,idx,isForecast){
     if(!validLL(p))return
     var g=ng(p.grade),c=gc(g),key=nodeKey(type,idx)
@@ -750,6 +851,14 @@ function renderMap(fit){
     addDot(hist[idx],'history',idx,false)
   })
   sampleNodes(babj,ni).forEach(function(idx){addDot(babj[idx],'forecast',idx,true)})
+
+  // 各机构预报节点（可点击查看该机构预报点详情）
+  Object.keys(forecasts).forEach(function(key){
+    if(key==='BABJ')return
+    var pts=forecasts[key]
+    if(!pts||!pts.length)return
+    for(var i=0;i<pts.length;i++)addAgencyDot(pts[i],key,i)
+  })
 
   if(cp&&validLL(cp)){
     var cg=ng(cp.grade),cc=gc(cg)
@@ -834,6 +943,7 @@ async function loadActive(){
   setEmpty(false)
   selectedPoint=null
   var btn=$('refreshBtn');btn.classList.add('loading')
+  loadZjList()
   var text=await req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/list_default?t='+Date.now())
   btn.classList.remove('loading')
   setLoading(false)
@@ -894,6 +1004,10 @@ async function selectTyphoon(t){
   setFetching(false)
   var data=text?parseJsonp(text):null
   detail=data&&data.typhoon?parseDetail(data.typhoon):null
+  if(detail){
+    var zj=await loadZjDetail(t)
+    if(zj)mergeZjForecasts(zj,detail)
+  }
   renderCollapsed();renderInfo();renderMap(true)
 }
 
