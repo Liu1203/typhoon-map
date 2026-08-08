@@ -457,7 +457,7 @@ function getYearList(){
 function mapList(data){
   if(!data||!data.typhoonList)return[]
   return data.typhoonList
-    .filter(function(v){return v[7]==='start'})
+    .filter(function(v){return tabMode==='history'||v[7]==='start'})
     .map(function(v){return{id:v[0],nameCn:v[2],nameEn:v[1],tcNum:v[4]}})
 }
 
