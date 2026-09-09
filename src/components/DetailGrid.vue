@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 import { uvLabel, moonPhase, heatIndexC, windChillC } from "@/utils/weather"
+import { UI } from "@/config"
 import { formatLunar } from "@/utils/lunar"
 import type { CurrentWeather } from "@/api/weather"
 
@@ -40,10 +41,10 @@ const windChillVal = computed(() => {
       <text class="detail-label">{{ weather.windDir }}</text>
       <text class="detail-value">{{ weather.windLevel }}</text>
     </view>
-    <view class="detail-item" :class="{ 'uv-warning': parseInt(weather.uvIndex) >= 7 }">
+    <view class="detail-item" :class="{ 'uv-warning': parseInt(weather.uvIndex) >= UI.UV_WARN }">
       <text class="detail-label">紫外线</text>
       <text class="detail-value">{{ weather.uvIndex }} {{ uvLabel(weather.uvIndex) }}</text>
-      <text class="uv-badge" v-if="parseInt(weather.uvIndex) >= 7">⚠ 注意防护</text>
+      <text class="uv-badge" v-if="parseInt(weather.uvIndex) >= UI.UV_WARN">⚠ 注意防护</text>
     </view>
     <view class="detail-item">
       <text class="detail-label">日出</text>

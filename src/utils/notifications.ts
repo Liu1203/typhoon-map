@@ -1,4 +1,4 @@
-import { CACHE } from "@/config"
+import { CACHE, UI } from "@/config"
 import { uvLabel } from "@/utils/weather"
 import type { AlertItem, CurrentWeather } from "@/api/weather"
 
@@ -24,7 +24,7 @@ export function sendDailyDigest(city: string, weather: CurrentWeather | null) {
     const hrs = weather.hourly?.slice(0, 8) || []
     const maxRain = hrs.length ? Math.max(...hrs.map(h => parseInt(h.rainChance) || 0)) : 0
     let content = weather.weather + "，" + weather.high + "° / " + weather.low + "°"
-    if (maxRain >= 30) content += "。未来几小时降水概率 " + maxRain + "%，记得带伞"
+    if (maxRain >= UI.RAIN_ALERT_PCT) content += "。未来几小时降水概率 " + maxRain + "%，记得带伞"
     content += "。紫外线 " + uvLabel(weather.uvIndex)
     if (weather.aqi !== "--") content += "，空气" + weather.aqiLabel
     uni.setStorageSync(DIGEST_NOTIFIED_KEY, key)

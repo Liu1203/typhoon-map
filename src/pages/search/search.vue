@@ -10,6 +10,7 @@ const favCities = ref<string[]>([])
 const recentSearches = ref<string[]>([])
 const geoResults = ref<GeoCity[]>([])
 const geoLoading = ref(false)
+const geoError = ref(false)
 
 const FAV_KEY = CACHE.FAV_KEY
 const RECENT_KEY = CACHE.RECENT_KEY
@@ -82,11 +83,17 @@ watch(query, (val) => {
   if (!val || val.length < 1) { geoResults.value = []; return }
   geoDebounce = setTimeout(async () => {
     const cached = getSearchCache(val)
-    if (cached) { geoResults.value = cached; return }
+    if (cached) { geoResults.value = cached; geoError.value = false; return }
     geoLoading.value = true
     const result = await searchCities(val)
-    if (result.length) setSearchCache(val, result)
-    geoResults.value = result
+    if (result === null) {
+      geoError.value = true
+      geoResults.value = []
+    } else {
+      geoError.value = false
+      if (result.length) setSearchCache(val, result)
+      geoResults.value = result
+    }
     geoLoading.value = false
   }, 400)
 })
@@ -198,7 +205,7 @@ function scrollToLetter(letter: string) {
     </scroll-view>
 
     <view v-if="query && filteredCities.length === 0 && geoResults.length === 0 && !geoLoading" class="empty-state">
-      <text class="empty-text">未找到 "{{ query }}" 相关城市</text>
+      <text class="empty-text">{{ geoError ? '网络异常，请检查网络后重试' : '未找到 "' + query + '" 相关城市' }}</text>
     </view>
 
     <view v-if="!query && alphabet.length > 0" class="alphabet-sidebar">

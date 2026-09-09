@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { ref, computed, onMounted, onUnmounted } from "vue"
 import WeatherIcon from "./WeatherIcon.vue"
 
 const props = defineProps<{
@@ -13,14 +13,18 @@ const props = defineProps<{
   sunset: string
 }>()
 
+const now = ref(new Date())
+let nowTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => { nowTimer = setInterval(() => { now.value = new Date() }, 60000) })
+onUnmounted(() => { if (nowTimer) clearInterval(nowTimer) })
+
 const daylightPct = computed(() => {
   if (!props.sunrise || !props.sunset || props.sunrise === "--" || props.sunset === "--") return 0
-  const now = new Date()
   const pad = (n: number) => String(n).padStart(2, "0")
-  const today = now.getFullYear() + "-" + pad(now.getMonth() + 1) + "-" + pad(now.getDate())
+  const today = now.value.getFullYear() + "-" + pad(now.value.getMonth() + 1) + "-" + pad(now.value.getDate())
   const rise = new Date(`${today}T${props.sunrise}:00`).getTime()
   const set = new Date(`${today}T${props.sunset}:00`).getTime()
-  const current = now.getTime()
+  const current = now.value.getTime()
   if (current < rise) return 0
   if (current > set) return 100
   return ((current - rise) / (set - rise)) * 100
@@ -28,7 +32,7 @@ const daylightPct = computed(() => {
 
 const arcAngle = computed(() => (daylightPct.value / 100) * 180 - 90)
 const nowTime = computed(() => {
-  const d = new Date()
+  const d = now.value
   return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0")
 })
 </script>

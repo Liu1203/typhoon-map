@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { ref, computed, onMounted, onUnmounted } from "vue"
 import WeatherIcon from "./WeatherIcon.vue"
 import { hourLabel, hourNum, sunHour } from "@/utils/weather"
+import { UI } from "@/config"
 import type { HourlyItem } from "@/api/weather"
 
 const props = withDefaults(defineProps<{
@@ -13,12 +14,10 @@ const props = withDefaults(defineProps<{
   sunset: "18:00",
 })
 
-const nowHour = new Date().getHours()
-
-const DIR_DEG: Record<string, number> = {
-  "北风": 0, "东北风": 45, "东风": 90, "东南风": 135,
-  "南风": 180, "西南风": 225, "西风": 270, "西北风": 315,
-}
+const nowHour = ref(new Date().getHours())
+let nowTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => { nowTimer = setInterval(() => { nowHour.value = new Date().getHours() }, 60000) })
+onUnmounted(() => { if (nowTimer) clearInterval(nowTimer) })
 </script>
 
 <template>
@@ -31,11 +30,11 @@ const DIR_DEG: Record<string, number> = {
           <text class="hourly-temp">{{ h.temp }}°</text>
           <text class="hourly-desc">{{ h.weather }}</text>
           <view class="hourly-wind-row">
-            <text class="wind-arrow" :style="{ transform: 'rotate(' + (DIR_DEG[h.windDir] || 0) + 'deg)' }">↑</text>
+            <text class="wind-arrow" :style="{ transform: 'rotate(' + ((UI.WIND_DIR_DEG as Record<string, number>)[h.windDir] || 0) + 'deg)' }">↑</text>
             <text class="wind-num">{{ h.windScale }}</text>
           </view>
-          <view :class="['rain-tag', parseInt(h.rainChance) > 30 ? 'rain-heavy' : parseInt(h.rainChance) > 0 ? 'rain-light' : 'rain-none']">
-            <text>{{ parseInt(h.rainChance) > 0 ? h.rainChance + '%' : '无雨' }}</text>
+          <view :class="['rain-tag', parseInt(h.rainChance) > UI.RAIN_ALERT_PCT ? 'rain-heavy' : parseInt(h.rainChance) > UI.RAIN_CHANCE_SHOW ? 'rain-light' : 'rain-none']">
+            <text>{{ parseInt(h.rainChance) > UI.RAIN_CHANCE_SHOW ? h.rainChance + '%' : '无雨' }}</text>
           </view>
           <view v-if="h.precip" class="precip-section">
             <view class="precip-bar" :style="{ height: Math.min(18, Math.max(2, parseFloat(h.precip) * 5)) + 'px', background: parseFloat(h.precip) > 2 ? '#3B82F6' : parseFloat(h.precip) > 0.5 ? '#93C5FD' : '#DBEAFE' }"></view>

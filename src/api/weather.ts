@@ -1,4 +1,4 @@
-import { API, TIMEOUT, RETRY, WEATHER } from "@/config"
+import { API, TIMEOUT, RETRY, WEATHER, UI } from "@/config"
 
 const CITY_COORDS: Record<string, { lat: number; lon: number }> = {
   "北京": { lat: 39.9, lon: 116.4 }, "上海": { lat: 31.2, lon: 121.5 },
@@ -108,7 +108,7 @@ export interface GeoCity {
   admin1?: string
 }
 
-export async function searchCities(query: string): Promise<GeoCity[]> {
+export async function searchCities(query: string): Promise<GeoCity[] | null> {
   if (!query || query.length < 1) return []
   try {
     const res = await new Promise<any>((resolve) => {
@@ -131,7 +131,7 @@ export async function searchCities(query: string): Promise<GeoCity[]> {
       }))
   } catch (e) {
     console.error("Geocoding error:", e)
-    return []
+    return null
   }
 }
 
@@ -319,7 +319,8 @@ export interface AQIDetail {
 }
 
 function aqiLabel(v: number): string {
-  return v <= 20 ? "优" : v <= 40 ? "良" : v <= 60 ? "轻度" : v <= 80 ? "中度" : v <= 100 ? "重度" : "严重"
+  for (const l of UI.AQI_LEVELS) if (v <= l.max) return l.label
+  return "严重"
 }
 
 function pollenLevel(grains: number): string {

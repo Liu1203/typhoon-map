@@ -2,6 +2,7 @@
 import { computed } from "vue"
 import type { CurrentWeather } from "@/api/weather"
 import { heatIndexC, windChillC } from "@/utils/weather"
+import { UI } from "@/config"
 
 const props = defineProps<{
   weather: CurrentWeather
@@ -38,7 +39,7 @@ const tips = computed((): Tip[] => {
     r.push({ icon: "🌤", label: "雨伞", level: "低", tip: "无需带伞" })
   }
 
-  if (uv >= 7) {
+  if (uv >= UI.UV_WARN) {
     r.push({ icon: "🧴", label: "防晒", level: "高", tip: "紫外线强烈，注意防护" })
   } else if (uv >= 5) {
     r.push({ icon: "🕶", label: "防晒", level: "中", tip: "紫外线中等，适当防护" })

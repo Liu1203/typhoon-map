@@ -8,13 +8,15 @@ import { moonPhase as localMoonPhase } from "@/utils/weather"
 import { stargazingScore, milkyWayScore, moonPhaseInfo, moonIllumination, moonPosition, lightPollutionByCity } from "@/utils/astronomy"
 
 const darkMode = ref(false)
-const city = ref("北京")
+const city = ref(DEFAULT_CITY)
 const weather = ref<CurrentWeather | null>(null)
 const loading = ref(true)
+const error = ref(false)
 
 onShow(async () => {
   darkMode.value = loadDarkMode()
   city.value = (uni.getStorageSync(CACHE.CITY_KEY) as string) || DEFAULT_CITY
+  error.value = false
   const cached = getCachedWeather(city.value)
   if (cached) {
     weather.value = cached
@@ -23,7 +25,8 @@ onShow(async () => {
     const coords = getCityCoords(city.value)
     if (coords) {
       const res = await getWeather(coords.lat, coords.lon)
-      weather.value = res
+      if (res) weather.value = res
+      else error.value = true
     }
     loading.value = false
   }
@@ -111,7 +114,7 @@ function goBack() { uni.navigateBack() }
     <view v-if="loading" class="loading-hint">加载中...</view>
 
     <view v-else-if="!weather" class="empty-state">
-      <text class="empty-text">暂无数据，请先打开首页刷新</text>
+      <text class="empty-text">{{ error ? '网络异常，请稍后重试' : '暂无数据，请先打开首页刷新' }}</text>
     </view>
 
     <template v-else>

@@ -44,6 +44,21 @@ export const WEATHER = {
   HOURLY_DIVISOR: 1.852,
 } as const
 
+export const UI = {
+  UV_WARN: 7,
+  RAIN_ALERT_PCT: 30,
+  RAIN_CHANCE_SHOW: 0,
+  WIND_DIR_DEG: { "北风": 0, "东北风": 45, "东风": 90, "东南风": 135, "南风": 180, "西南风": 225, "西风": 270, "西北风": 315 },
+  AQI_LEVELS: [
+    { max: 20, label: "优" },
+    { max: 40, label: "良" },
+    { max: 60, label: "轻度" },
+    { max: 80, label: "中度" },
+    { max: 100, label: "重度" },
+    { max: Infinity, label: "严重" },
+  ],
+} as const
+
 export const QUAKE = {
   MIN_MAG_GLOBAL: 2.5,
   MIN_MAG_CHINA: 1.5,
