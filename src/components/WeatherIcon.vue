@@ -311,14 +311,13 @@ const scale = computed(() => props.size / 56)
   animation: flash 1.5s ease-in-out infinite;
   pointer-events: none;
   z-index: 2;
-  filter: drop-shadow(0 0 4px rgba(255, 224, 100, 0.7));
 }
 
 @keyframes flash {
-  0%, 45%, 100% { opacity: 0.4; filter: drop-shadow(0 0 2px rgba(255, 224, 100, 0.3)); }
-  8% { opacity: 1; filter: drop-shadow(0 0 12px #FFE066) brightness(1.4); }
-  12% { opacity: 0.5; filter: drop-shadow(0 0 4px rgba(255, 224, 100, 0.5)); }
-  18% { opacity: 1; filter: drop-shadow(0 0 16px #FFF0C0) brightness(1.6); }
+  0%, 45%, 100% { opacity: 0.4; }
+  8% { opacity: 1; }
+  12% { opacity: 0.5; }
+  18% { opacity: 1; }
   25% { opacity: 0.6; }
 }
 

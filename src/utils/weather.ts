@@ -1,3 +1,5 @@
+import { CACHE } from "@/config"
+
 export function gradientColors(w: string): [string, string, string] {
   if (w.includes("雷")) return ["#3A4458", "#566076", "#788098"]
   if (w.includes("大") && w.includes("阵")) return ["#4A6070", "#6C8292", "#90A4B4"]
@@ -149,7 +151,7 @@ function normalizeModuleOrder(order: any): string[] {
 
 export function getUnitSettings(): UnitSettings {
   try {
-    const raw = uni.getStorageSync("unit_settings") as string
+    const raw = uni.getStorageSync(CACHE.UNIT_KEY) as string
     if (raw) {
       const parsed = JSON.parse(raw)
       return {

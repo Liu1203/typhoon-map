@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
 import { onShow } from "@dcloudio/uni-app"
 import { loadDarkMode } from "@/utils/theme"
+import { CACHE } from "@/config"
 import type { AlertItem } from "@/api/weather"
 
 const darkMode = ref(false)
@@ -19,6 +20,8 @@ function sevStyle(s: string) {
   return SEVERITY_STYLE[(s || "").toLowerCase()] || { label: s || "未知", color: "#8B9CAD", bg: "rgba(139,156,173,0.14)" }
 }
 
+const alertCards = computed(() => alerts.value.map(a => ({ ...a, sev: sevStyle(a.severity) })))
+
 function fmtTime(ts: string): string {
   if (!ts) return "—"
   const d = new Date(ts)
@@ -31,10 +34,10 @@ onMounted(() => { darkMode.value = loadDarkMode() })
 
 onShow(() => {
   try {
-    const raw = uni.getStorageSync("current_alerts") as string
+    const raw = uni.getStorageSync(CACHE.ALERTS_KEY) as string
     alerts.value = raw ? JSON.parse(raw) : []
   } catch { alerts.value = [] }
-  city.value = (uni.getStorageSync("selected_city") as string) || ""
+  city.value = (uni.getStorageSync(CACHE.CITY_KEY) as string) || ""
 })
 
 function goBack() { uni.navigateBack() }
@@ -57,14 +60,14 @@ function goBack() { uni.navigateBack() }
     </view>
 
     <view class="alert-list" v-else>
-      <view v-for="(a, i) in alerts" :key="i" class="alert-card">
+      <view v-for="a in alertCards" :key="a.event + a.start" class="alert-card" :style="{ borderLeftColor: a.sev.color }">
         <view class="alert-head">
           <view class="alert-left">
             <text class="alert-event">{{ a.event || "天气预警" }}</text>
             <text class="alert-time">{{ fmtTime(a.start) }} 至 {{ fmtTime(a.end) }}</text>
           </view>
-          <view class="sev-badge" :style="{ color: sevStyle(a.severity).color, background: sevStyle(a.severity).bg }">
-            {{ sevStyle(a.severity).label }}
+          <view class="sev-badge" :style="{ color: a.sev.color, background: a.sev.bg }">
+            {{ a.sev.label }}
           </view>
         </view>
         <text class="alert-desc" v-if="a.description">{{ a.description }}</text>

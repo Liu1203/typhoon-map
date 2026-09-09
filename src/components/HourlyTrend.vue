@@ -214,19 +214,27 @@ function draw() {
   ctx.draw()
 }
 
-watch(chartData, () => { selectedIndex.value = -1; nextTick(() => draw()) })
-watch(width, () => nextTick(() => draw()))
-watch(selectedIndex, () => nextTick(() => draw()))
+watch(chartData, () => { selectedIndex.value = -1; scheduleDraw() })
+watch(width, () => scheduleDraw())
+watch(selectedIndex, () => scheduleDraw())
+
+const raf = typeof requestAnimationFrame === "function" ? requestAnimationFrame : (cb: () => void) => setTimeout(cb, 16)
+let drawPending = false
+function scheduleDraw() {
+  if (drawPending) return
+  drawPending = true
+  raf(() => { drawPending = false; draw() })
+}
 
 onMounted(() => {
-  setTimeout(() => {
-    nextTick(() => draw())
+  nextTick(() => raf(() => draw()))
+  nextTick(() => {
     try {
       uni.createSelectorQuery().in(getCurrentInstance()).select(".chart-wrap").boundingClientRect((r: any) => {
         if (r && typeof r.left === "number") rectLeft.value = r.left
       }).exec()
     } catch {}
-  }, 60)
+  })
 })
 </script>
 

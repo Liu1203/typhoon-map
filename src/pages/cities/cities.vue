@@ -2,12 +2,13 @@
 import { ref, onMounted } from "vue"
 import { onShow } from "@dcloudio/uni-app"
 import { loadDarkMode } from "@/utils/theme"
+import { CACHE } from "@/config"
 
 const darkMode = ref(false)
 const favCities = ref<string[]>([])
 const editMode = ref(false)
 
-const FAV_KEY = "fav_cities"
+const FAV_KEY = CACHE.FAV_KEY
 
 onMounted(() => { darkMode.value = loadDarkMode() })
 onShow(() => { loadCities() })
@@ -49,7 +50,7 @@ function removeCity(idx: number) {
 
 function selectCity(name: string) {
   if (editMode.value) return
-  uni.setStorageSync("selected_city", name)
+  uni.setStorageSync(CACHE.CITY_KEY, name)
   uni.navigateBack()
 }
 

@@ -166,7 +166,7 @@ html.dark .chip-name,html.dark .c-name,html.dark .c-wind{color:#C8D0DC}
 html.dark .c-grade{color:#fff}
 html.dark .chip.active{background:linear-gradient(135deg,#3D6A94,#2A4A6B);box-shadow:0 3px 12px rgba(0,0,0,.4)}
 html.dark .chip.active .chip-num{color:rgba(255,255,255,.8)}
-html.dark .map-wrap,#map,html.dark .map-wrap{background:#12161E}
+html.dark .map-wrap,html.dark #map{background:#12161E}
 html.dark .legend{background:rgba(26,32,42,.96);border-color:rgba(255,255,255,.1);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 html.dark .legend-title{color:#E0E6ED}
 html.dark .legend{color:#8B9CAD}
@@ -395,7 +395,7 @@ function zjReq(url){
 async function loadZjList(){
   zjByEn={};zjByCn={}
   try{
-    var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyhoonActivity')
+    var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyphoonActivity')
     var data=text?JSON.parse(text):null
     if(Array.isArray(data)){
       data.forEach(function(t){

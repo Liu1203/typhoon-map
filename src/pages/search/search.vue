@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from "vue"
 import { matchCity, groupCitiesByPinyin, searchCities, setDynamicCity, type GeoCity } from "@/api/weather"
 import { loadDarkMode } from "@/utils/theme"
+import { CACHE } from "@/config"
 
 const darkMode = ref(false)
 const query = ref("")
@@ -10,8 +11,8 @@ const recentSearches = ref<string[]>([])
 const geoResults = ref<GeoCity[]>([])
 const geoLoading = ref(false)
 
-const FAV_KEY = "fav_cities"
-const RECENT_KEY = "recent_searches"
+const FAV_KEY = CACHE.FAV_KEY
+const RECENT_KEY = CACHE.RECENT_KEY
 const SEARCH_CACHE_KEY = "search_cache"
 const SEARCH_CACHE_TTL = 30 * 60 * 1000
 
@@ -102,7 +103,7 @@ function clearQuery() {
 function selectCity(name: string) {
   const geo = geoResults.value.find(g => g.name === name)
   if (geo) setDynamicCity(geo.name, geo.lat, geo.lon)
-  uni.setStorageSync("selected_city", name)
+  uni.setStorageSync(CACHE.CITY_KEY, name)
   addRecent(name)
   uni.hideKeyboard()
   uni.navigateBack()
@@ -110,7 +111,7 @@ function selectCity(name: string) {
 
 function selectGeoCity(city: GeoCity) {
   setDynamicCity(city.name, city.lat, city.lon)
-  uni.setStorageSync("selected_city", city.name)
+  uni.setStorageSync(CACHE.CITY_KEY, city.name)
   addRecent(city.name)
   uni.hideKeyboard()
   uni.navigateBack()
@@ -128,10 +129,7 @@ function isFav(name: string): boolean {
 }
 
 function scrollToLetter(letter: string) {
-  const el = uni.createSelectorQuery().select("#section-" + letter)
-  if (el) {
-    uni.pageScrollTo({ selector: "#section-" + letter, duration: 200 })
-  }
+  uni.pageScrollTo({ selector: "#section-" + letter, duration: 200 })
 }
 </script>
 

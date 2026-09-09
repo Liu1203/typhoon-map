@@ -115,16 +115,35 @@
 }
 
 .s-block {
-  background: linear-gradient(90deg, var(--color-paper-dark) 25%, var(--color-paper-border) 50%, var(--color-paper-dark) 75%);
-  background-size: 200% 100%;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-paper-dark);
+}
+
+.s-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  transform: translateX(-100%);
   animation: shimmer 1.6s ease-in-out infinite;
 }
 
 .s-circle {
-  background: linear-gradient(90deg, var(--color-paper-dark) 25%, var(--color-paper-border) 50%, var(--color-paper-dark) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-paper-dark);
   border-radius: 50%;
+}
+
+.s-circle::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: shimmer 1.6s ease-in-out infinite;
 }
 
 .flex-1 { flex: 1; }
@@ -157,7 +176,7 @@
 .br-xl { border-radius: var(--radius-xl); }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 </style>

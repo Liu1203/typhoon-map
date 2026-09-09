@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, nextTick, getCurrentInstance } from "vue"
 import { UNITS_DEFAULT, MODULE_ORDER_DEFAULT, getUnitSettings, type UnitSettings, type ModuleConfig } from "@/utils/weather"
 import { loadDarkMode, getDarkModeState, setDarkMode, type DarkModeState } from "@/utils/theme"
+import { CACHE } from "@/config"
 import { APP_VERSION } from "@/version"
 
 const darkMode = ref(false)
@@ -119,22 +120,22 @@ onMounted(() => {
   darkState.value = getDarkModeState()
   units.value = getUnitSettings()
   try {
-    const raw = uni.getStorageSync("fav_cities") as string
+    const raw = uni.getStorageSync(CACHE.FAV_KEY) as string
     if (raw) favCities.value = JSON.parse(raw)
   } catch {}
   try {
-    const raw = uni.getStorageSync("temp_alert_settings") as string
+    const raw = uni.getStorageSync(CACHE.TEMP_ALERT_KEY) as string
     if (raw) tempAlert.value = { enabled: false, high: 35, low: 0, ...JSON.parse(raw) }
   } catch {}
   try {
-    const raw = uni.getStorageSync("digest_settings") as string
+    const raw = uni.getStorageSync(CACHE.DIGEST_KEY) as string
     if (raw) digestEnabled.value = JSON.parse(raw).enabled !== false
   } catch {}
 })
 
 function toggleDigest() {
   digestEnabled.value = !digestEnabled.value
-  uni.setStorageSync("digest_settings", JSON.stringify({ enabled: digestEnabled.value }))
+  uni.setStorageSync(CACHE.DIGEST_KEY, JSON.stringify({ enabled: digestEnabled.value }))
 }
 
 function setDark(state: DarkModeState) {
@@ -185,16 +186,16 @@ function stepTempAlert(kind: "high" | "low", delta: number) {
 }
 
 function saveTempAlert() {
-  uni.setStorageSync("temp_alert_settings", JSON.stringify(tempAlert.value))
+  uni.setStorageSync(CACHE.TEMP_ALERT_KEY, JSON.stringify(tempAlert.value))
 }
 
 function saveUnits() {
-  uni.setStorageSync("unit_settings", JSON.stringify(units.value))
+  uni.setStorageSync(CACHE.UNIT_KEY, JSON.stringify(units.value))
 }
 
 function removeFav(city: string) {
   favCities.value = favCities.value.filter(c => c !== city)
-  uni.setStorageSync("fav_cities", JSON.stringify(favCities.value))
+  uni.setStorageSync(CACHE.FAV_KEY, JSON.stringify(favCities.value))
 }
 
 function clearCache() {
@@ -203,7 +204,8 @@ function clearCache() {
     content: "将清除天气缓存、搜索记录，但保留城市收藏和设置。",
     success(r) {
       if (r.confirm) {
-        try { uni.removeStorageSync("weather_cache") } catch {}
+        try { uni.removeStorageSync(CACHE.WEATHER_KEY) } catch {}
+        try { uni.removeStorageSync(CACHE.RECENT_KEY) } catch {}
         try {
           const info = uni.getStorageInfoSync()
           ;(info.keys || []).forEach(k => {

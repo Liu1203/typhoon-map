@@ -4,10 +4,11 @@ import { onShow } from "@dcloudio/uni-app"
 import { getWeather, getCachedWeather, getCityCoords, type CurrentWeather } from "@/api/weather"
 import { getUnitSettings, formatTemp } from "@/utils/weather"
 import { loadDarkMode } from "@/utils/theme"
+import { CACHE, DEFAULT_CITY } from "@/config"
 import WeatherIcon from "@/components/WeatherIcon.vue"
 
 const darkMode = ref(false)
-const currentCity = ref("北京")
+const currentCity = ref(DEFAULT_CITY)
 const favCities = ref<string[]>([])
 const selected = ref<string[]>([])
 const results = ref<Record<string, { data?: CurrentWeather; error?: string; status: "loading" | "ok" | "error" | "no-coords" }>>({})
@@ -31,22 +32,25 @@ const allCandidates = computed<string[]>(() => {
   return seen
 })
 
-const isF = computed(() => getUnitSettings().temp === "f")
+const isF = ref(false)
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))])
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms)
+    p.then(v => { clearTimeout(timer); resolve(v) }, e => { clearTimeout(timer); reject(e) })
+  })
 }
 
 onShow(() => {
   darkMode.value = loadDarkMode()
-  currentCity.value = (uni.getStorageSync("selected_city") as string) || "北京"
+  isF.value = getUnitSettings().temp === "f"
+  currentCity.value = (uni.getStorageSync(CACHE.CITY_KEY) as string) || DEFAULT_CITY
   try {
-    const raw = uni.getStorageSync("fav_cities") as string
+    const raw = uni.getStorageSync(CACHE.FAV_KEY) as string
     favCities.value = raw ? JSON.parse(raw) : []
   } catch { favCities.value = [] }
   const candidates = [currentCity.value, ...favCities.value.filter(c => c !== currentCity.value)].filter(c => getCityCoords(c))
   selected.value = candidates.slice(0, MAX_CITIES)
-  if (!selected.value.length && getCityCoords(currentCity.value)) selected.value = [currentCity.value]
   loadWeather()
 })
 

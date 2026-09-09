@@ -3,6 +3,7 @@ import { ref, computed } from "vue"
 import { onShow } from "@dcloudio/uni-app"
 import { getCachedWeather, getWeather, getCityCoords, type CurrentWeather } from "@/api/weather"
 import { loadDarkMode } from "@/utils/theme"
+import { CACHE, DEFAULT_CITY } from "@/config"
 import { moonPhase as localMoonPhase } from "@/utils/weather"
 import { stargazingScore, milkyWayScore, moonPhaseInfo, moonIllumination, moonPosition, lightPollutionByCity } from "@/utils/astronomy"
 
@@ -13,7 +14,7 @@ const loading = ref(true)
 
 onShow(async () => {
   darkMode.value = loadDarkMode()
-  city.value = (uni.getStorageSync("selected_city") as string) || "北京"
+  city.value = (uni.getStorageSync(CACHE.CITY_KEY) as string) || DEFAULT_CITY
   const cached = getCachedWeather(city.value)
   if (cached) {
     weather.value = cached

@@ -3,9 +3,11 @@ import { ref, computed, onUnmounted } from "vue"
 import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
 import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
 import { fetchActiveTyphoons, typhoonDistanceKm, pointDistanceKm, type TyphoonBrief } from "@/api/typhoon"
-import { TIMEOUT, CACHE } from "@/config"
-import { gradientFor, gradientColors, accentFor, lightFor, getUnitSettings, formatTemp, formatWind, formatPressure, formatVisibility, uvLabel } from "@/utils/weather"
+import { TIMEOUT, CACHE, DEFAULT_CITY } from "@/config"
+import { gradientFor, accentFor, lightFor, getUnitSettings, formatTemp, formatWind, formatPressure, formatVisibility, uvLabel } from "@/utils/weather"
 import { loadDarkMode, toggleDarkMode } from "@/utils/theme"
+import { shareWeatherCard } from "@/utils/share"
+import { sendDailyDigest, checkTempAlert, notifyRainIfNeeded, checkAlertsAndNotify } from "@/utils/notifications"
 import WeatherHero from "@/components/WeatherHero.vue"
 import DetailGrid from "@/components/DetailGrid.vue"
 import ForecastCard from "@/components/ForecastCard.vue"
@@ -16,7 +18,6 @@ import LifeTips from "@/components/LifeTips.vue"
 import PrecipTrend from "@/components/PrecipTrend.vue"
 import HourlyTrend from "@/components/HourlyTrend.vue"
 import AqiCard from "@/components/AqiCard.vue"
-import WeatherParticles from "@/components/WeatherParticles.vue"
 import StargazingCard from "@/components/StargazingCard.vue"
 
 const locateError = ref("")
@@ -99,7 +100,7 @@ interface CacheEntry {
   ts: number
 }
 
-const currentCity = ref("北京")
+const currentCity = ref(DEFAULT_CITY)
 const weatherCity = ref("")
 const weather = ref<CurrentWeather | null>(null)
 const loading = ref(true)
@@ -205,8 +206,8 @@ async function fetchAndUpdate(city: string) {
     applyWeatherData(res)
     setCache(res, city)
     if (res.alerts?.length) checkAlertsAndNotify(res.alerts)
-    notifyRainIfNeeded()
-    checkTempAlert()
+    notifyRainIfNeeded(currentCity.value, rainAlarm.value)
+    checkTempAlert(currentCity.value, weather.value)
   } else {
     const cached = getCache(city)
     if (cached && cached.city === city) {
@@ -253,8 +254,8 @@ onShow(async () => {
   if (saved) {
     currentCity.value = saved
   } else {
-    currentCity.value = "北京"
-    uni.setStorageSync(CACHE.CITY_KEY, "北京")
+    currentCity.value = DEFAULT_CITY
+    uni.setStorageSync(CACHE.CITY_KEY, DEFAULT_CITY)
     detectCity().then((detected) => {
       if (detected && detected !== currentCity.value) {
         currentCity.value = detected
@@ -284,7 +285,7 @@ onShow(async () => {
   loading.value = false
   startAutoRefresh()
   if (!isOffline.value) checkTyphoon()
-  sendDailyDigest()
+  sendDailyDigest(currentCity.value, weather.value)
 })
 
 onHide(() => {
@@ -353,186 +354,13 @@ async function toggleForecast(idx: number) {
 
 function showAllAlerts() {
   if (!weather.value?.alerts?.length) return
-  try { uni.setStorageSync("current_alerts", JSON.stringify(weather.value.alerts)) } catch {}
+  try { uni.setStorageSync(CACHE.ALERTS_KEY, JSON.stringify(weather.value.alerts)) } catch {}
   uni.navigateTo({ url: "/pages/alerts/alerts" })
 }
 
-function roundRectCtx(ctx: any, x: number, y: number, w: number, h: number, r: number) {
-  r = Math.min(r, w / 2, h / 2)
-  ctx.beginPath()
-  ctx.moveTo(x + r, y)
-  ctx.lineTo(x + w - r, y)
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-  ctx.lineTo(x + w, y + h - r)
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-  ctx.lineTo(x + r, y + h)
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-  ctx.lineTo(x, y + r)
-  ctx.quadraticCurveTo(x, y, x + r, y)
-  ctx.closePath()
-}
-
-function drawShareCard(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const w = displayWeather.value!
-    const city = currentCity.value
-    const W = 500, H = 700, P = 30
-    const colors = gradientColors(w.weather)
-    const textColor = w.weather.includes('雪') ? '#2c3e50' : '#ffffff'
-    const muted = (a: number) => w.weather.includes('雪') ? `rgba(44,62,80,${a})` : `rgba(255,255,255,${a})`
-
-    const ctx = uni.createCanvasContext('shareCanvas')
-
-    const grad = ctx.createLinearGradient(0, 0, 0, H)
-    grad.addColorStop(0, colors[0])
-    grad.addColorStop(0.5, colors[1])
-    grad.addColorStop(1, colors[2])
-    ctx.setFillStyle(grad)
-    ctx.fillRect(0, 0, W, H)
-
-    ctx.setGlobalAlpha(0.06)
-    ctx.setFillStyle('#ffffff')
-    ctx.beginPath()
-    ctx.arc(W - 20, -20, 160, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(W - 140, -80, 100, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.setGlobalAlpha(1)
-
-    ctx.setGlobalAlpha(0.04)
-    ctx.beginPath()
-    ctx.arc(250, H, 300, Math.PI, 0)
-    ctx.fill()
-    ctx.setGlobalAlpha(1)
-
-    ctx.setFontSize(30)
-    ctx.setFillStyle(textColor)
-    ctx.setTextAlign('center')
-    ctx.setTextBaseline('top')
-    ctx.fillText(city, W / 2, P + 8)
-
-    const now = new Date()
-    const dateStr = now.getFullYear() + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日'
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-    ctx.setFontSize(13)
-    ctx.setGlobalAlpha(0.6)
-    ctx.setFillStyle(textColor)
-    ctx.fillText(dateStr + ' ' + weekdays[now.getDay()], W / 2, P + 48)
-    ctx.setGlobalAlpha(1)
-
-    ctx.setFontSize(96)
-    ctx.setFillStyle(textColor)
-    ctx.fillText(w.temp + '°', W / 2, P + 90)
-
-    ctx.setFontSize(20)
-    ctx.setGlobalAlpha(0.85)
-    ctx.setFillStyle(textColor)
-    ctx.fillText(w.weather, W / 2, P + 200)
-    ctx.setFontSize(14)
-    ctx.setGlobalAlpha(0.6)
-    ctx.fillText('体感 ' + w.feelsLike + '°', W / 2, P + 232)
-    ctx.setGlobalAlpha(1)
-
-    ctx.setFontSize(18)
-    ctx.setFillStyle(textColor)
-    ctx.fillText('↑ ' + w.high + '°    ↓ ' + w.low + '°', W / 2, P + 270)
-
-    const details: { label: string; value: string }[] = [
-      { label: '湿度', value: w.humidity + '%' },
-      { label: w.windDir || '风向', value: w.windLevel || '--' },
-      { label: '紫外线', value: uvLabel(w.uvIndex) },
-      { label: '气压', value: w.pressure },
-      { label: '能见度', value: w.visibility },
-      { label: '日出', value: w.sunrise },
-    ]
-
-    const cols = 3
-    const cardW = (W - P * 2 - 12) / 3
-    const cardH = 58
-    const gridStartY = P + 315
-
-    details.forEach((d, i) => {
-      const col = i % cols
-      const row = Math.floor(i / cols)
-      const x = P + col * (cardW + 6)
-      const y = gridStartY + row * (cardH + 6)
-
-      ctx.setFillStyle(muted(0.13))
-      roundRectCtx(ctx, x, y, cardW, cardH, 8)
-      ctx.fill()
-
-      ctx.setFontSize(11)
-      ctx.setTextAlign('center')
-      ctx.setTextBaseline('top')
-      ctx.setGlobalAlpha(0.6)
-      ctx.setFillStyle(textColor)
-      ctx.fillText(d.label, x + cardW / 2, y + 8)
-      ctx.setFontSize(15)
-      ctx.setGlobalAlpha(1)
-      ctx.fillText(d.value, x + cardW / 2, y + 28)
-    })
-
-    const sunsetY = gridStartY + 2 * (cardH + 6) + 16
-    ctx.setGlobalAlpha(0.12)
-    ctx.setStrokeStyle(textColor)
-    ctx.setLineWidth(1)
-    ctx.beginPath()
-    ctx.moveTo(P, sunsetY)
-    ctx.lineTo(W - P, sunsetY)
-    ctx.stroke()
-    ctx.setGlobalAlpha(1)
-
-    ctx.setFontSize(13)
-    ctx.setGlobalAlpha(0.6)
-    ctx.setFillStyle(textColor)
-    ctx.setTextAlign('center')
-    ctx.fillText('日落 ' + w.sunset, W / 2, sunsetY + 12)
-    ctx.setGlobalAlpha(1)
-
-    ctx.setFontSize(13)
-    ctx.setGlobalAlpha(0.4)
-    ctx.setFillStyle(textColor)
-    ctx.fillText('清清天气 · 知冷暖 观风雨', W / 2, H - 36)
-    ctx.setGlobalAlpha(1)
-
-    ctx.draw(false, () => {
-      uni.canvasToTempFilePath({
-        canvasId: 'shareCanvas',
-        success: (res: any) => resolve(res.tempFilePath),
-        fail: (err: any) => reject(err),
-      })
-    })
-  })
-}
-
-async function shareWeather() {
+function shareWeather() {
   if (!weather.value || !displayWeather.value) return
-  try {
-    const tempPath = await drawShareCard()
-    uni.saveImageToPhotosAlbum({
-      filePath: tempPath,
-      success() {
-        uni.showToast({ title: '天气卡片已保存到相册', icon: 'none' })
-      },
-      fail(err: any) {
-        if (String(err.errMsg || '').includes('deny') || String(err.errMsg || '').includes('permission')) {
-          uni.showModal({
-            title: '需要相册权限',
-            content: '请在系统设置中允许本应用访问相册',
-            confirmText: '去设置',
-            success(res: any) {
-              if (res.confirm) uni.openSetting({})
-            },
-          })
-        } else {
-          uni.showToast({ title: '保存失败: ' + (err.errMsg || ''), icon: 'none' })
-        }
-      },
-    })
-  } catch (e: any) {
-    uni.showToast({ title: '生成卡片失败', icon: 'none' })
-  }
+  shareWeatherCard(currentCity.value, displayWeather.value)
 }
 
 const showCityPicker = ref(false)
@@ -541,7 +369,7 @@ const favCities = ref<string[]>([])
 
 function loadFavCities() {
   try {
-    const raw = uni.getStorageSync("fav_cities") as string
+    const raw = uni.getStorageSync(CACHE.FAV_KEY) as string
     favCities.value = raw ? JSON.parse(raw) as string[] : []
   } catch { favCities.value = [] }
 }
@@ -555,7 +383,7 @@ function switchCity(name: string) {
   showCityPicker.value = false
   if (name === currentCity.value) return
   currentCity.value = name
-  uni.setStorageSync("selected_city", name)
+  uni.setStorageSync(CACHE.CITY_KEY, name)
   forecastHourlys.value = {}
   expandedIndex.value = -1
   fetchAndUpdate(name)
@@ -630,102 +458,9 @@ function copyTextSummary() {
   })
 }
 
-const RAIN_NOTIFIED_KEY = "rain_notified"
-
-const DIGEST_NOTIFIED_KEY = "digest_sent"
-
-function sendDailyDigest() {
-  try {
-    const raw = uni.getStorageSync("digest_settings") as string
-    if (raw && JSON.parse(raw).enabled === false) return
-    if (!weather.value) return
-    const today = new Date().toDateString()
-    const key = currentCity.value + "_" + today
-    if (uni.getStorageSync(DIGEST_NOTIFIED_KEY) === key) return
-    const w = weather.value
-    const hrs = w.hourly?.slice(0, 8) || []
-    const maxRain = hrs.length ? Math.max(...hrs.map(h => parseInt(h.rainChance) || 0)) : 0
-    let content = w.weather + "，" + w.high + "° / " + w.low + "°"
-    if (maxRain >= 30) content += "。未来几小时降水概率 " + maxRain + "%，记得带伞"
-    content += "。紫外线 " + uvLabel(w.uvIndex)
-    if (w.aqi !== "--") content += "，空气" + w.aqiLabel
-    uni.setStorageSync(DIGEST_NOTIFIED_KEY, key)
-    if (typeof uni.createPushMessage === "function") {
-      uni.createPushMessage({
-        title: "今日天气 · " + currentCity.value,
-        content,
-      })
-    }
-  } catch {}
-}
-
-function checkTempAlert() {
-  try {
-    const raw = uni.getStorageSync("temp_alert_settings") as string
-    if (!raw) return
-    const s = JSON.parse(raw)
-    if (!s.enabled || !weather.value) return
-    const t = parseFloat(weather.value.temp)
-    if (isNaN(t)) return
-    let level = ""
-    if (s.high != null && t >= s.high) level = "高温"
-    else if (s.low != null && t <= s.low) level = "低温"
-    if (!level) return
-    const key = currentCity.value + "_" + new Date().toDateString() + "_" + level
-    const stored = uni.getStorageSync("temp_alert_notified") as string
-    if (stored === key) return
-    uni.setStorageSync("temp_alert_notified", key)
-    if (typeof uni.createPushMessage === "function") {
-      uni.createPushMessage({
-        title: level + "提醒 · " + currentCity.value,
-        content: "当前气温 " + weather.value.temp + "°C，" + (level === "高温" ? "注意防暑降温" : "注意保暖"),
-      })
-    }
-  } catch {}
-}
-
-function notifyRainIfNeeded() {
-  if (!rainAlarm.value) return
-  try {
-    const key = currentCity.value + "_" + new Date().toDateString() + "_" + rainAlarm.value.maxPct
-    const stored = uni.getStorageSync(RAIN_NOTIFIED_KEY) as string
-    if (stored === key) return
-    uni.setStorageSync(RAIN_NOTIFIED_KEY, key)
-    if (typeof uni.createPushMessage === "function") {
-      uni.createPushMessage({
-        title: "🌧 降雨提醒 · " + currentCity.value,
-        content: "未来" + rainAlarm.value.count + "小时可能降雨（" + rainAlarm.value.maxPct + "%），出门记得带伞",
-      })
-    }
-  } catch {}
-}
-
-const ALERT_NOTIFIED_KEY = "alert_notified"
-
-function checkAlertsAndNotify(alerts: import("@/api/weather").AlertItem[]) {
-  if (!alerts.length) return
-  try {
-    const raw = uni.getStorageSync(ALERT_NOTIFIED_KEY) as string
-    const notified: string[] = raw ? JSON.parse(raw) : []
-    for (const a of alerts) {
-      const key = a.event + a.start + a.end
-      if (notified.includes(key)) continue
-      notified.push(key)
-      if (typeof uni.createPushMessage === "function") {
-        uni.createPushMessage({
-          title: "天气预警: " + a.event,
-          content: a.severity ? "[" + a.severity + "] " + (a.description || "").slice(0, 60) : (a.description || "").slice(0, 60),
-        })
-      }
-    }
-    const recent = notified.slice(-50)
-    uni.setStorageSync(ALERT_NOTIFIED_KEY, JSON.stringify(recent))
-  } catch {}
-}
-
 function readRefreshInterval(): number {
   try {
-    const raw = uni.getStorageSync("unit_settings") as string
+    const raw = uni.getStorageSync(CACHE.UNIT_KEY) as string
     if (raw) {
       const s = JSON.parse(raw)
       if (typeof s.refresh === "number") return s.refresh * 60 * 1000
@@ -866,7 +601,6 @@ const weatherScene = computed(() => {
 
 <template>
     <view class="container" :class="[{ 'light-bg': lightBg, 'dark-mode': darkMode }, weatherScene]" :style="{ background: weatherGradient, paddingTop: (statusBarHeight + 12) + 'px' }">
-    <WeatherParticles :weather="displayWeather?.weather || ''" />
     <view v-if="showBrand && loading" class="brand-screen">
       <text class="brand-name">清清天气</text>
       <text class="brand-slogan">知冷暖 · 观风雨</text>
@@ -1074,28 +808,37 @@ const weatherScene = computed(() => {
 }
 
 .container.scene-sunny::before {
-  background: radial-gradient(ellipse at 30% 15%, rgba(255,220,100,0.1) 0%, transparent 50%);
+  background-image: radial-gradient(ellipse at 30% 15%, rgba(255,220,100,0.1) 0%, transparent 50%);
   animation: sunny-glow 5s ease-in-out infinite;
 }
 .container.scene-rain::before {
-  background: linear-gradient(180deg, rgba(180,210,240,0.06) 0%, rgba(180,210,240,0.12) 50%, transparent 100%);
+  background-image:
+    repeating-linear-gradient(108deg, transparent 0 5px, rgba(255,255,255,0.05) 5px 6px, transparent 6px 15px),
+    linear-gradient(180deg, rgba(180,210,240,0.06) 0%, rgba(180,210,240,0.12) 50%, transparent 100%);
   animation: rain-fade 4s ease-in-out infinite;
 }
 .container.scene-snow::before {
-  background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.12) 0%, transparent 60%);
+  background-image:
+    radial-gradient(2px 2px at 18% 28%, rgba(255,255,255,0.55) 50%, transparent 51%),
+    radial-gradient(2px 2px at 42% 62%, rgba(255,255,255,0.45) 50%, transparent 51%),
+    radial-gradient(2px 2px at 68% 22%, rgba(255,255,255,0.5) 50%, transparent 51%),
+    radial-gradient(2px 2px at 84% 70%, rgba(255,255,255,0.4) 50%, transparent 51%),
+    radial-gradient(2px 2px at 30% 84%, rgba(255,255,255,0.45) 50%, transparent 51%),
+    radial-gradient(ellipse at 50% 0%, rgba(255,255,255,0.12) 0%, transparent 60%);
+  background-repeat: no-repeat;
   animation: snow-fall 8s ease-in-out infinite;
 }
 .container.scene-thunder::before {
-  background: radial-gradient(ellipse at 50% 30%, rgba(180,160,200,0.08) 0%, transparent 50%);
+  background-image: radial-gradient(ellipse at 50% 30%, rgba(180,160,200,0.08) 0%, transparent 50%);
   animation: thunder-flash 8s ease-in-out infinite;
 }
 .container.scene-fog::before {
-  background: linear-gradient(90deg, rgba(200,210,220,0.06) 0%, rgba(200,210,220,0.12) 50%, rgba(200,210,220,0.06) 100%);
+  background-image: linear-gradient(90deg, rgba(200,210,220,0.06) 0%, rgba(200,210,220,0.12) 50%, rgba(200,210,220,0.06) 100%);
   animation: fog-drift 8s ease-in-out infinite;
 }
 .container.scene-cloudy::before,
 .container.scene-overcast::before {
-  background: radial-gradient(ellipse at 60% 20%, rgba(255,255,255,0.06) 0%, transparent 50%);
+  background-image: radial-gradient(ellipse at 60% 20%, rgba(255,255,255,0.06) 0%, transparent 50%);
   animation: cloudy-drift 6s ease-in-out infinite;
 }
 

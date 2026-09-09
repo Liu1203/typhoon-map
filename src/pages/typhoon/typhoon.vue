@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue"
 import { getCityCoords } from "@/api/weather"
 import { loadDarkMode } from "@/utils/theme"
+import { CACHE, DEFAULT_CITY } from "@/config"
 
 const mapSrc = ref("/hybrid/html/leaflet.html")
 const loaded = ref(false)
@@ -15,7 +16,7 @@ onMounted(() => {
   mapSrc.value = "/hybrid/html/leaflet.html"
   // #endif
   const params: string[] = []
-  const city = (uni.getStorageSync("selected_city") as string) || "北京"
+  const city = (uni.getStorageSync(CACHE.CITY_KEY) as string) || DEFAULT_CITY
   const coords = getCityCoords(city)
   if (coords) params.push("lat=" + coords.lat.toFixed(4), "lon=" + coords.lon.toFixed(4))
   params.push("dark=" + (loadDarkMode() ? "1" : "0"))

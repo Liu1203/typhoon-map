@@ -26,10 +26,18 @@ export const RETRY = {
 export const CACHE = {
   WEATHER_KEY: "weather_cache",
   CITY_KEY: "selected_city",
+  FAV_KEY: "fav_cities",
+  ALERTS_KEY: "current_alerts",
+  RECENT_KEY: "recent_searches",
+  UNIT_KEY: "unit_settings",
+  TEMP_ALERT_KEY: "temp_alert_settings",
+  DIGEST_KEY: "digest_settings",
   DARK_MODE_KEY: "dark_mode",
   AUTO_REFRESH_MS: 30 * 60 * 1000,
   TTL_MS: 2 * 60 * 60 * 1000,
 } as const
+
+export const DEFAULT_CITY = "北京"
 
 export const WEATHER = {
   FORECAST_DAYS_SHOWN: 7,
