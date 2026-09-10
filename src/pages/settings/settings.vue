@@ -22,6 +22,7 @@ const moduleList: { key: keyof ModuleConfig; label: string }[] = [
   { key: "aqi", label: "空气质量" },
   { key: "forecast", label: "未来天气" },
   { key: "hourly", label: "逐时天气" },
+  { key: "nowcast", label: "未来2小时降雨" },
   { key: "lifetips", label: "生活指数" },
   { key: "temptr", label: "温度趋势" },
   { key: "preciptr", label: "降水趋势" },

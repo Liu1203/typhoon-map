@@ -11,7 +11,18 @@ const props = defineProps<{
   accentColor: string
   sunrise: string
   sunset: string
+  yesterdayHigh?: string
+  yesterdayLow?: string
 }>()
+
+const compareText = computed(() => {
+  const h = parseFloat(props.high)
+  const yh = parseFloat(props.yesterdayHigh ?? "")
+  if (isNaN(h) || isNaN(yh)) return ""
+  const d = Math.round(h - yh)
+  if (d === 0) return "与昨天持平"
+  return "较昨天 " + (d > 0 ? "↑" + d : "↓" + Math.abs(d)) + "°"
+})
 
 const now = ref(new Date())
 let nowTimer: ReturnType<typeof setInterval> | null = null
@@ -53,6 +64,7 @@ const nowTime = computed(() => {
       <view class="temp-divider" />
       <text class="temp-low">↓ {{ low }}°</text>
     </view>
+    <text class="temp-compare" v-if="compareText">{{ compareText }}</text>
     <view class="daylight-row" v-if="sunrise && sunrise !== '--'">
       <text class="daylight-label">{{ sunrise }}</text>
       <view class="sun-arc">
@@ -134,6 +146,14 @@ const nowTime = computed(() => {
   font-size: var(--font-size-md);
   color: rgba(255,255,255,0.65);
   font-weight: var(--font-weight-medium);
+}
+.temp-compare {
+  display: block;
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.7);
+  margin-top: calc(-1 * var(--spacing-md));
+  margin-bottom: var(--spacing-sm);
 }
 .daylight-row {
   display: flex;

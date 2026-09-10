@@ -19,6 +19,7 @@ import PrecipTrend from "@/components/PrecipTrend.vue"
 import HourlyTrend from "@/components/HourlyTrend.vue"
 import AqiCard from "@/components/AqiCard.vue"
 import StargazingCard from "@/components/StargazingCard.vue"
+import NowcastCard from "@/components/NowcastCard.vue"
 
 const locateError = ref("")
 const isOffline = ref(false)
@@ -477,6 +478,8 @@ const displayWeather = computed(() => {
   w.feelsLike = formatTemp(w.feelsLike, s.temp === "f")
   w.high = formatTemp(w.high, s.temp === "f")
   w.low = formatTemp(w.low, s.temp === "f")
+  if (w.yesterdayHigh != null) w.yesterdayHigh = formatTemp(w.yesterdayHigh, s.temp === "f")
+  if (w.yesterdayLow != null) w.yesterdayLow = formatTemp(w.yesterdayLow, s.temp === "f")
   if (s.wind !== "kmh") {
     w.windScale = formatWind(w.windScale, s.wind)
     w.windGust = formatWind(w.windGust, s.wind)
@@ -487,15 +490,15 @@ const displayWeather = computed(() => {
 })
 
 const homeModules = ref<{ modules: Record<string, boolean>; order: string[] }>({
-  modules: { detail: true, aqi: true, forecast: true, hourly: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true },
-  order: ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
+  modules: { detail: true, aqi: true, forecast: true, hourly: true, nowcast: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true },
+  order: ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
 })
 
 function loadHomeModules() {
   const s = getUnitSettings()
   homeModules.value = {
     modules: s.modules as unknown as Record<string, boolean>,
-    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
+    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
   }
 }
 
@@ -533,6 +536,17 @@ const rainAlarm = computed(() => {
   if (!risky.length) return null
   const maxPct = Math.max(...risky.map(h => parseInt(h.rainChance)))
   return { count: risky.length, maxPct }
+})
+
+const tempDropAlarm = computed(() => {
+  const f = weather.value?.forecast
+  if (!f || !f.length) return null
+  const todayHigh = parseFloat(weather.value!.high)
+  const tomorrowHigh = parseFloat(f[0].high)
+  if (isNaN(todayHigh) || isNaN(tomorrowHigh)) return null
+  const drop = Math.round(todayHigh - tomorrowHigh)
+  if (drop < 5) return null
+  return { drop }
 })
 
 const typhoonAlert = ref<{ name: string; distance: number; minPath: number; minPathHours: number; windSpeed: number; grade: string } | null>(null)
@@ -637,6 +651,10 @@ const weatherScene = computed(() => {
         <text class="rain-alarm-icon">☔</text>
         <text class="rain-alarm-text">未来{{ rainAlarm.count }}小时可能降雨（{{ rainAlarm.maxPct }}%），出门记得带伞</text>
       </view>
+      <view v-if="tempDropAlarm" class="temp-drop-banner anim-fade-in-down" style="animation-delay: 0.09s">
+        <text class="temp-drop-icon">🧥</text>
+        <text class="temp-drop-text">明天较今天降温 {{ tempDropAlarm.drop }}°，注意添衣保暖</text>
+      </view>
       <view v-if="typhoonAlert" class="typhoon-alert-banner anim-fade-in-down" style="animation-delay: 0.1s" @tap="goTyphoon">
         <text class="typhoon-alert-icon">🌀</text>
         <text class="typhoon-alert-text">台风「{{ typhoonAlert.name }}」距 {{ currentCity }} 约 {{ typhoonAlert.distance }}km{{ typhoonAlert.minPath < typhoonAlert.distance ? '，路径最近约 ' + typhoonAlert.minPath + 'km' + (typhoonAlert.minPathHours > 0 ? '（约 ' + typhoonAlert.minPathHours + ' 小时后）' : '') : '' }}，点击查看路径</text>
@@ -646,7 +664,7 @@ const weatherScene = computed(() => {
         <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
       </view>
 
-      <WeatherHero :temp="displayWeather!.temp" :feelsLike="displayWeather!.feelsLike" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
+      <WeatherHero :temp="displayWeather!.temp" :feelsLike="displayWeather!.feelsLike" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" :yesterdayHigh="displayWeather!.yesterdayHigh" :yesterdayLow="displayWeather!.yesterdayLow" />
 
       <template v-for="key in homeModules.order" :key="key">
         <DetailGrid v-if="key === 'detail' && homeModules.modules.detail" :weather="displayWeather!" />
@@ -663,6 +681,8 @@ const weatherScene = computed(() => {
           <HourlyTrend :hourly="displayHourly" />
           <HourlyScroll :hourly="displayHourly" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
         </view>
+
+        <NowcastCard v-if="key === 'nowcast' && homeModules.modules.nowcast && displayWeather!.minutely && displayWeather!.minutely.length" :minutely="displayWeather!.minutely!" />
 
         <LifeTips v-if="key === 'lifetips' && homeModules.modules.lifetips" class="lazy-render" :weather="displayWeather!" />
 
@@ -1015,6 +1035,25 @@ const weatherScene = computed(() => {
   flex-shrink: 0;
 }
 .rain-alarm-text {
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.95);
+}
+
+.temp-drop-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin: 0 var(--spacing-md) var(--spacing-sm);
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(240, 144, 80, 0.2);
+  border: 1px solid rgba(240, 144, 80, 0.35);
+}
+.temp-drop-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.temp-drop-text {
   font-size: var(--font-size-xs);
   color: rgba(255,255,255,0.95);
 }

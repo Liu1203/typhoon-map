@@ -180,6 +180,11 @@ export interface AlertItem {
   description: string
 }
 
+export interface MinutelyPoint {
+  time: string
+  precip: number
+}
+
 export interface CurrentWeather {
   temp: string
   feelsLike: string
@@ -190,6 +195,8 @@ export interface CurrentWeather {
   weather: string
   high: string
   low: string
+  yesterdayHigh?: string
+  yesterdayLow?: string
   sunrise: string
   sunset: string
   uvIndex: string
@@ -207,6 +214,7 @@ export interface CurrentWeather {
   forecast: ForecastDay[]
   hourly: HourlyItem[]
   hourlyByDate?: Record<string, HourlyItem[]>
+  minutely?: MinutelyPoint[]
   alerts: AlertItem[]
 }
 
@@ -399,7 +407,9 @@ async function fetchOpenMeteo(lat: number, lon: number): Promise<any> {
     "current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_direction_10m,uv_index,precipitation,surface_pressure,visibility,dew_point_2m,cloud_cover,wind_gusts_10m",
     "daily=temperature_2m_max,temperature_2m_min,sunrise,sunset,weather_code,uv_index_max,precipitation_sum,moonrise,moonset,moon_phase",
     "hourly=temperature_2m,apparent_temperature,relative_humidity_2m,cloud_cover,weather_code,precipitation_probability,precipitation,wind_speed_10m,wind_direction_10m",
+    "minutely_15=precipitation",
     "timezone=auto",
+    "past_days=1",
     "forecast_days=7",
     "alerts=true",
   ]
@@ -436,12 +446,18 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
   const weatherDesc = weatherByPrecip(wcode, precip) || OM_WX[wcode] || translateWeather(String(wcode))
 
   const now = new Date()
-  const todayDate = daily?.time?.[0] || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
-  const currentHour = now.getHours()
+  const pad2 = (n: number) => String(n).padStart(2, "0")
+  const curDate = cur?.time ? String(cur.time).slice(0, 10) : ""
+  const localToday = curDate || now.getFullYear() + "-" + pad2(now.getMonth() + 1) + "-" + pad2(now.getDate())
+  const foundIdx = daily?.time ? daily.time.indexOf(localToday) : -1
+  const todayIdx = foundIdx >= 0 ? foundIdx : Math.min(1, (daily?.time?.length ?? 1) - 1)
+  const todayDate = daily?.time?.[todayIdx] || localToday
+  const currentHour = cur?.time ? parseInt(String(cur.time).slice(11, 13)) : now.getHours()
 
   const forecast: ForecastDay[] = []
   if (daily?.time) {
-    for (let i = 1; i < Math.min(daily.time.length, WEATHER.FORECAST_DAYS_SHOWN); i++) {
+    const end = Math.min(daily.time.length, todayIdx + WEATHER.FORECAST_DAYS_SHOWN)
+    for (let i = todayIdx + 1; i < end; i++) {
       const fc = daily.weather_code?.[i] ?? 0
       const dp = daily.precipitation_sum?.[i] ?? 0
       forecast.push({
@@ -506,6 +522,18 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
     }
   }
 
+  const minutely: MinutelyPoint[] = []
+  const m15 = data.minutely_15
+  if (m15?.time && m15?.precipitation) {
+    const nowMs = cur?.time ? new Date(String(cur.time)).getTime() : now.getTime()
+    for (let i = 0; i < m15.time.length && minutely.length < 8; i++) {
+      const t = String(m15.time[i])
+      const d = new Date(t)
+      if (isNaN(d.getTime()) || d.getTime() < nowMs - 15 * 60000) continue
+      minutely.push({ time: t.slice(11, 16), precip: Number(m15.precipitation[i]) || 0 })
+    }
+  }
+
   return {
     temp: String(cur.temperature_2m ?? "--"),
     feelsLike: String(cur.apparent_temperature ?? "--"),
@@ -514,10 +542,10 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
     windScale: String(cur.wind_speed_10m ?? "--"),
     windLevel: windLevel(String(cur.wind_speed_10m)),
     weather: weatherDesc,
-    high: String(daily?.temperature_2m_max?.[0] ?? "--"),
-    low: String(daily?.temperature_2m_min?.[0] ?? "--"),
-    sunrise: daily?.sunrise?.[0] ? extractTime(daily.sunrise[0]) : "--",
-    sunset: daily?.sunset?.[0] ? extractTime(daily.sunset[0]) : "--",
+    high: String(daily?.temperature_2m_max?.[todayIdx] ?? "--"),
+    low: String(daily?.temperature_2m_min?.[todayIdx] ?? "--"),
+    sunrise: daily?.sunrise?.[todayIdx] ? extractTime(daily.sunrise[todayIdx]) : "--",
+    sunset: daily?.sunset?.[todayIdx] ? extractTime(daily.sunset[todayIdx]) : "--",
     uvIndex: String(cur.uv_index ?? "--"),
     pressure: cur.surface_pressure != null ? Math.round(cur.surface_pressure) + " hPa" : "--",
     visibility: cur.visibility != null ? (cur.visibility / 1000).toFixed(1) + " km" : "--",
@@ -527,12 +555,15 @@ function parseWeatherData(data: any, aqiResult?: { aqi: number; label: string } 
     aqi: aqiResult ? String(aqiResult.aqi) : "--",
     aqiLabel: aqiResult ? aqiResult.label : "",
     aqiDetail: aqiResult || undefined,
-    moonrise: daily?.moonrise?.[0] ? extractTime(daily.moonrise[0]) : "--",
-    moonset: daily?.moonset?.[0] ? extractTime(daily.moonset[0]) : "--",
-    moonPhase: daily?.moon_phase?.[0] != null ? Number(daily.moon_phase[0]) : undefined,
+    moonrise: daily?.moonrise?.[todayIdx] ? extractTime(daily.moonrise[todayIdx]) : "--",
+    moonset: daily?.moonset?.[todayIdx] ? extractTime(daily.moonset[todayIdx]) : "--",
+    moonPhase: daily?.moon_phase?.[todayIdx] != null ? Number(daily.moon_phase[todayIdx]) : undefined,
+    yesterdayHigh: todayIdx > 0 && daily?.temperature_2m_max?.[todayIdx - 1] != null ? String(daily.temperature_2m_max[todayIdx - 1]) : undefined,
+    yesterdayLow: todayIdx > 0 && daily?.temperature_2m_min?.[todayIdx - 1] != null ? String(daily.temperature_2m_min[todayIdx - 1]) : undefined,
     forecast,
     hourly: hourlyItems,
     hourlyByDate,
+    minutely: minutely.length ? minutely : undefined,
     alerts,
   }
 }
