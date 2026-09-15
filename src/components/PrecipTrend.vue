@@ -41,11 +41,12 @@ function barHeight(pct: number): string {
 
 <style scoped>
 .precip-card {
-  background: var(--color-paper);
+  background: var(--card-bg);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
   margin-bottom: var(--spacing-md);
-  border: 1px solid var(--color-paper-border);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
 }
 .section-header {
   display: flex;
@@ -56,7 +57,7 @@ function barHeight(pct: number): string {
 .section-decor {
   width: 3px;
   height: 18px;
-  background: var(--color-primary);
+  background: var(--accent, var(--color-primary));
   border-radius: 2px;
 }
 .section-title {
@@ -95,7 +96,7 @@ function barHeight(pct: number): string {
 .precip-bar {
   width: 8px;
   border-radius: 4px 4px 0 0;
-  background: linear-gradient(180deg, #5B8FC0, #8BB8E0);
+  background: var(--accent, var(--color-primary));
   min-height: 4px;
   transition: height .3s ease;
 }

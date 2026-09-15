@@ -66,12 +66,12 @@ const emit = defineEmits<{
 
 <style scoped>
 .card {
-  background: rgba(255,255,255,0.92);
+  background: var(--card-bg);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
-  box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03);
+  box-shadow: var(--card-shadow);
   margin-bottom: var(--spacing-md);
-  border: 1px solid rgba(255,255,255,0.6);
+  border: 1px solid var(--card-border);
   transform: translateZ(0);
 }
 .section-header {
@@ -83,7 +83,7 @@ const emit = defineEmits<{
 .section-decor {
   width: 3px;
   height: 18px;
-  background: var(--color-primary);
+  background: var(--accent, var(--color-primary));
   border-radius: 2px;
 }
 .section-title {

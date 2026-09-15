@@ -131,7 +131,7 @@ const tips = computed((): Tip[] => {
     </view>
     <view class="life-grid">
       <view class="life-item" v-for="t in tips" :key="t.label">
-        <view class="life-icon"><Icon :name="t.icon" :size="24" color="#5B8FC0" /></view>
+        <view class="life-icon"><Icon :name="t.icon" :size="24" color="#C99A3E" /></view>
         <text class="life-label">{{ t.label }}</text>
         <text class="life-level">{{ t.level }}</text>
         <text class="life-tip">{{ t.tip }}</text>
@@ -172,7 +172,7 @@ const tips = computed((): Tip[] => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(91, 143, 192, 0.1);
+  background: var(--accent-soft, rgba(201,154,62,0.14));
   margin-bottom: 4px;
 }
 
@@ -185,8 +185,8 @@ const tips = computed((): Tip[] => {
 .life-level {
   font-size: 11px;
   font-weight: var(--font-weight-semibold);
-  color: var(--color-primary);
-  background: rgba(91, 143, 192, 0.1);
+  color: var(--accent, var(--color-primary));
+  background: var(--accent-soft, rgba(201,154,62,0.14));
   padding: 0 8px;
   border-radius: 10px;
   line-height: 1.6;

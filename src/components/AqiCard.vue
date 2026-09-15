@@ -142,11 +142,13 @@ const trendTimes = computed(() => {
 
 <style scoped>
 .aqi-card {
-  background: rgba(255,255,255,0.92);
+  background: linear-gradient(155deg, var(--accent-soft, rgba(91,143,192,0.1)) 0%, var(--card-bg) 52%);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
   margin-bottom: var(--spacing-md);
-  border: 1px solid rgba(255,255,255,0.6);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--accent, var(--color-primary));
+  box-shadow: var(--card-shadow);
 }
 .aqi-head {
   display: flex;

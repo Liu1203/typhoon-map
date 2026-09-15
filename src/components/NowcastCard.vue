@@ -34,7 +34,7 @@ function barH(p: MinutelyPoint): string {
       <text class="section-title">未来 2 小时降雨</text>
     </view>
     <view class="nowcast-summary">
-      <view class="nowcast-icon"><Icon :name="hasRain ? 'cloud-rain' : 'sun'" :size="18" :color="hasRain ? '#5B8FC0' : '#D4A550'" /></view>
+      <view class="nowcast-icon"><Icon :name="hasRain ? 'cloud-rain' : 'sun'" :size="18" :color="hasRain ? '#3E9BC0' : '#D4A550'" /></view>
       <text class="nowcast-text">{{ summary }}</text>
     </view>
     <view class="nowcast-chart">
@@ -83,11 +83,11 @@ function barH(p: MinutelyPoint): string {
   width: 100%;
   max-width: 14px;
   border-radius: 3px 3px 0 0;
-  background: rgba(91,143,192,0.25);
+  background: rgba(62,155,192,0.25);
   transition: height 0.3s ease;
 }
 .nowcast-bar.active {
-  background: linear-gradient(180deg, #6BA3D4, #5B8FC0);
+  background: linear-gradient(180deg, #5BB4D4, #3E9BC0);
 }
 .nowcast-time {
   font-size: 9px;

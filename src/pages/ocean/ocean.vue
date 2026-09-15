@@ -124,32 +124,33 @@ function waveLevel(v: number): string {
 .empty-text { font-size: var(--font-size-sm); color: var(--color-ash); }
 
 .card {
-  background: var(--color-paper);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--card-shadow);
   margin-bottom: var(--spacing-md);
 }
 
 .wave-main { text-align: center; }
 .wave-label { font-size: var(--font-size-xs); color: var(--color-ink-light); }
 .wave-value-row { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin: 6px 0; }
-.wave-value { font-size: 56px; font-weight: var(--font-weight-bold); color: var(--color-primary); line-height: 1; }
+.wave-value { font-size: 56px; font-weight: var(--font-weight-bold); color: var(--m-ocean); line-height: 1; }
 .wave-unit { font-size: var(--font-size-lg); color: var(--color-ink-light); }
-.wave-level { display: inline-block; font-size: var(--font-size-xs); color: var(--color-primary); background: rgba(91,143,192,0.12); padding: 2px 12px; border-radius: 999px; }
+.wave-level { display: inline-block; font-size: var(--font-size-xs); color: var(--m-ocean); background: var(--m-ocean-soft); padding: 2px 12px; border-radius: 999px; }
 
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--spacing-sm); margin-bottom: var(--spacing-md); }
-.stat-item { background: var(--color-paper); border-radius: var(--radius-lg); padding: var(--spacing-md) var(--spacing-sm); text-align: center; box-shadow: var(--shadow-sm); }
+.stat-item { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: var(--radius-lg); padding: var(--spacing-md) var(--spacing-sm); text-align: center; box-shadow: var(--shadow-sm); }
 .stat-label { display: block; font-size: var(--font-size-xs); color: var(--color-ash); margin-bottom: 4px; }
 .stat-value { display: block; font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); color: var(--color-ink); }
 
 .section-header { display: flex; align-items: center; gap: var(--spacing-sm); margin-bottom: var(--spacing-lg); }
-.section-decor { width: 3px; height: 14px; border-radius: 2px; background: var(--color-primary); }
-.section-title { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-ink); }
+.section-decor { width: 3px; height: 16px; border-radius: 2px; background: var(--m-ocean); }
+.section-title { font-size: var(--font-size-md); font-weight: var(--font-weight-semibold); color: var(--color-ink); }
 
 .wave-chart { display: flex; align-items: flex-end; justify-content: space-between; gap: 2px; height: 96px; }
 .wave-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 2px; }
-.wave-bar { width: 100%; max-width: 12px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #6BA3D4, #5B8FC0); transition: height 0.3s ease; }
+.wave-bar { width: 100%; max-width: 12px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #4FB6C9, #2E9BAE); transition: height 0.3s ease; }
 .wave-time { font-size: 9px; color: var(--color-ash); height: 11px; line-height: 11px; white-space: nowrap; }
 
 .foot-hint { text-align: center; font-size: 10px; color: var(--color-ash); margin-top: var(--spacing-lg); }

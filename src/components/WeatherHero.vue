@@ -81,8 +81,27 @@ const nowTime = computed(() => {
 
 <style scoped>
 .weather-hero {
+  position: relative;
   text-align: center;
   padding: var(--spacing-lg) 0 var(--spacing-lg);
+}
+.weather-hero::before {
+  content: "";
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 230px;
+  height: 230px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--accent, #E09050) 0%, transparent 62%);
+  opacity: 0.22;
+  pointer-events: none;
+  z-index: 0;
+}
+.weather-hero > * {
+  position: relative;
+  z-index: 1;
 }
 .temp-display {
   display: flex;

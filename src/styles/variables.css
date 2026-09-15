@@ -126,3 +126,63 @@
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.45);
 }
+
+/* ===== 模块语义色 & 玻璃/卡片令牌 ===== */
+:root {
+  --m-weather: #5B8FC0;
+  --m-air: #4FA98C;
+  --m-forecast: #5C7CC0;
+  --m-hourly: #5B8FC0;
+  --m-nowcast: #3E9BC0;
+  --m-life: #C99A3E;
+  --m-temp: #E0703F;
+  --m-precip: #3E9BC0;
+  --m-typhoon: #C9503F;
+  --m-quake: #D9843C;
+  --m-radar: #4FA98C;
+  --m-star: #8268B0;
+  --m-ocean: #2E9BAE;
+
+  --m-weather-soft: rgba(91,143,192,0.12);
+  --m-air-soft: rgba(79,169,140,0.12);
+  --m-forecast-soft: rgba(92,124,192,0.12);
+  --m-hourly-soft: rgba(91,143,192,0.12);
+  --m-nowcast-soft: rgba(62,155,192,0.12);
+  --m-life-soft: rgba(201,154,62,0.14);
+  --m-temp-soft: rgba(224,112,63,0.12);
+  --m-precip-soft: rgba(62,155,192,0.12);
+  --m-typhoon-soft: rgba(201,80,63,0.12);
+  --m-quake-soft: rgba(217,132,60,0.12);
+  --m-radar-soft: rgba(79,169,140,0.12);
+  --m-star-soft: rgba(130,104,176,0.12);
+  --m-ocean-soft: rgba(46,155,174,0.12);
+
+  --card-bg: rgba(255,255,255,0.9);
+  --card-border: rgba(255,255,255,0.7);
+  --card-shadow: 0 4px 20px rgba(44,62,80,0.07);
+
+  --glass-bg: rgba(255,255,255,0.55);
+  --glass-bg-strong: rgba(255,255,255,0.72);
+  --glass-border: rgba(255,255,255,0.55);
+  --glass-blur: blur(14px);
+}
+
+.dark-mode {
+  --card-bg: rgba(30,36,48,0.9);
+  --card-border: rgba(255,255,255,0.06);
+  --card-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  --glass-bg: rgba(30,36,48,0.5);
+  --glass-bg-strong: rgba(30,36,48,0.7);
+  --glass-border: rgba(255,255,255,0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --card-bg: rgba(30,36,48,0.9);
+    --card-border: rgba(255,255,255,0.06);
+    --card-shadow: 0 4px 20px rgba(0,0,0,0.35);
+    --glass-bg: rgba(30,36,48,0.5);
+    --glass-bg-strong: rgba(30,36,48,0.7);
+    --glass-border: rgba(255,255,255,0.08);
+  }
+}

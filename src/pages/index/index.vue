@@ -682,11 +682,11 @@ const weatherScene = computed(() => {
       <template v-for="key in homeModules.order" :key="key">
         <DetailGrid v-if="key === 'detail' && homeModules.modules.detail" :weather="displayWeather!" />
 
-        <AqiCard v-if="key === 'aqi' && homeModules.modules.aqi && displayWeather!.aqi !== '--'" :weather="displayWeather!" />
+        <AqiCard v-if="key === 'aqi' && homeModules.modules.aqi && displayWeather!.aqi !== '--'" class="accent-air" :weather="displayWeather!" />
 
-        <ForecastCard v-if="key === 'forecast' && homeModules.modules.forecast" :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
+        <ForecastCard v-if="key === 'forecast' && homeModules.modules.forecast" class="accent-forecast" :forecast="displayForecast" :forecastHourlys="forecastHourlys" :expandedIndex="expandedIndex" @toggle="toggleForecast" />
 
-        <view class="card hourly-card anim-fade-in-up" style="animation-delay: 0.25s" v-if="key === 'hourly' && homeModules.modules.hourly && displayHourly.length > 0">
+        <view class="card hourly-card anim-fade-in-up accent-hourly" style="animation-delay: 0.25s" v-if="key === 'hourly' && homeModules.modules.hourly && displayHourly.length > 0">
           <view class="section-header">
             <view class="section-decor" />
             <text class="section-title">逐时天气</text>
@@ -695,18 +695,18 @@ const weatherScene = computed(() => {
           <HourlyScroll :hourly="displayHourly" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" />
         </view>
 
-        <NowcastCard v-if="key === 'nowcast' && homeModules.modules.nowcast && displayWeather!.minutely && displayWeather!.minutely.length" :minutely="displayWeather!.minutely!" />
+        <NowcastCard v-if="key === 'nowcast' && homeModules.modules.nowcast && displayWeather!.minutely && displayWeather!.minutely.length" class="accent-nowcast" :minutely="displayWeather!.minutely!" />
 
-        <LifeTips v-if="key === 'lifetips' && homeModules.modules.lifetips" class="lazy-render" :weather="weather!" />
+        <LifeTips v-if="key === 'lifetips' && homeModules.modules.lifetips" class="lazy-render accent-life" :weather="weather!" />
 
-        <TempTrend v-if="key === 'temptr' && homeModules.modules.temptr" class="lazy-render" :forecast="displayForecast" />
+        <TempTrend v-if="key === 'temptr' && homeModules.modules.temptr" class="lazy-render accent-temp" :forecast="displayForecast" />
 
-        <PrecipTrend v-if="key === 'preciptr' && homeModules.modules.preciptr" class="lazy-render" :forecast="displayForecast" />
+        <PrecipTrend v-if="key === 'preciptr' && homeModules.modules.preciptr" class="lazy-render accent-precip" :forecast="displayForecast" />
 
-        <view v-if="key === 'typhoon' && homeModules.modules.typhoon" class="entry-module">
+        <view v-if="key === 'typhoon' && homeModules.modules.typhoon" class="entry-module accent-typhoon">
           <view class="entry-card typhoon-entry" @tap="goTyphoon">
             <view class="entry-icon-wrap">
-              <image src="/static/typhoon-entry.svg" class="entry-icon-svg" mode="aspectFit" />
+              <Icon name="typhoon" :size="22" color="#C9503F" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">台风路径</text>
@@ -716,10 +716,10 @@ const weatherScene = computed(() => {
           </view>
         </view>
 
-        <view v-if="key === 'quake' && homeModules.modules.quake" class="entry-module">
+        <view v-if="key === 'quake' && homeModules.modules.quake" class="entry-module accent-quake">
           <view class="entry-card quake-entry" @tap="goQuake">
             <view class="entry-icon-wrap">
-              <Icon name="activity" :size="22" color="#E08A3C" />
+              <Icon name="activity" :size="22" color="#D9843C" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">地震信息</text>
@@ -729,10 +729,10 @@ const weatherScene = computed(() => {
           </view>
         </view>
 
-        <view v-if="key === 'radar' && homeModules.modules.radar" class="entry-module">
+        <view v-if="key === 'radar' && homeModules.modules.radar" class="entry-module accent-radar">
           <view class="entry-card radar-entry" @tap="goRadar">
             <view class="entry-icon-wrap">
-              <Icon name="cloud-rain" :size="22" color="#5B8FC0" />
+              <Icon name="cloud-rain" :size="22" color="#4FA98C" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">雷达降水</text>
@@ -742,14 +742,14 @@ const weatherScene = computed(() => {
           </view>
         </view>
 
-        <view v-if="key === 'stargazing' && homeModules.modules.stargazing" @tap="goAstronomy">
+        <view v-if="key === 'stargazing' && homeModules.modules.stargazing" class="accent-star" @tap="goAstronomy">
           <StargazingCard :weather="displayWeather!" />
         </view>
 
-        <view v-if="key === 'ocean' && homeModules.modules.ocean" class="entry-module">
+        <view v-if="key === 'ocean' && homeModules.modules.ocean" class="entry-module accent-ocean">
           <view class="entry-card ocean-entry" @tap="goOcean">
             <view class="entry-icon-wrap">
-              <Icon name="waves" :size="22" color="#6DAF98" />
+              <Icon name="waves" :size="22" color="#2E9BAE" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">海洋预报</text>
@@ -848,6 +848,18 @@ const weatherScene = computed(() => {
   will-change: opacity;
 }
 
+.container::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -2;
+  background-image:
+    radial-gradient(circle at 14% 6%, rgba(255,255,255,0.38) 0%, transparent 38%),
+    radial-gradient(circle at 88% 20%, rgba(255,255,255,0.16) 0%, transparent 42%),
+    radial-gradient(circle at 72% 98%, rgba(255,255,255,0.1) 0%, transparent 46%);
+}
+
 .lazy-render {
   content-visibility: auto;
   contain-intrinsic-size: auto 260px;
@@ -932,9 +944,9 @@ const weatherScene = computed(() => {
 .light-bg .update-time,
 .light-bg .entry-title { color: var(--color-ink); }
 
-.light-bg .card { background: rgba(255,255,255,0.85); }
-.light-bg .detail-item { background: rgba(255,255,255,0.7); }
-.light-bg .entry-card { background: rgba(255,255,255,0.85); }
+.light-bg .card { background: rgba(255,255,255,0.88); }
+.light-bg .detail-item { background: rgba(255,255,255,0.75); }
+.light-bg .entry-card { background: var(--glass-bg-strong); }
 
 .header-section {
   padding: var(--spacing-sm) 0 var(--spacing-xl);
@@ -984,14 +996,16 @@ const weatherScene = computed(() => {
   gap: var(--spacing-xs);
   padding: 7px 14px;
   border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.22);
-  border: 1px solid rgba(255,255,255,0.3);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   transition: transform var(--transition-fast), background var(--transition-fast);
 }
 
 .locate-btn.is-locating {
-  background: rgba(255,255,255,0.35);
-  border-color: rgba(255,255,255,0.5);
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-border);
 }
 
 .more-btn {
@@ -1046,6 +1060,14 @@ const weatherScene = computed(() => {
   color: rgba(255,255,255,0.9);
 }
 
+.alert-banner,
+.rain-alarm-banner,
+.temp-drop-banner,
+.typhoon-alert-banner {
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
 .rain-alarm-banner {
   display: flex;
   align-items: center;
@@ -1053,7 +1075,7 @@ const weatherScene = computed(() => {
   margin: 0 var(--spacing-md) var(--spacing-sm);
   padding: 8px 14px;
   border-radius: var(--radius-md);
-  background: rgba(91, 143, 192, 0.2);
+  background: rgba(91, 143, 192, 0.24);
   border: 1px solid rgba(91, 143, 192, 0.35);
 }
 .rain-alarm-icon {
@@ -1150,12 +1172,12 @@ const weatherScene = computed(() => {
 }
 
 .card {
-  background: rgba(255,255,255,0.92);
+  background: var(--card-bg);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
-  box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.03);
+  box-shadow: var(--card-shadow);
   margin-bottom: var(--spacing-md);
-  border: 1px solid rgba(255,255,255,0.6);
+  border: 1px solid var(--card-border);
   transform: translateZ(0);
 }
 
@@ -1169,7 +1191,7 @@ const weatherScene = computed(() => {
 .section-decor {
   width: 3px;
   height: 18px;
-  background: var(--color-primary);
+  background: var(--accent, var(--color-primary));
   border-radius: 2px;
 }
 
@@ -1194,10 +1216,12 @@ const weatherScene = computed(() => {
   align-items: center;
   gap: var(--spacing-md);
   padding: var(--spacing-lg) var(--spacing-xl);
-  background: rgba(255,255,255,0.92);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   border-radius: var(--radius-xl);
-  box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--glass-border);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   transform: translateZ(0);
 }
@@ -1217,10 +1241,10 @@ const weatherScene = computed(() => {
   flex-shrink: 0;
 }
 
-.typhoon-entry .entry-icon-wrap { background: rgba(91,143,192,0.12); }
-.quake-entry .entry-icon-wrap { background: rgba(224,138,60,0.12); }
-.radar-entry .entry-icon-wrap { background: rgba(91,143,192,0.12); }
-.ocean-entry .entry-icon-wrap { background: rgba(109,175,152,0.12); }
+.typhoon-entry .entry-icon-wrap { background: var(--m-typhoon-soft); }
+.quake-entry .entry-icon-wrap { background: var(--m-quake-soft); }
+.radar-entry .entry-icon-wrap { background: var(--m-radar-soft); }
+.ocean-entry .entry-icon-wrap { background: var(--m-ocean-soft); }
 
 .entry-icon { font-size: 22px; }
 
@@ -1311,7 +1335,7 @@ const weatherScene = computed(() => {
 
 .dark-mode .detail-item { background: rgba(30,36,48,0.6); border-color: rgba(255,255,255,0.06); }
 .dark-mode .card { background: rgba(30,36,48,0.85); border-color: rgba(255,255,255,0.08); box-shadow: 0 2px 16px rgba(0,0,0,0.2); }
-.dark-mode .entry-card { background: rgba(30,36,48,0.85); }
+.dark-mode .entry-card { background: var(--glass-bg); }
 
 .city-picker-overlay {
   position: fixed;
@@ -1326,7 +1350,10 @@ const weatherScene = computed(() => {
 .city-picker-card {
   width: 320px;
   max-height: 70vh;
-  background: #fff;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   overflow: hidden;
   display: flex;
@@ -1399,7 +1426,7 @@ const weatherScene = computed(() => {
 .picker-footer:active { background: #f7fafc; }
 .picker-search-icon { display: flex; align-items: center; justify-content: center; }
 
-.dark-mode .city-picker-card { background: #1e2430; }
+.dark-mode .city-picker-card { background: var(--glass-bg-strong); }
 .dark-mode .picker-title { color: #E0E6ED; }
 .dark-mode .picker-item { color: #C8D0DC; }
 .dark-mode .picker-item:active { background: rgba(255,255,255,0.05); }
@@ -1428,10 +1455,12 @@ const weatherScene = computed(() => {
   position: fixed;
   right: var(--spacing-lg);
   width: 176px;
-  background: #fff;
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
   border-radius: 14px;
   box-shadow: 0 10px 32px rgba(0,0,0,0.18);
-  border: 1px solid rgba(0,0,0,0.06);
+  border: 1px solid var(--glass-border);
   overflow: hidden;
   z-index: 951;
   animation: menu-pop 0.16s ease-out;
@@ -1469,7 +1498,7 @@ const weatherScene = computed(() => {
   from { opacity: 0; transform: translateY(-6px) scale(0.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.dark-mode .more-menu { background: #1e2430; border-color: rgba(255,255,255,0.08); box-shadow: 0 10px 32px rgba(0,0,0,0.4); }
+.dark-mode .more-menu { background: var(--glass-bg-strong); border-color: var(--glass-border); box-shadow: 0 10px 32px rgba(0,0,0,0.4); }
 .dark-mode .more-text { color: #C8D0DC; }
 .dark-mode .more-item:active { background: rgba(255,255,255,0.06); }
 .dark-mode .more-divider { background: rgba(255,255,255,0.08); }

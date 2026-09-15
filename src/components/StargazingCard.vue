@@ -67,7 +67,7 @@ const score = computed(() => {
         <text class="score-level">{{ score.level }}</text>
       </view>
       <view class="star-moon">
-        <view class="moon-big"><Icon name="moon" :size="40" color="#5B8FC0" /></view>
+        <view class="moon-big"><Icon name="moon" :size="40" color="#8268B0" /></view>
         <text class="moon-name">{{ moonInfo.name }} {{ illum }}%</text>
         <text class="moon-times">月出 {{ weather.moonrise || '--' }} · 月落 {{ weather.moonset || '--' }}</text>
       </view>
@@ -78,11 +78,13 @@ const score = computed(() => {
 
 <style scoped>
 .stargazing-card {
-  background: rgba(255,255,255,0.92);
+  background: linear-gradient(155deg, var(--accent-soft, rgba(130,104,176,0.1)) 0%, var(--card-bg) 52%);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
   margin-bottom: var(--spacing-md);
-  border: 1px solid rgba(255,255,255,0.6);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--accent, var(--color-primary));
+  box-shadow: var(--card-shadow);
 }
 .card-arrow {
   margin-left: auto;
@@ -136,7 +138,7 @@ const score = computed(() => {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: rgba(91, 143, 192, 0.1);
+  background: var(--accent-soft, rgba(130,104,176,0.1));
 }
 .moon-name {
   font-size: var(--font-size-sm);

@@ -1,0 +1,57 @@
+/* ===== 全局组件样式：模块语义色 / 卡片 / 区块标题 / 玻璃 ===== */
+
+/* 模块语义色 → --accent / --accent-soft（通过 CSS 变量向下继承） */
+.accent-weather { --accent: var(--m-weather); --accent-soft: var(--m-weather-soft); }
+.accent-air { --accent: var(--m-air); --accent-soft: var(--m-air-soft); }
+.accent-forecast { --accent: var(--m-forecast); --accent-soft: var(--m-forecast-soft); }
+.accent-hourly { --accent: var(--m-hourly); --accent-soft: var(--m-hourly-soft); }
+.accent-nowcast { --accent: var(--m-nowcast); --accent-soft: var(--m-nowcast-soft); }
+.accent-life { --accent: var(--m-life); --accent-soft: var(--m-life-soft); }
+.accent-temp { --accent: var(--m-temp); --accent-soft: var(--m-temp-soft); }
+.accent-precip { --accent: var(--m-precip); --accent-soft: var(--m-precip-soft); }
+.accent-typhoon { --accent: var(--m-typhoon); --accent-soft: var(--m-typhoon-soft); }
+.accent-quake { --accent: var(--m-quake); --accent-soft: var(--m-quake-soft); }
+.accent-radar { --accent: var(--m-radar); --accent-soft: var(--m-radar-soft); }
+.accent-star { --accent: var(--m-star); --accent-soft: var(--m-star-soft); }
+.accent-ocean { --accent: var(--m-ocean); --accent-soft: var(--m-ocean-soft); }
+
+/* 基础内容卡 */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--card-shadow);
+}
+
+/* 强调卡：淡模块色渐变底 + 左侧本色描边 */
+.card--emphasis {
+  background: linear-gradient(155deg, var(--accent-soft, rgba(91,143,192,0.1)) 0%, var(--card-bg) 52%);
+  border-left: 3px solid var(--accent, var(--color-primary));
+}
+
+/* 区块标题 */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-lg);
+}
+.section-decor {
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--accent, var(--color-primary));
+}
+.section-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink);
+}
+
+/* 玻璃拟态 */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+}

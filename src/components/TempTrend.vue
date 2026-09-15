@@ -47,11 +47,12 @@ const data = computed(() => {
 
 <style scoped>
 .trend-card {
-  background: var(--color-paper);
+  background: var(--card-bg);
   border-radius: var(--radius-xl);
   padding: var(--spacing-xl) var(--spacing-lg);
   margin-bottom: var(--spacing-md);
-  border: 1px solid var(--color-paper-border);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--card-shadow);
 }
 .section-header {
   display: flex;
@@ -62,7 +63,7 @@ const data = computed(() => {
 .section-decor {
   width: 3px;
   height: 18px;
-  background: var(--color-primary);
+  background: var(--accent, var(--color-primary));
   border-radius: 2px;
 }
 .section-title {
@@ -102,7 +103,7 @@ const data = computed(() => {
 .trend-bar {
   width: 8px;
   border-radius: 4px;
-  background: linear-gradient(180deg, var(--color-gold), var(--color-primary));
+  background: var(--accent, var(--color-primary));
   position: absolute;
   min-height: 4px;
   transition: height 0.3s ease;

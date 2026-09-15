@@ -12,6 +12,7 @@ onError((err) => {
 <style>
 @import "@/styles/variables.css";
 @import "@/styles/animations.css";
+@import "@/styles/components.css";
 
 page {
   background-color: var(--color-bg);
