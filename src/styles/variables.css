@@ -28,8 +28,8 @@
   --color-info: #6DAF98;
   --color-success: #6DBF88;
 
-  --font-family-base: "PingFang SC", "Noto Serif SC", "Source Han Serif SC", "STSong", "SimSun", "KaiTi", system-ui, -apple-system, sans-serif;
-  --font-family-number: "DIN Alternate", "Menlo", "Monaco", "Courier New", monospace;
+  --font-family-base: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Source Han Sans SC", "Noto Sans CJK SC", "Roboto", "Helvetica Neue", Arial, sans-serif;
+  --font-family-number: system-ui, -apple-system, "PingFang SC", "Roboto", "Segoe UI", Arial, sans-serif;
 
   --font-size-xs: 11px;
   --font-size-sm: 13px;

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue"
+import Icon from "./Icon.vue"
 import type { CurrentWeather } from "@/api/weather"
 
 const props = defineProps<{ weather: CurrentWeather }>()
@@ -108,7 +109,7 @@ const trendTimes = computed(() => {
     </view>
 
     <view class="pollen-row" v-if="info.pollen">
-      <text class="pollen-icon">🌸</text>
+      <view class="pollen-icon"><Icon name="flower" :size="20" color="#D48AA8" /></view>
       <view class="pollen-info">
         <text class="pollen-title">{{ info.pollen.real ? '花粉过敏：' + info.pollen.level : '过敏提示：' + info.pollen.level }}<text v-if="info.pollen.real && info.pollen.top" class="pollen-top">（{{ info.pollen.top }} 为主）</text></text>
         <text class="pollen-advice">{{ pollenAdvice }}</text>
@@ -226,7 +227,7 @@ const trendTimes = computed(() => {
   background: rgba(232,184,74,0.1);
   border-radius: var(--radius-md);
 }
-.pollen-icon { font-size: 18px; }
+.pollen-icon { display: flex; align-items: center; justify-content: center; }
 .pollen-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .pollen-title {
   font-size: var(--font-size-xs);
@@ -304,7 +305,7 @@ const trendTimes = computed(() => {
   overflow: hidden;
 }
 .aqi-time {
-  font-size: 8px;
+  font-size: 9px;
   color: var(--color-ash);
 }
 </style>

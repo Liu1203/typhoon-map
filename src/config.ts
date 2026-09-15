@@ -1,6 +1,7 @@
 export const API = {
   OPEN_METEO: "https://api.open-meteo.com/v1/forecast",
   AQI: "https://air-quality-api.open-meteo.com/v1/air-quality",
+  MARINE: "https://marine-api.open-meteo.com/v1/marine",
   GEOCODING: "https://geocoding-api.open-meteo.com/v1/search",
   NMC_TYPHOON: "https://typhoon.nmc.cn/weatherservice/typhoon/jsons/",
   USGS: "https://earthquake.usgs.gov/fdsnws/event/1/query",

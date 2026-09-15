@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue"
+import Icon from "./Icon.vue"
 import type { MinutelyPoint } from "@/api/weather"
 
 const props = defineProps<{ minutely: MinutelyPoint[] }>()
@@ -33,7 +34,7 @@ function barH(p: MinutelyPoint): string {
       <text class="section-title">未来 2 小时降雨</text>
     </view>
     <view class="nowcast-summary">
-      <text class="nowcast-icon">{{ hasRain ? '🌧' : '☀️' }}</text>
+      <view class="nowcast-icon"><Icon :name="hasRain ? 'cloud-rain' : 'sun'" :size="18" :color="hasRain ? '#5B8FC0' : '#D4A550'" /></view>
       <text class="nowcast-text">{{ summary }}</text>
     </view>
     <view class="nowcast-chart">
@@ -53,8 +54,9 @@ function barH(p: MinutelyPoint): string {
   margin-bottom: var(--spacing-md);
 }
 .nowcast-icon {
-  font-size: 18px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .nowcast-text {
   font-size: var(--font-size-sm);
@@ -88,10 +90,10 @@ function barH(p: MinutelyPoint): string {
   background: linear-gradient(180deg, #6BA3D4, #5B8FC0);
 }
 .nowcast-time {
-  font-size: 8px;
+  font-size: 9px;
   color: var(--color-ash);
-  height: 10px;
-  line-height: 10px;
+  height: 11px;
+  line-height: 11px;
   white-space: nowrap;
 }
 </style>

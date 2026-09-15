@@ -79,6 +79,14 @@
         "animationType": "slide-in-right",
         "animationDuration": 300
       }
+    },
+    {
+      "path": "pages/ocean/ocean",
+      "style": {
+        "navigationBarTitleText": "海洋预报",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
     }
   ],
   "globalStyle": {

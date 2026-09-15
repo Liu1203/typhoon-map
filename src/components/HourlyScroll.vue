@@ -152,7 +152,7 @@ onUnmounted(() => { if (nowTimer) clearInterval(nowTimer) })
 .rain-none { color: var(--color-ash); }
 .precip-section { display: flex; flex-direction: column; align-items: center; gap: 1px; width: 100%; position: relative; z-index: 1; }
 .precip-bar { width: 14px; border-radius: 2px 2px 0 0; transition: height .2s; min-height: 2px; }
-.precip-label { font-size: 8px; color: var(--color-ash); white-space: nowrap; }
+.precip-label { font-size: 9px; color: var(--color-ash); white-space: nowrap; }
 .hourly-item.is-now .precip-label { color: rgba(255,255,255,.7); }
 .hourly-item.is-now .precip-bar { background: rgba(255,255,255,.6) !important; }
 </style>

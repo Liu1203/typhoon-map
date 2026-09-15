@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue"
 import { getCityCoords } from "@/api/weather"
 import { loadDarkMode } from "@/utils/theme"
 import { CACHE, DEFAULT_CITY } from "@/config"
+import Icon from "@/components/Icon.vue"
 
 const mapSrc = ref("/hybrid/html/leaflet-radar.html")
 const loaded = ref(false)
@@ -46,7 +47,7 @@ function retry() {
       <text class="loading-text">加载雷达地图...</text>
     </view>
     <view class="error-overlay" v-if="failed">
-      <text class="error-icon">🌧</text>
+      <view class="error-icon"><Icon name="cloud-rain" :size="46" color="#C9D3DE" /></view>
       <text class="error-text">加载失败</text>
       <view class="retry-btn" @tap="retry">
         <text>重新加载</text>
@@ -104,8 +105,9 @@ function retry() {
   background: #F0F5FA;
 }
 .error-icon {
-  font-size: 48px;
-  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .error-text {
   font-size: 16px;

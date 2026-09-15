@@ -254,7 +254,7 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
     </div>
     <div class="empty" id="empty">
       <div class="empty-card">
-        <div class="empty-icon">🌀</div>
+        <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#9AA7B5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="46" height="46"><circle cx="12" cy="12" r="1.6"/><path d="M13.6 10.4c2.5-1.5 5 0 5 2.6 0 3-3 5.2-6.6 5.2"/><path d="M10.4 13.6c-2.5 1.5-5 0-5-2.6 0-3 3-5.2 6.6-5.2"/></svg></div>
         <div class="empty-text" id="emptyText">暂无可追踪台风</div>
         <button class="empty-btn" id="emptyBtn" type="button">查看历史台风</button>
       </div>
@@ -684,7 +684,7 @@ function renderInfo(){
           }
         }
       }
-      var distText='🌀 距你当前位置约 '+Math.round(d)+' km'
+      var distText='距你当前位置约 '+Math.round(d)+' km'
       if(minD<d){
         distText+='，路径最近约 '+Math.round(minD)+' km'
         if(minHours>0)distText+='（约 '+minHours+' 小时后）'

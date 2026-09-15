@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue"
 import { loadDarkMode } from "@/utils/theme"
+import Icon from "@/components/Icon.vue"
 
 const mapSrc = ref("/hybrid/html/leaflet-quake.html")
 const loaded = ref(false)
@@ -37,7 +38,7 @@ function retry() {
       <text class="loading-text">加载地震数据...</text>
     </view>
     <view class="error-overlay" v-if="failed">
-      <text class="error-icon">🌍</text>
+      <view class="error-icon"><Icon name="activity" :size="46" color="#C9D3DE" /></view>
       <text class="error-text">加载失败</text>
       <view class="retry-btn" @tap="retry">
         <text>重新加载</text>
@@ -95,8 +96,9 @@ function retry() {
   background: #F0F5FA;
 }
 .error-icon {
-  font-size: 48px;
-  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .error-text {
   font-size: 16px;

@@ -30,6 +30,7 @@ const moduleList: { key: keyof ModuleConfig; label: string }[] = [
   { key: "quake", label: "地震入口" },
   { key: "radar", label: "雷达降水" },
   { key: "stargazing", label: "观星指数" },
+  { key: "ocean", label: "海洋预报" },
 ]
 
 const orderedModules = computed(() => {

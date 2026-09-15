@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue"
 import { onShow } from "@dcloudio/uni-app"
 import { loadDarkMode } from "@/utils/theme"
 import { CACHE } from "@/config"
+import Icon from "@/components/Icon.vue"
 
 const darkMode = ref(false)
 const favCities = ref<string[]>([])
@@ -66,7 +67,7 @@ function goBack() { uni.navigateBack() }
     </view>
 
     <view class="empty-state" v-if="favCities.length === 0">
-      <text class="empty-icon">🏙</text>
+      <view class="empty-icon"><Icon name="map-pin" :size="44" color="#C9D3DE" /></view>
       <text class="empty-text">暂无收藏城市</text>
       <text class="empty-sub">在城市搜索页面点击 ☆ 即可收藏</text>
     </view>
@@ -132,7 +133,7 @@ function goBack() { uni.navigateBack() }
   padding: 80px 0;
   gap: 12px;
 }
-.empty-icon { font-size: 48px; }
+.empty-icon { display: flex; align-items: center; justify-content: center; }
 .empty-text { font-size: var(--font-size-md); color: var(--color-ink-light); font-weight: var(--font-weight-medium); }
 .empty-sub { font-size: var(--font-size-xs); color: var(--color-ash); }
 .city-list {

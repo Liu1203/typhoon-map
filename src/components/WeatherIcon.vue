@@ -195,14 +195,15 @@ const scale = computed(() => props.size / 56)
   height: 55%;
   bottom: 0;
   left: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #E8EEF5 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #DCE7F2 100%);
   border-radius: 20px 20px 14px 14px;
+  box-shadow: 0 3px 5px -1px rgba(90,110,128,0.16);
 }
 
 .cloud-bump {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(180deg, #ffffff 0%, #E8EEF5 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #E6EEF7 100%);
 }
 
 .cloud-bump.bl {
@@ -237,6 +238,7 @@ const scale = computed(() => props.size / 56)
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  box-shadow: 0 0 12px rgba(240,192,96,0.45);
 }
 
 /* 多云 */

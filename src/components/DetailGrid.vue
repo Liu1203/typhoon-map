@@ -2,6 +2,7 @@
 import { computed } from "vue"
 import { uvLabel, moonPhase, heatIndexC, windChillC } from "@/utils/weather"
 import { UI } from "@/config"
+import Icon from "./Icon.vue"
 import { formatLunar } from "@/utils/lunar"
 import type { CurrentWeather } from "@/api/weather"
 
@@ -88,7 +89,7 @@ const windChillVal = computed(() => {
     </view>
   </view>
   <view class="moon-row">
-    <text class="moon-icon">{{ moon.icon }}</text>
+    <view class="moon-icon"><Icon name="moon" :size="22" color="rgba(255,255,255,0.85)" /></view>
     <view class="moon-info">
       <text class="moon-text">{{ moon.phase }}</text>
       <text class="lunar-text">{{ lunar }}</text>
@@ -145,7 +146,9 @@ const windChillVal = computed(() => {
   border: 1px solid rgba(255,255,255,0.08);
 }
 .moon-icon {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .moon-info {
   display: flex;

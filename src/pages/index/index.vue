@@ -20,6 +20,7 @@ import HourlyTrend from "@/components/HourlyTrend.vue"
 import AqiCard from "@/components/AqiCard.vue"
 import StargazingCard from "@/components/StargazingCard.vue"
 import NowcastCard from "@/components/NowcastCard.vue"
+import Icon from "@/components/Icon.vue"
 
 const locateError = ref("")
 const isOffline = ref(false)
@@ -182,11 +183,16 @@ function setCache(data: CurrentWeather, city: string) {
   } catch { }
 }
 
+function fmtClock(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return pad(d.getHours()) + ":" + pad(d.getMinutes())
+}
+
 function applyWeatherData(res: CurrentWeather) {
   weather.value = res
   showBrandOff()
   uni.setNavigationBarColor({ fontColor: lightFor(res.weather) ? '#000000' : '#ffffff', backgroundColor: '#000000' })
-  updateTime.value = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
+  updateTime.value = fmtClock(new Date())
 }
 
 async function fetchAndUpdate(city: string) {
@@ -272,7 +278,7 @@ onShow(async () => {
   if (cacheHit) {
     weatherCity.value = currentCity.value
     applyWeatherData(cache.data)
-    updateTime.value = new Date(cache.ts).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })
+    updateTime.value = fmtClock(new Date(cache.ts))
   }
 
   if (firstLoad || !cacheHit) {
@@ -429,6 +435,13 @@ function goSettings() {
   uni.navigateTo({ url: "/pages/settings/settings" })
 }
 
+function goOcean() {
+  uni.navigateTo({
+    url: "/pages/ocean/ocean",
+    fail: () => uni.showToast({ title: "页面打开失败", icon: "none" }),
+  })
+}
+
 function openMoreMenu() {
   showMoreMenu.value = true
 }
@@ -490,15 +503,15 @@ const displayWeather = computed(() => {
 })
 
 const homeModules = ref<{ modules: Record<string, boolean>; order: string[] }>({
-  modules: { detail: true, aqi: true, forecast: true, hourly: true, nowcast: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true },
-  order: ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
+  modules: { detail: true, aqi: true, forecast: true, hourly: true, nowcast: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true, ocean: true },
+  order: ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean"],
 })
 
 function loadHomeModules() {
   const s = getUnitSettings()
   homeModules.value = {
     modules: s.modules as unknown as Record<string, boolean>,
-    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing"],
+    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean"],
   }
 }
 
@@ -630,11 +643,11 @@ const weatherScene = computed(() => {
           </view>
           <view class="header-actions">
             <view :class="['locate-btn', locating && 'is-locating']" @tap.stop="locateMe">
-              <text class="locate-icon">{{ locating ? '◎' : '◎' }}</text>
+              <view class="locate-icon"><Icon name="navigation" :size="12" color="#ffffff" /></view>
               <text class="locate-text">{{ locating ? '定位中' : '定位' }}</text>
             </view>
             <view class="locate-btn more-btn" @tap.stop="openMoreMenu">
-              <text class="locate-icon">⋯</text>
+              <view class="locate-icon"><Icon name="more" :size="18" color="#ffffff" :stroke="2.5" /></view>
             </view>
           </view>
         </view>
@@ -642,26 +655,26 @@ const weatherScene = computed(() => {
       </view>
 
       <view v-if="weather.alerts && weather.alerts.length > 0" class="alert-banner anim-fade-in-down" style="animation-delay: 0.05s" @tap="showAllAlerts">
-        <text class="alert-icon">⚠</text>
+        <view class="alert-icon"><Icon name="alert" :size="16" color="#ffffff" /></view>
         <text class="alert-text">{{ weather.alerts[0].event }}{{ weather.alerts.length > 1 ? ' 等' + weather.alerts.length + '条' : '' }}</text>
         <text class="alert-count" v-if="weather.alerts.length > 1">{{ weather.alerts.length }}</text>
         <text class="alert-arrow">›</text>
       </view>
       <view v-if="rainAlarm" class="rain-alarm-banner anim-fade-in-down" style="animation-delay: 0.08s">
-        <text class="rain-alarm-icon">☔</text>
+        <view class="rain-alarm-icon"><Icon name="umbrella" :size="16" color="#ffffff" /></view>
         <text class="rain-alarm-text">未来{{ rainAlarm.count }}小时可能降雨（{{ rainAlarm.maxPct }}%），出门记得带伞</text>
       </view>
       <view v-if="tempDropAlarm" class="temp-drop-banner anim-fade-in-down" style="animation-delay: 0.09s">
-        <text class="temp-drop-icon">🧥</text>
+        <view class="temp-drop-icon"><Icon name="shirt" :size="16" color="#ffffff" /></view>
         <text class="temp-drop-text">明天较今天降温 {{ tempDropAlarm.drop }}°，注意添衣保暖</text>
       </view>
       <view v-if="typhoonAlert" class="typhoon-alert-banner anim-fade-in-down" style="animation-delay: 0.1s" @tap="goTyphoon">
-        <text class="typhoon-alert-icon">🌀</text>
+        <view class="typhoon-alert-icon"><Icon name="typhoon" :size="16" color="#ffffff" /></view>
         <text class="typhoon-alert-text">台风「{{ typhoonAlert.name }}」距 {{ currentCity }} 约 {{ typhoonAlert.distance }}km{{ typhoonAlert.minPath < typhoonAlert.distance ? '，路径最近约 ' + typhoonAlert.minPath + 'km' + (typhoonAlert.minPathHours > 0 ? '（约 ' + typhoonAlert.minPathHours + ' 小时后）' : '') : '' }}，点击查看路径</text>
         <text class="typhoon-alert-arrow">›</text>
       </view>
       <view v-if="isOffline" class="offline-banner">
-        <text class="offline-text">📡 网络已断开，显示的是缓存数据</text>
+        <text class="offline-text">网络已断开，显示的是缓存数据</text>
       </view>
 
       <WeatherHero :temp="displayWeather!.temp" :feelsLike="displayWeather!.feelsLike" :weather="displayWeather!.weather" :high="displayWeather!.high" :low="displayWeather!.low" :accentColor="accentColor" :sunrise="displayWeather!.sunrise" :sunset="displayWeather!.sunset" :yesterdayHigh="displayWeather!.yesterdayHigh" :yesterdayLow="displayWeather!.yesterdayLow" />
@@ -684,7 +697,7 @@ const weatherScene = computed(() => {
 
         <NowcastCard v-if="key === 'nowcast' && homeModules.modules.nowcast && displayWeather!.minutely && displayWeather!.minutely.length" :minutely="displayWeather!.minutely!" />
 
-        <LifeTips v-if="key === 'lifetips' && homeModules.modules.lifetips" class="lazy-render" :weather="displayWeather!" />
+        <LifeTips v-if="key === 'lifetips' && homeModules.modules.lifetips" class="lazy-render" :weather="weather!" />
 
         <TempTrend v-if="key === 'temptr' && homeModules.modules.temptr" class="lazy-render" :forecast="displayForecast" />
 
@@ -706,7 +719,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'quake' && homeModules.modules.quake" class="entry-module">
           <view class="entry-card quake-entry" @tap="goQuake">
             <view class="entry-icon-wrap">
-              <text class="entry-icon">🌍</text>
+              <Icon name="activity" :size="22" color="#E08A3C" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">地震信息</text>
@@ -719,7 +732,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'radar' && homeModules.modules.radar" class="entry-module">
           <view class="entry-card radar-entry" @tap="goRadar">
             <view class="entry-icon-wrap">
-              <text class="entry-icon">🌧</text>
+              <Icon name="cloud-rain" :size="22" color="#5B8FC0" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">雷达降水</text>
@@ -732,11 +745,24 @@ const weatherScene = computed(() => {
         <view v-if="key === 'stargazing' && homeModules.modules.stargazing" @tap="goAstronomy">
           <StargazingCard :weather="displayWeather!" />
         </view>
+
+        <view v-if="key === 'ocean' && homeModules.modules.ocean" class="entry-module">
+          <view class="entry-card ocean-entry" @tap="goOcean">
+            <view class="entry-icon-wrap">
+              <Icon name="waves" :size="22" color="#6DAF98" />
+            </view>
+            <view class="entry-text-wrap">
+              <text class="entry-title">海洋预报</text>
+              <text class="entry-subtitle">浪高 · 海温 · 浪向</text>
+            </view>
+            <text class="entry-arrow">›</text>
+          </view>
+        </view>
       </template>
     </template>
 
     <view v-else class="error-view">
-      <text class="error-icon">{{ errorType === "network" ? "📡" : "☁" }}</text>
+      <view class="error-icon"><Icon :name="errorType === 'network' ? 'alert' : 'cloud'" :size="48" color="rgba(255,255,255,0.45)" /></view>
       <text class="error-text">{{ errorType === "network" ? "网络已断开，请检查连接" : errorType === "timeout" ? "请求超时，服务器未响应" : "无法获取天气数据" }}</text>
       <view class="retry-btn" @tap="fetchAndUpdate(currentCity)">
         <text>重新加载</text>
@@ -760,15 +786,15 @@ const weatherScene = computed(() => {
           </view>
         </scroll-view>
         <view class="picker-footer" @tap="goSearch">
-          <text class="picker-search-icon">🔍</text>
+          <view class="picker-search-icon"><Icon name="search" :size="18" color="#5B8FC0" /></view>
           <text>搜索更多城市</text>
         </view>
         <view class="picker-footer manage-footer" @tap="goCities">
-          <text class="picker-search-icon">📋</text>
+          <view class="picker-search-icon"><Icon name="list" :size="18" color="#5B8FC0" /></view>
           <text>管理收藏城市</text>
         </view>
         <view class="picker-footer manage-footer" @tap="goCompare">
-          <text class="picker-search-icon">⚖</text>
+          <view class="picker-search-icon"><Icon name="scale" :size="18" color="#5B8FC0" /></view>
           <text>城市对比</text>
         </view>
       </view>
@@ -777,23 +803,23 @@ const weatherScene = computed(() => {
     <view class="more-overlay" v-if="showMoreMenu" @tap="showMoreMenu = false">
       <view class="more-menu" :style="{ top: (statusBarHeight + 64) + 'px' }" @tap.stop>
         <view class="more-item" @tap.stop="onMoreAction(0)">
-          <text class="more-icon">{{ darkMode ? '☀️' : '🌙' }}</text>
+          <view class="more-icon"><Icon :name="darkMode ? 'sun' : 'moon'" :size="18" color="#5B8FC0" /></view>
           <text class="more-text">{{ darkMode ? '浅色模式' : '深色模式' }}</text>
           <text class="more-check" v-if="darkMode">●</text>
         </view>
         <view class="more-divider" />
         <view class="more-item" @tap.stop="onMoreAction(1)">
-          <text class="more-icon">📤</text>
+          <view class="more-icon"><Icon name="share" :size="18" color="#5B8FC0" /></view>
           <text class="more-text">分享天气卡片</text>
         </view>
         <view class="more-divider" />
         <view class="more-item" @tap.stop="onMoreAction(2)">
-          <text class="more-icon">📋</text>
+          <view class="more-icon"><Icon name="clipboard" :size="18" color="#5B8FC0" /></view>
           <text class="more-text">复制天气摘要</text>
         </view>
         <view class="more-divider" />
         <view class="more-item" @tap.stop="onMoreAction(3)">
-          <text class="more-icon">⚙</text>
+          <view class="more-icon"><Icon name="settings" :size="18" color="#5B8FC0" /></view>
           <text class="more-text">设置</text>
         </view>
       </view>
@@ -1191,9 +1217,10 @@ const weatherScene = computed(() => {
   flex-shrink: 0;
 }
 
-.typhoon-entry .entry-icon-wrap { background: rgba(91,143,192,0.1); }
-.quake-entry .entry-icon-wrap { background: rgba(109,175,152,0.1); }
-.radar-entry .entry-icon-wrap { background: rgba(109,175,152,0.1); }
+.typhoon-entry .entry-icon-wrap { background: rgba(91,143,192,0.12); }
+.quake-entry .entry-icon-wrap { background: rgba(224,138,60,0.12); }
+.radar-entry .entry-icon-wrap { background: rgba(91,143,192,0.12); }
+.ocean-entry .entry-icon-wrap { background: rgba(109,175,152,0.12); }
 
 .entry-icon { font-size: 22px; }
 
@@ -1236,8 +1263,9 @@ const weatherScene = computed(() => {
 }
 
 .error-icon {
-  font-size: 48px;
-  opacity: 0.4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .error-text {
@@ -1369,7 +1397,7 @@ const weatherScene = computed(() => {
   font-weight: 500;
 }
 .picker-footer:active { background: #f7fafc; }
-.picker-search-icon { font-size: 14px; }
+.picker-search-icon { display: flex; align-items: center; justify-content: center; }
 
 .dark-mode .city-picker-card { background: #1e2430; }
 .dark-mode .picker-title { color: #E0E6ED; }
@@ -1417,8 +1445,11 @@ const weatherScene = computed(() => {
 }
 .more-item:active { background: #f0f4f8; }
 .more-icon {
-  font-size: 15px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
 }
 .more-text {
   font-size: 14px;

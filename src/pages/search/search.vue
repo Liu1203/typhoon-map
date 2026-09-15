@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from "vue"
 import { matchCity, groupCitiesByPinyin, searchCities, setDynamicCity, type GeoCity } from "@/api/weather"
 import { loadDarkMode } from "@/utils/theme"
 import { CACHE } from "@/config"
+import Icon from "@/components/Icon.vue"
 
 const darkMode = ref(false)
 const query = ref("")
@@ -143,7 +144,7 @@ function scrollToLetter(letter: string) {
 <template>
   <view class="container" :class="{ 'dark-mode': darkMode }">
     <view class="search-row">
-      <text class="search-icon">🔍</text>
+      <view class="search-icon"><Icon name="search" :size="18" color="#8B9CAD" /></view>
       <input class="search-input" type="text" :value="query" @input="onInput" placeholder="城市名或拼音首字母" confirm-type="search" />
       <text v-if="query" class="search-clear" @tap="clearQuery">✕</text>
     </view>
@@ -231,8 +232,10 @@ function scrollToLetter(letter: string) {
   margin-bottom: var(--spacing-lg);
 }
 .search-icon {
-  font-size: 15px;
-  margin-right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
   flex-shrink: 0;
 }
 .search-input {

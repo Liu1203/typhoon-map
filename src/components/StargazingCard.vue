@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue"
+import Icon from "./Icon.vue"
 import type { CurrentWeather } from "@/api/weather"
 import { stargazingScore, moonPhaseInfo, moonIllumination } from "@/utils/astronomy"
 import { moonPhase as localMoonPhase } from "@/utils/weather"
@@ -56,7 +57,7 @@ const score = computed(() => {
   <view class="card stargazing-card anim-fade-in-up" style="animation-delay: 0.22s">
     <view class="section-header">
       <view class="section-decor" />
-      <text class="section-title">🌙 今晚观星指数</text>
+      <text class="section-title">今晚观星指数</text>
       <text class="card-arrow">›</text>
     </view>
     <view class="star-main">
@@ -66,7 +67,7 @@ const score = computed(() => {
         <text class="score-level">{{ score.level }}</text>
       </view>
       <view class="star-moon">
-        <text class="moon-big">{{ moonInfo.icon }}</text>
+        <view class="moon-big"><Icon name="moon" :size="40" color="#5B8FC0" /></view>
         <text class="moon-name">{{ moonInfo.name }} {{ illum }}%</text>
         <text class="moon-times">月出 {{ weather.moonrise || '--' }} · 月落 {{ weather.moonset || '--' }}</text>
       </view>
@@ -129,8 +130,13 @@ const score = computed(() => {
   flex: 1;
 }
 .moon-big {
-  font-size: 40px;
-  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(91, 143, 192, 0.1);
 }
 .moon-name {
   font-size: var(--font-size-sm);

@@ -137,8 +137,8 @@ function goBack() { uni.navigateBack() }
             <text class="moon-sub">照亮 {{ illum }}%</text>
           </view>
           <view class="moon-times">
-            <text class="moon-time">🌅 月出 {{ weather.moonrise || '--' }}</text>
-            <text class="moon-time">🌇 月落 {{ weather.moonset || '--' }}</text>
+            <text class="moon-time">月出 {{ weather.moonrise || '--' }}</text>
+            <text class="moon-time">月落 {{ weather.moonset || '--' }}</text>
           </view>
         </view>
         <view class="moon-pos">
@@ -313,8 +313,8 @@ function goBack() { uni.navigateBack() }
   border-radius: 2px 2px 0 0;
   min-height: 2px;
 }
-.night-time { font-size: 8px; color: var(--color-ash); }
-.night-val { font-size: 8px; color: var(--color-ash); }
+.night-time { font-size: 10px; color: var(--color-ash); }
+.night-val { font-size: 10px; color: var(--color-ash); }
 .night-legend {
   display: flex;
   gap: var(--spacing-lg);

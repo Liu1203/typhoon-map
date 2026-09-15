@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from "vue"
 import { onShow } from "@dcloudio/uni-app"
 import { loadDarkMode } from "@/utils/theme"
 import { CACHE } from "@/config"
+import Icon from "@/components/Icon.vue"
 import type { AlertItem } from "@/api/weather"
 
 const darkMode = ref(false)
@@ -54,7 +55,7 @@ function goBack() { uni.navigateBack() }
     <view class="city-hint" v-if="city">当前城市：{{ city }}</view>
 
     <view class="empty-state" v-if="alerts.length === 0">
-      <text class="empty-icon">☀️</text>
+      <view class="empty-icon"><Icon name="sun" :size="46" color="#C9D3DE" /></view>
       <text class="empty-text">当前暂无天气预警</text>
       <text class="empty-sub">一切安好，注意天气变化</text>
     </view>
@@ -115,7 +116,7 @@ function goBack() { uni.navigateBack() }
   padding: 80px 0;
   gap: 12px;
 }
-.empty-icon { font-size: 48px; }
+.empty-icon { display: flex; align-items: center; justify-content: center; }
 .empty-text { font-size: var(--font-size-md); color: var(--color-ink-light); font-weight: var(--font-weight-medium); }
 .empty-sub { font-size: var(--font-size-xs); color: var(--color-ash); }
 .alert-list {
