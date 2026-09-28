@@ -13,25 +13,33 @@ const city = ref(DEFAULT_CITY)
 const days = ref<CalendarDay[]>([])
 const loading = ref(true)
 const error = ref(false)
+const errMsg = ref("")
 const selected = ref<string>("")
 const viewMonth = ref({ y: new Date().getFullYear(), m: new Date().getMonth() })
 
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"]
 
 onShow(async () => {
-  darkMode.value = loadDarkMode()
-  city.value = (uni.getStorageSync(CACHE.CITY_KEY) as string) || DEFAULT_CITY
-  error.value = false
-  loading.value = true
-  const now = new Date()
-  viewMonth.value = { y: now.getFullYear(), m: now.getMonth() }
-  const coords = getCityCoords(city.value)
-  if (!coords) { error.value = true; loading.value = false; return }
-  const res = await getCalendarWeather(coords.lat, coords.lon)
-  days.value = res
-  if (!res.length) error.value = true
-  else selected.value = res[0].date
-  loading.value = false
+  try {
+    darkMode.value = loadDarkMode()
+    city.value = (uni.getStorageSync(CACHE.CITY_KEY) as string) || DEFAULT_CITY
+    error.value = false
+    errMsg.value = ""
+    loading.value = true
+    const now = new Date()
+    viewMonth.value = { y: now.getFullYear(), m: now.getMonth() }
+    const coords = getCityCoords(city.value)
+    if (!coords) { error.value = true; errMsg.value = "无坐标: " + city.value; loading.value = false; return }
+    const res = await getCalendarWeather(coords.lat, coords.lon)
+    days.value = res
+    if (!res.length) { error.value = true; errMsg.value = "接口无数据" }
+    else selected.value = res[0].date
+    loading.value = false
+  } catch (e: any) {
+    error.value = true
+    loading.value = false
+    errMsg.value = "异常: " + ((e && (e.message || e.errMsg)) || String(e))
+  }
 })
 
 const pad = (n: number) => String(n).padStart(2, "0")
@@ -47,35 +55,53 @@ const todayStr = computed(() => {
   return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate())
 })
 
-interface Cell { date: string; day: number; data?: CalendarDay }
+function roundT(v: string): string {
+  const n = Number(v)
+  return isFinite(n) ? String(Math.round(n)) : v
+}
+
+interface Cell { date: string; day: number; data?: CalendarDay; hi: string; lo: string }
 const cells = computed<Cell[]>(() => {
   const vm = viewMonth.value
   const first = new Date(vm.y, vm.m, 1)
   const startWeekday = first.getDay()
   const daysInMonth = new Date(vm.y, vm.m + 1, 0).getDate()
   const out: Cell[] = []
-  for (let i = 0; i < startWeekday; i++) out.push({ date: "", day: 0 })
+  for (let i = 0; i < startWeekday; i++) out.push({ date: "", day: 0, hi: "", lo: "" })
   for (let d = 1; d <= daysInMonth; d++) {
     const date = vm.y + "-" + pad(vm.m + 1) + "-" + pad(d)
-    out.push({ date, day: d, data: dayMap.value[date] })
+    const data = dayMap.value[date]
+    out.push({ date, day: d, data, hi: data ? roundT(data.high) : "", lo: data ? roundT(data.low) : "" })
   }
   return out
 })
 
 const monthLabel = computed(() => viewMonth.value.y + "年" + (viewMonth.value.m + 1) + "月")
 
-const hasNext = computed(() => {
+const canPrev = computed(() => {
   const vm = viewMonth.value
-  const ny = vm.m === 11 ? vm.y + 1 : vm.y
-  const nm = (vm.m + 1) % 12
+  const key = vm.y * 12 + vm.m
   return days.value.some(d => {
     const dd = new Date(d.date + "T12:00:00")
-    return dd.getFullYear() === ny && dd.getMonth() === nm
+    return dd.getFullYear() * 12 + dd.getMonth() < key
+  })
+})
+const canNext = computed(() => {
+  const vm = viewMonth.value
+  const key = vm.y * 12 + vm.m
+  return days.value.some(d => {
+    const dd = new Date(d.date + "T12:00:00")
+    return dd.getFullYear() * 12 + dd.getMonth() > key
   })
 })
 
+function prevMonth() {
+  if (!canPrev.value) return
+  const vm = viewMonth.value
+  viewMonth.value = vm.m === 0 ? { y: vm.y - 1, m: 11 } : { y: vm.y, m: vm.m - 1 }
+}
 function nextMonth() {
-  if (!hasNext.value) return
+  if (!canNext.value) return
   const vm = viewMonth.value
   viewMonth.value = vm.m === 11 ? { y: vm.y + 1, m: 0 } : { y: vm.y, m: vm.m + 1 }
 }
@@ -89,8 +115,10 @@ function isSelected(date: string): boolean { return date === selected.value }
 
 function lunarShort(date: string): string {
   if (!date) return ""
-  const l = solarToLunar(new Date(date + "T12:00:00"))
-  return l.term || l.lunarDayText
+  try {
+    const l = solarToLunar(new Date(date + "T12:00:00"))
+    return l.term || l.lunarDayText
+  } catch { return "" }
 }
 
 function selectDay(date: string) {
@@ -99,7 +127,10 @@ function selectDay(date: string) {
 }
 
 const selectedDay = computed(() => selected.value ? dayMap.value[selected.value] : undefined)
-const selectedLunar = computed(() => selected.value ? solarToLunar(new Date(selected.value + "T12:00:00")) : null)
+const selectedLunar = computed(() => {
+  if (!selected.value) return null
+  try { return solarToLunar(new Date(selected.value + "T12:00:00")) } catch { return null }
+})
 
 function fmtDate(date: string): string {
   const d = new Date(date + "T12:00:00")
@@ -133,16 +164,18 @@ function goBack() { uni.navigateBack() }
 
     <view v-else-if="error" class="empty-state">
       <view class="empty-icon"><Icon name="calendar" :size="46" color="#C9D3DE" /></view>
-      <text class="empty-text">网络异常，请稍后重试</text>
+      <text class="empty-text">{{ errMsg || '网络异常，请稍后重试' }}</text>
     </view>
 
     <template v-else>
       <view class="card cal-card accent-calendar">
         <view class="cal-nav">
-          <view class="nav-btn disabled"><Icon name="chevron-left" :size="18" color="#B0BDCC" /></view>
+          <view :class="['nav-btn', !canPrev && 'disabled']" @tap="prevMonth">
+            <Icon name="chevron-left" :size="18" :color="canPrev ? '#6673B8' : '#B0BDCC'" />
+          </view>
           <text class="cal-month">{{ monthLabel }}</text>
-          <view :class="['nav-btn', !hasNext && 'disabled']" @tap="nextMonth">
-            <Icon name="chevron-right" :size="18" :color="hasNext ? '#6673B8' : '#B0BDCC'" />
+          <view :class="['nav-btn', !canNext && 'disabled']" @tap="nextMonth">
+            <Icon name="chevron-right" :size="18" :color="canNext ? '#6673B8' : '#B0BDCC'" />
           </view>
         </view>
 
@@ -162,7 +195,7 @@ function goBack() { uni.navigateBack() }
               <text class="cell-lunar">{{ lunarShort(c.date) }}</text>
               <template v-if="c.data">
                 <WeatherIcon :weather="c.data.weather" :size="22" :animate="false" />
-                <text class="cell-temp">{{ c.data.high }}°<text class="cell-low">/{{ c.data.low }}°</text></text>
+                <text class="cell-temp">{{ c.hi }}°<text class="cell-low">/{{ c.lo }}°</text></text>
               </template>
             </view>
           </view>
@@ -237,11 +270,11 @@ function goBack() { uni.navigateBack() }
 }
 .nav-btn.disabled { background: transparent; }
 
-.week-row { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
+.week-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: 3px; margin-bottom: 4px; }
 .week-cell { text-align: center; font-size: var(--font-size-xs); color: var(--color-ash); }
 
-.grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-.cell-wrap { min-height: 68px; }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.cell-wrap { min-height: 68px; min-width: 0; }
 .cell {
   width: 100%;
   height: 100%;
@@ -253,7 +286,8 @@ function goBack() { uni.navigateBack() }
   align-items: center;
   justify-content: flex-start;
   gap: 1px;
-  padding: 3px 2px;
+  padding: 3px 1px;
+  overflow: hidden;
 }
 .cell.blank { visibility: hidden; }
 .cell.past, .cell.nodata { background: rgba(44,62,80,0.03); }
@@ -262,8 +296,8 @@ function goBack() { uni.navigateBack() }
 .cell-day { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-ink); }
 .cell.past .cell-day, .cell.nodata .cell-day { color: var(--color-ash); font-weight: var(--font-weight-normal); }
 .cell.today .cell-day { color: var(--accent, #6673B8); }
-.cell-lunar { font-size: 9px; color: var(--color-ash); line-height: 1.1; }
-.cell-temp { font-size: 10px; color: var(--color-ink); font-weight: var(--font-weight-medium); }
+.cell-lunar { font-size: 9px; color: var(--color-ash); line-height: 1.1; max-width: 100%; overflow: hidden; white-space: nowrap; }
+.cell-temp { font-size: 9px; color: var(--color-ink); font-weight: var(--font-weight-medium); max-width: 100%; overflow: hidden; white-space: nowrap; }
 .cell-low { color: var(--color-ash); }
 .cell.past .cell-temp, .cell.nodata .cell-temp { color: var(--color-ash); }
 

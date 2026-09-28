@@ -1,2 +1,2 @@
-export const APP_VERSION = "1.4.0"
-export const VERSION_CODE = 140
+export const APP_VERSION = "1.4.2"
+export const VERSION_CODE = 142
