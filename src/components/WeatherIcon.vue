@@ -4,8 +4,10 @@ import { computed } from "vue"
 const props = withDefaults(defineProps<{
   weather: string
   size?: number
+  animate?: boolean
 }>(), {
   size: 56,
+  animate: true,
 })
 
 const type = computed(() => {
@@ -31,7 +33,7 @@ const scale = computed(() => props.size / 56)
 </script>
 
 <template>
-  <view class="weather-icon" :style="{ transform: 'scale(' + scale + ')' }">
+  <view class="weather-icon" :class="{ 'no-anim': !animate }" :style="{ transform: 'scale(' + scale + ')' }">
     <!-- 晴 -->
     <view v-if="type === 'sunny'" class="icon sunny">
       <view class="sun-core"></view>
@@ -361,5 +363,12 @@ const scale = computed(() => props.size / 56)
 @keyframes mistFlow {
   0%, 100% { opacity: 0.25; transform: translateX(-50%) translateY(var(--y)) scaleX(0.92); }
   50% { opacity: 0.6; transform: translateX(-50%) translateY(var(--y)) scaleX(1.08); }
+}
+
+.weather-icon.no-anim .drops,
+.weather-icon.no-anim .flakes,
+.weather-icon.no-anim .mist,
+.weather-icon.no-anim .bolt {
+  animation: none !important;
 }
 </style>

@@ -142,6 +142,7 @@
   --m-radar: #4FA98C;
   --m-star: #8268B0;
   --m-ocean: #2E9BAE;
+  --m-calendar: #6673B8;
 
   --m-weather-soft: rgba(91,143,192,0.12);
   --m-air-soft: rgba(79,169,140,0.12);
@@ -156,6 +157,7 @@
   --m-radar-soft: rgba(79,169,140,0.12);
   --m-star-soft: rgba(130,104,176,0.12);
   --m-ocean-soft: rgba(46,155,174,0.12);
+  --m-calendar-soft: rgba(102,115,184,0.12);
 
   --card-bg: rgba(255,255,255,0.9);
   --card-border: rgba(255,255,255,0.7);

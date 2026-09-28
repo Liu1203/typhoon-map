@@ -43,6 +43,8 @@ const PATHS: Record<string, string> = {
   broom: '<path d="m13 11 5.5 5.5a2.5 2.5 0 0 1-3.5 3.5L9.5 14.5"/><path d="M13 11 5 3"/><path d="M6 14l-2 6 6-2"/>',
   typhoon: '<circle cx="12" cy="12" r="1.6"/><path d="M13.6 10.4c2.5-1.5 5 0 5 2.6 0 3-3 5.2-6.6 5.2"/><path d="M10.4 13.6c-2.5 1.5-5 0-5-2.6 0-3 3-5.2 6.6-5.2"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+  "chevron-left": '<path d="m15 18-6-6 6-6"/>',
   list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
   scale: '<path d="M12 3v18"/><path d="M7 21h10"/><path d="M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
 }

@@ -87,6 +87,14 @@
         "animationType": "slide-in-right",
         "animationDuration": 300
       }
+    },
+    {
+      "path": "pages/calendar/calendar",
+      "style": {
+        "navigationBarTitleText": "天气日历",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
     }
   ],
   "globalStyle": {

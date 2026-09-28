@@ -626,3 +626,62 @@ export async function getHourlyForecast(lat: number, lon: number, date?: string)
     return []
   }
 }
+
+export interface CalendarDay {
+  date: string
+  weather: string
+  weatherCode: number
+  high: string
+  low: string
+  precip: string
+  precipProb: string
+  sunrise: string
+  sunset: string
+  uvMax: string
+  moonPhase?: number
+}
+
+export async function getCalendarWeather(lat: number, lon: number): Promise<CalendarDay[]> {
+  try {
+    const params = [
+      `latitude=${lat}`,
+      `longitude=${lon}`,
+      "daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_sum,precipitation_probability_max,moon_phase",
+      "timezone=auto",
+      "forecast_days=16",
+    ]
+    const url = `${API.OPEN_METEO}?${params.join("&")}`
+    const res = await new Promise<any>((resolve) => {
+      uni.request({
+        url,
+        timeout: TIMEOUT.OPEN_METEO,
+        success(r) { resolve(r) },
+        fail() { resolve(null) },
+      })
+    })
+    const d = res?.data?.daily
+    if (!d?.time) return []
+    const out: CalendarDay[] = []
+    for (let i = 0; i < d.time.length; i++) {
+      const code = d.weather_code?.[i] ?? 0
+      const dp = d.precipitation_sum?.[i] ?? 0
+      out.push({
+        date: String(d.time[i]),
+        weather: weatherByPrecip(code, dp) || OM_WX[code] || translateWeather(String(code)),
+        weatherCode: code,
+        high: String(d.temperature_2m_max?.[i] ?? "--"),
+        low: String(d.temperature_2m_min?.[i] ?? "--"),
+        precip: dp > 0 ? dp.toFixed(1) + "mm" : "",
+        precipProb: d.precipitation_probability_max?.[i] != null ? String(d.precipitation_probability_max[i]) : "0",
+        sunrise: d.sunrise?.[i] ? extractTime(d.sunrise[i]) : "--",
+        sunset: d.sunset?.[i] ? extractTime(d.sunset[i]) : "--",
+        uvMax: d.uv_index_max?.[i] != null ? String(d.uv_index_max[i]) : "--",
+        moonPhase: d.moon_phase?.[i] != null ? Number(d.moon_phase[i]) : undefined,
+      })
+    }
+    return out
+  } catch (e) {
+    console.error("Calendar weather error:", e)
+    return []
+  }
+}

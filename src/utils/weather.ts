@@ -106,9 +106,10 @@ export interface ModuleConfig {
   radar: boolean
   stargazing: boolean
   ocean: boolean
+  calendar: boolean
 }
 
-export const MODULE_ORDER_DEFAULT = ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean"]
+export const MODULE_ORDER_DEFAULT = ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean", "calendar"]
 
 export const UNITS_DEFAULT = {
   temp: "c" as const,
@@ -130,6 +131,7 @@ export const UNITS_DEFAULT = {
     radar: true,
     stargazing: true,
     ocean: true,
+    calendar: true,
   },
   moduleOrder: [...MODULE_ORDER_DEFAULT],
 }

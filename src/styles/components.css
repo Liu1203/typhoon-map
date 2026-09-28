@@ -14,6 +14,7 @@
 .accent-radar { --accent: var(--m-radar); --accent-soft: var(--m-radar-soft); }
 .accent-star { --accent: var(--m-star); --accent-soft: var(--m-star-soft); }
 .accent-ocean { --accent: var(--m-ocean); --accent-soft: var(--m-ocean-soft); }
+.accent-calendar { --accent: var(--m-calendar); --accent-soft: var(--m-calendar-soft); }
 
 /* 基础内容卡 */
 .card {

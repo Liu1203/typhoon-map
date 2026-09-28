@@ -167,6 +167,7 @@ html.dark .c-grade{color:#fff}
 html.dark .chip.active{background:linear-gradient(135deg,#3D6A94,#2A4A6B);box-shadow:0 3px 12px rgba(0,0,0,.4)}
 html.dark .chip.active .chip-num{color:rgba(255,255,255,.8)}
 html.dark .map-wrap,html.dark #map{background:#12161E}
+html.dark #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9)}
 html.dark .legend{background:rgba(26,32,42,.96);border-color:rgba(255,255,255,.1);box-shadow:0 2px 8px rgba(0,0,0,.4)}
 html.dark .legend-title{color:#E0E6ED}
 html.dark .legend{color:#8B9CAD}
@@ -395,7 +396,7 @@ function zjReq(url){
 async function loadZjList(){
   zjByEn={};zjByCn={}
   try{
-    var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyphoonActivity')
+    var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyhoonActivity')
     var data=text?JSON.parse(text):null
     if(Array.isArray(data)){
       data.forEach(function(t){
@@ -896,12 +897,10 @@ function renderMap(fit){
 function initMap(){
   map=L.map('map',{center:[20,130],zoom:4,minZoom:2,maxZoom:17,zoomControl:false,attributionControl:false,preferCanvas:true})
   var layers={
-    '街道图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR}),
-    '卫星图（ESRI）':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,errorTileUrl:ERR}),
-    '地形图（OSM）':L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,errorTileUrl:ERR}),
-    '暗色图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR})
+    '高德地图':L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR}),
+    '高德卫星':L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR})
   }
-  layers[(isDark?'暗色图（Carto）':'街道图（Carto）')].addTo(map)
+  layers['高德地图'].addTo(map)
   L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
   map.on('zoomend',function(){
     if(!detail)return

@@ -442,6 +442,13 @@ function goOcean() {
   })
 }
 
+function goCalendar() {
+  uni.navigateTo({
+    url: "/pages/calendar/calendar",
+    fail: () => uni.showToast({ title: "页面打开失败", icon: "none" }),
+  })
+}
+
 function openMoreMenu() {
   showMoreMenu.value = true
 }
@@ -503,15 +510,15 @@ const displayWeather = computed(() => {
 })
 
 const homeModules = ref<{ modules: Record<string, boolean>; order: string[] }>({
-  modules: { detail: true, aqi: true, forecast: true, hourly: true, nowcast: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true, ocean: true },
-  order: ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean"],
+  modules: { detail: true, aqi: true, forecast: true, hourly: true, nowcast: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true, ocean: true, calendar: true },
+  order: ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean", "calendar"],
 })
 
 function loadHomeModules() {
   const s = getUnitSettings()
   homeModules.value = {
     modules: s.modules as unknown as Record<string, boolean>,
-    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean"],
+    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean", "calendar"],
   }
 }
 
@@ -754,6 +761,19 @@ const weatherScene = computed(() => {
             <view class="entry-text-wrap">
               <text class="entry-title">海洋预报</text>
               <text class="entry-subtitle">浪高 · 海温 · 浪向</text>
+            </view>
+            <text class="entry-arrow">›</text>
+          </view>
+        </view>
+
+        <view v-if="key === 'calendar' && homeModules.modules.calendar" class="entry-module accent-calendar">
+          <view class="entry-card calendar-entry" @tap="goCalendar">
+            <view class="entry-icon-wrap">
+              <Icon name="calendar" :size="22" color="#6673B8" />
+            </view>
+            <view class="entry-text-wrap">
+              <text class="entry-title">天气日历</text>
+              <text class="entry-subtitle">未来 16 天一目了然</text>
             </view>
             <text class="entry-arrow">›</text>
           </view>
@@ -1245,6 +1265,7 @@ const weatherScene = computed(() => {
 .quake-entry .entry-icon-wrap { background: var(--m-quake-soft); }
 .radar-entry .entry-icon-wrap { background: var(--m-radar-soft); }
 .ocean-entry .entry-icon-wrap { background: var(--m-ocean-soft); }
+.calendar-entry .entry-icon-wrap { background: var(--m-calendar-soft); }
 
 .entry-icon { font-size: 22px; }
 

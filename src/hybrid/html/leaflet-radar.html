@@ -45,6 +45,7 @@ html.dark .ctl-btn,html.dark .play-btn{background:#232A36;color:#6B9FD0}
 html.dark .play-btn.on{background:#5B8FC0;color:#fff}
 html.dark .control-bar{color:#8B9CAD}
 html.dark .map-wrap{background:#12161E}
+html.dark #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9)}
 html.dark .loading{background:rgba(18,22,30,.8);color:#8B9CAD}
 html.dark .radar-error{background:rgba(18,22,30,.9)}
 html.dark .err-title{color:#E0E6ED}
@@ -108,12 +109,13 @@ function setLoading(on){on?$('loading').classList.add('show'):$('loading').class
 
 function initMap(){
   map=L.map('map',{center:[20,130],zoom:4,minZoom:3,maxZoom:14,zoomControl:false,attributionControl:false,preferCanvas:true})
+  map.createPane('radar')
+  map.getPane('radar').style.zIndex=350
   var layers={
-    '街道图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR}),
-    '卫星图（ESRI）':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,errorTileUrl:ERR}),
-    '暗色图（Carto）':L.tileLayer('https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:18,errorTileUrl:ERR})
+    '高德地图':L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR}),
+    '高德卫星':L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR})
   }
-  layers['卫星图（ESRI）'].addTo(map)
+  layers['高德地图'].addTo(map)
   L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
   if(userCoords){
     map.setView([userCoords.lat,userCoords.lon],7)
@@ -132,7 +134,7 @@ function showFrame(idx){
   if(!map||!frames[idx])return
   var baseOpacity=parseInt($('opacitySlider').value)/100
   if(!radarLayer){
-    radarLayer=L.tileLayer(tileUrl(frames[idx]),{opacity:baseOpacity,attribution:'RainViewer',maxZoom:14,errorTileUrl:ERR}).addTo(map)
+    radarLayer=L.tileLayer(tileUrl(frames[idx]),{pane:'radar',opacity:baseOpacity,attribution:'RainViewer',maxZoom:14,errorTileUrl:ERR}).addTo(map)
   }else{
     radarLayer.setUrl(tileUrl(frames[idx]))
     radarLayer.setOpacity(baseOpacity)
