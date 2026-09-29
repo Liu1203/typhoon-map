@@ -20,8 +20,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .sw input{width:16px;height:16px;accent-color:#5B8FC0}
 .slider-wrap{flex:1;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .slider-wrap input{flex:1;accent-color:#5B8FC0}
-.play-btn{flex-shrink:0;padding:4px 10px;border:none;border-radius:6px;background:#EDF2F8;font-size:11px;color:#5B8FC0;cursor:pointer;font-weight:500}
-.play-btn.on{background:#5B8FC0;color:#fff}
+.play-btn{flex-shrink:0;width:38px;height:38px;border:none;border-radius:50%;background:#5B8FC0;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(91,143,192,.35);transition:transform .12s,background .12s}
+.play-btn:active{transform:scale(.92)}
+.play-btn.on{background:#3D6A94}
+.timeline-bar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:5px 12px;background:#fff;border-bottom:1px solid #DDE4ED;z-index:20}
+.timeline-bar input[type=range]{flex:1;min-width:0;accent-color:#5B8FC0}
+.tl-btn{flex-shrink:0;width:26px;height:26px;border:none;border-radius:50%;background:#EDF2F8;color:#5B8FC0;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tl-btn:active{background:#DDE7F2}
+.tl-time{flex-shrink:0;min-width:40px;text-align:center;font-size:11px;color:#5A6E80;font-variant-numeric:tabular-nums}
 .map-wrap{flex:1;position:relative;min-height:0;background:#E8EEF5}
 #map{width:100%;height:100%}
 .loading{position:absolute;inset:0;z-index:850;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(240,245,250,.72);color:#5A6E80;font-size:13px}
@@ -38,11 +44,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 
 /* dark */
 html.dark,html.dark body{background:#12161E;color:#C8D0DC}
-html.dark .top-bar,html.dark .control-bar{background:#1A202A;border-color:rgba(255,255,255,.08)}
+html.dark .top-bar,html.dark .control-bar,html.dark .timeline-bar{background:#1A202A;border-color:rgba(255,255,255,.08)}
 html.dark .title{color:#6B9FD0}
 html.dark .update{color:#6A7A8A}
-html.dark .ctl-btn,html.dark .play-btn{background:#232A36;color:#6B9FD0}
-html.dark .play-btn.on{background:#5B8FC0;color:#fff}
+html.dark .ctl-btn{background:#232A36;color:#6B9FD0}
+html.dark .tl-btn{background:#232A36;color:#6B9FD0}
+html.dark .tl-time{color:#8B9CAD}
 html.dark .control-bar{color:#8B9CAD}
 html.dark .map-wrap{background:#12161E}
 html.dark #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9)}
@@ -66,7 +73,16 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
   <div class="control-bar">
     <label class="sw"><input type="checkbox" id="radarToggle" checked> 雷达</label>
     <span class="slider-wrap">透明度 <input type="range" id="opacitySlider" min="20" max="100" value="80"></span>
-    <button class="play-btn" id="playBtn" type="button">&#9654; 动画</button>
+    <button class="play-btn" id="playBtn" type="button" aria-label="播放/暂停">
+      <svg class="ic-play" viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+      <svg class="ic-pause" viewBox="0 0 24 24" width="18" height="18" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/></svg>
+    </button>
+  </div>
+  <div class="timeline-bar">
+    <button class="tl-btn" id="prevFrame" type="button" aria-label="上一帧">&#8249;</button>
+    <input type="range" id="timeSlider" min="0" max="0" value="0">
+    <button class="tl-btn" id="nextFrame" type="button" aria-label="下一帧">&#8250;</button>
+    <span class="tl-time" id="frameTime">--:--</span>
   </div>
   <div class="map-wrap">
     <div id="map"></div>
@@ -95,9 +111,10 @@ var userCoords=(function(){
 })()
 
 var map=null
-var radarLayer=null
+var layerCache={}
 var frames=[] // {path}
-var playTimer=null,playIdx=0,playing=false
+var currentIdx=-1
+var playTimer=null,playing=false
 var host=''
 var ERR='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 
@@ -108,12 +125,12 @@ function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&am
 function setLoading(on){on?$('loading').classList.add('show'):$('loading').classList.remove('show')}
 
 function initMap(){
-  map=L.map('map',{center:[20,130],zoom:4,minZoom:3,maxZoom:14,zoomControl:false,attributionControl:false,preferCanvas:true})
+  map=L.map('map',{center:[20,130],zoom:4,minZoom:3,maxZoom:18,zoomControl:false,attributionControl:false,preferCanvas:true})
   map.createPane('radar')
   map.getPane('radar').style.zIndex=350
   var layers={
-    '高德地图':L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR}),
-    '高德卫星':L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR})
+    '高德地图':L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:'1234',maxNativeZoom:17,maxZoom:18,errorTileUrl:ERR}),
+    '高德卫星':L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',{subdomains:'1234',maxNativeZoom:17,maxZoom:18,errorTileUrl:ERR})
   }
   layers['高德地图'].addTo(map)
   L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
@@ -127,51 +144,72 @@ function initMap(){
 }
 
 function tileUrl(frame){
-  return host+frame.path+'/{z}/{x}/{y}/1/1_0.png'
+  return host+frame.path+'/256/{z}/{x}/{y}/1/1_0.png'
 }
 
-function showFrame(idx){
-  if(!map||!frames[idx])return
-  var baseOpacity=parseInt($('opacitySlider').value)/100
-  if(!radarLayer){
-    radarLayer=L.tileLayer(tileUrl(frames[idx]),{pane:'radar',opacity:baseOpacity,attribution:'RainViewer',maxZoom:14,errorTileUrl:ERR}).addTo(map)
-  }else{
-    radarLayer.setUrl(tileUrl(frames[idx]))
-    radarLayer.setOpacity(baseOpacity)
-  }
+function radarOn(){ return $('radarToggle').checked }
+function baseOp(){ return parseInt($('opacitySlider').value)/100 }
+
+function ensureLayer(i){
+  if(layerCache[i])return layerCache[i]
+  var lyr=L.tileLayer(tileUrl(frames[i]),{pane:'radar',opacity:0,maxNativeZoom:11,maxZoom:18,attribution:'RainViewer',errorTileUrl:ERR})
+  lyr.addTo(map)
+  layerCache[i]=lyr
+  return lyr
 }
+
+function updateTimeLabel(){
+  if(currentIdx<0||!frames[currentIdx]){$('frameTime').textContent='--:--';return}
+  var d=new Date(frames[currentIdx].time*1000)
+  var pad=function(n){return String(n).padStart(2,'0')}
+  $('frameTime').textContent=pad(d.getHours())+':'+pad(d.getMinutes())
+}
+
+function setFrame(i){
+  if(!frames.length)return
+  if(i<0)i=0
+  if(i>frames.length-1)i=frames.length-1
+  currentIdx=i
+  ensureLayer(i)
+  var o=radarOn()?baseOp():0
+  Object.keys(layerCache).forEach(function(k){ layerCache[k].setOpacity(Number(k)===i?o:0) })
+  var sl=$('timeSlider')
+  if(parseInt(sl.value)!==i)sl.value=i
+  updateTimeLabel()
+}
+
+function preloadAll(){ for(var i=0;i<frames.length;i++)ensureLayer(i) }
 
 function applyRadarVisibility(){
-  if(!radarLayer)return
-  if($('radarToggle').checked)radarLayer.addTo(map)
-  else map.removeLayer(radarLayer)
+  if(!frames.length)return
+  if(radarOn()){ setFrame(currentIdx<0?frames.length-1:currentIdx) }
+  else { Object.keys(layerCache).forEach(function(k){ layerCache[k].setOpacity(0) }) }
 }
 
-function applyOpacity(){
-  if(radarLayer)radarLayer.setOpacity(parseInt($('opacitySlider').value)/100)
+function applyOpacity(){ if(currentIdx>=0&&layerCache[currentIdx]&&radarOn())layerCache[currentIdx].setOpacity(baseOp()) }
+
+function setPlayIcon(on){
+  document.querySelector('.ic-play').style.display=on?'none':'block'
+  document.querySelector('.ic-pause').style.display=on?'block':'none'
+  $('playBtn').classList.toggle('on',on)
 }
 
 function stopPlay(){
   if(playTimer){clearInterval(playTimer);playTimer=null}
   playing=false
-  $('playBtn').classList.remove('on')
-  $('playBtn').textContent='\u25B6 动画'
+  setPlayIcon(false)
 }
 
 function togglePlay(){
   if(playing){stopPlay();return}
   if(!frames.length)return
+  preloadAll()
   playing=true
-  $('playBtn').classList.add('on')
-  $('playBtn').textContent='\u25A0 停止'
-  playIdx=0
-  var step=function(){
+  setPlayIcon(true)
+  playTimer=setInterval(function(){
     if(!frames.length){stopPlay();return}
-    showFrame(playIdx%frames.length)
-    playIdx++
-  }
-  step()
-  playTimer=setInterval(step,700)
+    setFrame((currentIdx+1)%frames.length)
+  },700)
 }
 
 function showRadarError(){
@@ -184,6 +222,9 @@ function hideRadarError(){
 function loadRadar(){
   var btn=$('refreshBtn');btn.classList.add('loading')
   setLoading(true);hideRadarError()
+  stopPlay()
+  if(map){ Object.keys(layerCache).forEach(function(k){ try{map.removeLayer(layerCache[k])}catch(e){} }) }
+  layerCache={};currentIdx=-1
   var x=new XMLHttpRequest()
   x.open('GET','https://api.rainviewer.com/public/weather-maps.json',true)
   x.timeout=10000
@@ -194,10 +235,12 @@ function loadRadar(){
         var data=JSON.parse(x.responseText)
         host=data.host||'https://tilecache.rainviewer.com'
         frames=(data.radar&&data.radar.past||[]).slice(-14).concat(data.radar&&data.radar.nowcast||[])
+        var sl=$('timeSlider')
+        sl.max=Math.max(0,frames.length-1)
+        sl.value=frames.length-1
         if(frames.length){
-          showFrame(frames.length-1)
-          var t=frames[frames.length-1].time
-          var d=new Date(t*1000)
+          setFrame(frames.length-1)
+          var d=new Date(frames[frames.length-1].time*1000)
           var pad=function(n){return String(n).padStart(2,'0')}
           $('updateTime').textContent=pad(d.getHours())+':'+pad(d.getMinutes())
         }else{
@@ -218,7 +261,10 @@ loadRadar()
 $('radarToggle').onchange=applyRadarVisibility
 $('opacitySlider').oninput=applyOpacity
 $('playBtn').onclick=togglePlay
-$('refreshBtn').onclick=function(){stopPlay();loadRadar()}
+$('timeSlider').oninput=function(){stopPlay();setFrame(parseInt(this.value))}
+$('prevFrame').onclick=function(){stopPlay();setFrame(currentIdx-1)}
+$('nextFrame').onclick=function(){stopPlay();setFrame(currentIdx+1)}
+$('refreshBtn').onclick=function(){loadRadar()}
 $('retryBtn').onclick=function(){loadRadar()}
 </script>
 </body>

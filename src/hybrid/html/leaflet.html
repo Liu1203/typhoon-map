@@ -897,8 +897,8 @@ function renderMap(fit){
 function initMap(){
   map=L.map('map',{center:[20,130],zoom:4,minZoom:2,maxZoom:17,zoomControl:false,attributionControl:false,preferCanvas:true})
   var layers={
-    '高德地图':L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR}),
-    '高德卫星':L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',{subdomains:'1234',maxZoom:18,errorTileUrl:ERR})
+    '高德地图':L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:'1234',maxNativeZoom:17,maxZoom:18,errorTileUrl:ERR}),
+    '高德卫星':L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',{subdomains:'1234',maxNativeZoom:17,maxZoom:18,errorTileUrl:ERR})
   }
   layers['高德地图'].addTo(map)
   L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
