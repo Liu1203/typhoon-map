@@ -140,6 +140,7 @@
   --m-typhoon: #C9503F;
   --m-quake: #D9843C;
   --m-radar: #4FA98C;
+  --m-satellite: #3D5A80;
   --m-star: #8268B0;
   --m-ocean: #2E9BAE;
   --m-calendar: #6673B8;
@@ -155,6 +156,7 @@
   --m-typhoon-soft: rgba(201,80,63,0.12);
   --m-quake-soft: rgba(217,132,60,0.12);
   --m-radar-soft: rgba(79,169,140,0.12);
+  --m-satellite-soft: rgba(61,90,128,0.12);
   --m-star-soft: rgba(130,104,176,0.12);
   --m-ocean-soft: rgba(46,155,174,0.12);
   --m-calendar-soft: rgba(102,115,184,0.12);

@@ -424,6 +424,10 @@ function goRadar() {
   uni.navigateTo({ url: "/pages/radar/radar" })
 }
 
+function goSatellite() {
+  uni.navigateTo({ url: "/pages/satellite/satellite" })
+}
+
 function goAstronomy() {
   uni.navigateTo({
     url: "/pages/astronomy/astronomy",
@@ -510,15 +514,15 @@ const displayWeather = computed(() => {
 })
 
 const homeModules = ref<{ modules: Record<string, boolean>; order: string[] }>({
-  modules: { detail: true, aqi: true, forecast: true, hourly: true, nowcast: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, stargazing: true, ocean: true, calendar: true },
-  order: ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean", "calendar"],
+  modules: { detail: true, aqi: true, forecast: true, hourly: true, nowcast: true, lifetips: true, temptr: true, preciptr: true, typhoon: true, quake: true, radar: true, satellite: true, stargazing: true, ocean: true, calendar: true },
+  order: ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "satellite", "stargazing", "ocean", "calendar"],
 })
 
 function loadHomeModules() {
   const s = getUnitSettings()
   homeModules.value = {
     modules: s.modules as unknown as Record<string, boolean>,
-    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "stargazing", "ocean", "calendar"],
+    order: s.moduleOrder && s.moduleOrder.length ? s.moduleOrder : ["detail", "aqi", "forecast", "hourly", "nowcast", "lifetips", "temptr", "preciptr", "typhoon", "quake", "radar", "satellite", "stargazing", "ocean", "calendar"],
   }
 }
 
@@ -744,6 +748,19 @@ const weatherScene = computed(() => {
             <view class="entry-text-wrap">
               <text class="entry-title">雷达降水</text>
               <text class="entry-subtitle">实时降雨雷达图</text>
+            </view>
+            <text class="entry-arrow">›</text>
+          </view>
+        </view>
+
+        <view v-if="key === 'satellite' && homeModules.modules.satellite" class="entry-module accent-satellite">
+          <view class="entry-card satellite-entry" @tap="goSatellite">
+            <view class="entry-icon-wrap">
+              <Icon name="satellite" :size="22" color="#3D5A80" />
+            </view>
+            <view class="entry-text-wrap">
+              <text class="entry-title">卫星云图</text>
+              <text class="entry-subtitle">NASA 真彩色影像回放</text>
             </view>
             <text class="entry-arrow">›</text>
           </view>
@@ -1264,6 +1281,7 @@ const weatherScene = computed(() => {
 .typhoon-entry .entry-icon-wrap { background: var(--m-typhoon-soft); }
 .quake-entry .entry-icon-wrap { background: var(--m-quake-soft); }
 .radar-entry .entry-icon-wrap { background: var(--m-radar-soft); }
+.satellite-entry .entry-icon-wrap { background: var(--m-satellite-soft); }
 .ocean-entry .entry-icon-wrap { background: var(--m-ocean-soft); }
 .calendar-entry .entry-icon-wrap { background: var(--m-calendar-soft); }
 

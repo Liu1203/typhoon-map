@@ -1,9 +1,9 @@
 {
   "name": "清清天气",
   "appid": "__UNI__E35C807",
-  "versionName": "1.4.5",
-  "versionCode": "145",
-  "description": "简洁天气查询工具",
+  "versionName": "1.4.7",
+  "versionCode": "147",
+  "description": "简洁天气查询工�?,
   "uniStatistics": {
     "enable": false
   },
@@ -16,7 +16,7 @@
     },
     "permission": {
       "scope.userLocation": {
-        "desc": "获取您的位置信息以查询当地天气"
+        "desc": "获取您的位置信息以查询当地天�?
       }
     },
     "usingComponents": true

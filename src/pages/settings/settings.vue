@@ -29,6 +29,7 @@ const moduleList: { key: keyof ModuleConfig; label: string }[] = [
   { key: "typhoon", label: "台风入口" },
   { key: "quake", label: "地震入口" },
   { key: "radar", label: "雷达降水" },
+  { key: "satellite", label: "卫星云图" },
   { key: "stargazing", label: "观星指数" },
   { key: "ocean", label: "海洋预报" },
   { key: "calendar", label: "天气日历" },

@@ -73,6 +73,14 @@
       }
     },
     {
+      "path": "pages/satellite/satellite",
+      "style": {
+        "navigationBarTitleText": "卫星云图",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
+    },
+    {
       "path": "pages/astronomy/astronomy",
       "style": {
         "navigationBarTitleText": "观星天文",

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>卫星云图</title>
+<link rel="stylesheet" href="./leaflet.min.css">
+<script src="./leaflet.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;color:#2C3E50}
+#app{display:flex;flex-direction:column;width:100%;height:100%}
+.top-bar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);z-index:20}
+.title{flex:1;font-size:16px;font-weight:700;color:#3D5A80}
+.update{font-size:10px;color:#B0BDCC;white-space:nowrap}
+.ctl-btn{flex-shrink:0;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border:none;background:#EDF2F8;border-radius:8px;font-size:14px;color:#3D5A80;cursor:pointer}
+.ctl-btn.loading{animation:spin .6s linear infinite;pointer-events:none;opacity:.5}
+.control-bar{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:6px 12px;background:#fff;border-bottom:1px solid #DDE4ED;font-size:12px;color:#5A6E80;z-index:20}
+.sw{display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none}
+.sw input{width:16px;height:16px;accent-color:#3D5A80}
+.slider-wrap{flex:1;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.slider-wrap input{flex:1;accent-color:#3D5A80}
+.play-btn{flex-shrink:0;width:38px;height:38px;border:none;border-radius:50%;background:#3D5A80;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(61,90,128,.35);transition:transform .12s,background .12s}
+.play-btn:active{transform:scale(.92)}
+.play-btn.on{background:#2B4360}
+.timeline-bar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:5px 12px;background:#fff;border-bottom:1px solid #DDE4ED;z-index:20}
+.timeline-bar input[type=range]{flex:1;min-width:0;accent-color:#3D5A80}
+.tl-btn{flex-shrink:0;width:26px;height:26px;border:none;border-radius:50%;background:#EDF2F8;color:#3D5A80;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.tl-btn:active{background:#DDE7F2}
+.tl-time{flex-shrink:0;min-width:44px;text-align:center;font-size:11px;color:#5A6E80;font-variant-numeric:tabular-nums}
+.map-wrap{flex:1;position:relative;min-height:0;background:#E8EEF5}
+#map{width:100%;height:100%}
+.loading{position:absolute;inset:0;z-index:850;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(240,245,250,.72);color:#5A6E80;font-size:13px}
+.loading.show{display:flex}
+.spinner{width:30px;height:30px;border:3px solid rgba(61,90,128,.2);border-top-color:#3D5A80;border-radius:50%;animation:spin .75s linear infinite}
+.sat-error{position:absolute;inset:0;z-index:860;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(240,245,250,.9);text-align:center;padding:24px}
+.sat-error.show{display:flex}
+.err-icon{font-size:36px}
+.err-title{font-size:15px;color:#2C3E50;font-weight:600}
+.err-sub{font-size:11px;color:#8B9CAD}
+#retryBtn{margin-top:6px;padding:8px 28px;border:none;border-radius:999px;background:#3D5A80;color:#fff;font-size:13px;font-weight:500;cursor:pointer}
+@keyframes spin{to{transform:rotate(360deg)}}
+.city-label{padding:3px 10px;border-radius:10px;background:#3D5A80;color:#fff;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.gibs-attr{position:absolute;left:8px;bottom:8px;z-index:800;font-size:9px;color:#7A8A9A;background:rgba(255,255,255,.72);padding:2px 6px;border-radius:6px;pointer-events:none}
+.no-data-hint{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:900;display:none;max-width:80%;font-size:12px;color:#3A4A5A;background:rgba(255,255,255,.94);padding:6px 14px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.16);white-space:nowrap;pointer-events:none}
+.no-data-hint.show{display:block}
+html.dark .no-data-hint{color:#C9D3DE;background:rgba(24,30,40,.94)}
+
+/* dark */
+html.dark,html.dark body{background:#12161E;color:#C8D0DC}
+html.dark .top-bar,html.dark .control-bar,html.dark .timeline-bar{background:#1A202A;border-color:rgba(255,255,255,.08)}
+html.dark .title{color:#7FA3D0}
+html.dark .update{color:#6A7A8A}
+html.dark .ctl-btn{background:#232A36;color:#7FA3D0}
+html.dark .tl-btn{background:#232A36;color:#7FA3D0}
+html.dark .tl-time{color:#8B9CAD}
+html.dark .control-bar{color:#8B9CAD}
+html.dark .map-wrap{background:#12161E}
+html.dark #map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9)}
+html.dark .loading{background:rgba(18,22,30,.8);color:#8B9CAD}
+html.dark .sat-error{background:rgba(18,22,30,.9)}
+html.dark .err-title{color:#E0E6ED}
+html.dark .err-sub{color:#6A7A8A}
+html.dark .gibs-attr{background:rgba(20,25,34,.7);color:#6A7A8A}
+html.dark .leaflet-control-layers-expanded{background:rgba(30,36,48,.97)!important;color:#C8D0DC;box-shadow:0 2px 12px rgba(0,0,0,.5)!important}
+html.dark .leaflet-control-layers-toggle{background-color:rgba(30,36,48,.97)!important}
+html.dark .leaflet-control-layers-base label span,.dark .leaflet-control-layers-overlays label span{color:#C8D0DC}
+html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers-overlays label:hover{background:#232A36}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top-bar">
+    <span class="title">卫星云图</span>
+    <span class="update" id="updateTime"></span>
+    <button class="ctl-btn" id="refreshBtn" type="button">&#x21bb;</button>
+  </div>
+  <div class="control-bar">
+    <label class="sw"><input type="checkbox" id="satToggle" checked> 卫星</label>
+    <span class="slider-wrap">透明度 <input type="range" id="opacitySlider" min="20" max="100" value="90"></span>
+    <button class="play-btn" id="playBtn" type="button" aria-label="播放/暂停">
+      <svg class="ic-play" viewBox="0 0 24 24" width="18" height="18"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+      <svg class="ic-pause" viewBox="0 0 24 24" width="18" height="18" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="currentColor"/></svg>
+    </button>
+  </div>
+  <div class="timeline-bar">
+    <button class="tl-btn" id="prevFrame" type="button" aria-label="前一天">&#8249;</button>
+    <input type="range" id="timeSlider" min="0" max="0" value="0">
+    <button class="tl-btn" id="nextFrame" type="button" aria-label="后一天">&#8250;</button>
+    <span class="tl-time" id="frameTime">--</span>
+  </div>
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="gibs-attr">Imagery: NASA EOSDIS GIBS</div>
+    <div class="no-data-hint" id="noData">当日暂无可用影像</div>
+    <div class="loading" id="loading"><div class="spinner"></div><div>加载卫星影像...</div></div>
+    <div class="sat-error" id="satError">
+      <div class="err-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#9AA7B5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="46" height="46"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6"/><path d="M8 14v6"/><path d="M12 16v6"/></svg></div>
+      <div class="err-title">卫星影像加载失败</div>
+      <div class="err-sub">可能是网络受限或服务不可用</div>
+      <button id="retryBtn" type="button">重试</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var isDark=location.search.indexOf('dark=1')>=0
+if(isDark)document.documentElement.className='dark'
+var userCoords=(function(){
+  var m=location.search.match(/lat=([\d.\-]+)/)
+  var n=location.search.match(/lon=([\d.\-]+)/)
+  var name=decodeURIComponent((location.search.match(/name=([^&]+)/)||[])[1]||'')
+  if(m&&n){
+    var lat=parseFloat(m[1]),lon=parseFloat(n[1])
+    if(isFinite(lat)&&isFinite(lon))return{lat:lat,lon:lon,name:name}
+  }
+  return null
+})()
+
+var GIBS='https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/'
+var DAYS=30
+var ERR='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+
+var map=null
+var layerCache={}
+var frames=[] // {key:'2026-10-14',label:'10-14'}
+var currentIdx=-1
+var playTimer=null,playing=false
+var watchTimer=null
+var loadGen=0
+
+var $=function(id){return document.getElementById(id)}
+
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function pad(n){return String(n).padStart(2,'0')}
+
+function setLoading(on){on?$('loading').classList.add('show'):$('loading').classList.remove('show')}
+
+function buildDates(){
+  var arr=[]
+  var now=new Date()
+  for(var k=DAYS-1;k>=0;k--){
+    var d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-k)
+    var key=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())
+    arr.push({key:key,label:pad(d.getMonth()+1)+'-'+pad(d.getDate())})
+  }
+  return arr
+}
+
+function initMap(){
+  map=L.map('map',{center:[20,130],zoom:4,minZoom:3,maxZoom:18,zoomControl:false,attributionControl:false,preferCanvas:true})
+  map.createPane('sat')
+  map.getPane('sat').style.zIndex=350
+  var layers={
+    '高德地图':L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}',{subdomains:'1234',maxNativeZoom:17,maxZoom:18,errorTileUrl:ERR}),
+    '高德卫星':L.tileLayer('https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}',{subdomains:'1234',maxNativeZoom:17,maxZoom:18,errorTileUrl:ERR})
+  }
+  layers['高德地图'].addTo(map)
+  L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
+  if(userCoords){
+    map.setView([userCoords.lat,userCoords.lon],7)
+    var label=userCoords.name||(userCoords.lat.toFixed(1)+', '+userCoords.lon.toFixed(1))
+    var icon=L.divIcon({className:'',html:'<div class="city-label">'+esc(label)+'</div>',iconSize:[0,0],iconAnchor:[0,0]})
+    L.marker([userCoords.lat,userCoords.lon],{icon:icon,zIndexOffset:1000}).addTo(map)
+  }
+  setTimeout(function(){try{map.invalidateSize(false)}catch(e){}},60)
+}
+
+function tileUrl(frame){
+  return GIBS+frame.key+'/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg'
+}
+
+function satOn(){ return $('satToggle').checked }
+function satOp(){ return parseInt($('opacitySlider').value)/100 }
+
+function ensureLayer(i){
+  if(layerCache[i])return layerCache[i]
+  var lyr=L.tileLayer(tileUrl(frames[i]),{pane:'sat',opacity:0,maxNativeZoom:9,maxZoom:18,errorTileUrl:ERR,crossOrigin:true})
+  lyr.on('load',function(){lyr._satLoaded=true;scanBlack(lyr,i);if(currentIdx===i){setLoading(false);armWatch(true)}})
+  lyr.addTo(map)
+  layerCache[i]=lyr
+  return lyr
+}
+
+function armWatch(clear){
+  if(watchTimer){clearTimeout(watchTimer);watchTimer=null}
+  if(clear)return
+  watchTimer=setTimeout(function(){
+    watchTimer=null
+    stopPlay()
+    setLoading(false)
+    showSatError()
+  },20000)
+}
+
+function updateTimeLabel(){
+  if(currentIdx<0||!frames[currentIdx]){$('frameTime').textContent='--';$('updateTime').textContent='';return}
+  $('frameTime').textContent=frames[currentIdx].label
+  $('updateTime').textContent=frames[currentIdx].key
+}
+
+function setFrame(i,manual){
+  if(!frames.length)return
+  if(i<0)i=0
+  if(i>frames.length-1)i=frames.length-1
+  if(manual){hideSatError();hideNoData()}
+  currentIdx=i
+  var lyr=ensureLayer(i)
+  scanBlack(lyr,i)
+  var doSwap=function(){
+    var o=satOn()?satOp():0
+    Object.keys(layerCache).forEach(function(k){ layerCache[k].setOpacity(Number(k)===i?o:0) })
+    if(manual){setLoading(false);armWatch(true)}
+  }
+  if(lyr._satLoaded){
+    doSwap()
+  }else{
+    lyr.once('load',doSwap)
+    if(manual){setLoading(true);armWatch(false)}
+  }
+  var sl=$('timeSlider')
+  if(parseInt(sl.value)!==i)sl.value=i
+  updateTimeLabel()
+}
+
+function applySatVisibility(){
+  if(!frames.length)return
+  if(satOn()){ setFrame(currentIdx<0?frames.length-1:currentIdx) }
+  else { Object.keys(layerCache).forEach(function(k){ layerCache[k].setOpacity(0) }) }
+}
+
+function applySatOpacity(){ if(currentIdx>=0&&layerCache[currentIdx]&&satOn())layerCache[currentIdx].setOpacity(satOp()) }
+
+function setPlayIcon(on){
+  document.querySelector('.ic-play').style.display=on?'none':'block'
+  document.querySelector('.ic-pause').style.display=on?'block':'none'
+  $('playBtn').classList.toggle('on',on)
+}
+
+function stopPlay(){
+  if(playTimer){clearInterval(playTimer);playTimer=null}
+  playing=false
+  setPlayIcon(false)
+}
+
+function togglePlay(){
+  if(playing){stopPlay();return}
+  if(!frames.length)return
+  playing=true
+  setPlayIcon(true)
+  playTimer=setInterval(function(){
+    if(!frames.length){stopPlay();return}
+    var next=(currentIdx+1)%frames.length
+    currentIdx=next
+    var lyr=ensureLayer(next)
+    scanBlack(lyr,next)
+    var o=satOn()?satOp():0
+    var swap=function(){
+      Object.keys(layerCache).forEach(function(k){ layerCache[k].setOpacity(Number(k)===next?o:0) })
+    }
+    if(lyr._satLoaded)swap()
+    else{
+      lyr.once('load',swap)
+      armWatch(false)
+    }
+    var sl=$('timeSlider')
+    if(parseInt(sl.value)!==next)sl.value=next
+    updateTimeLabel()
+  },600)
+}
+
+function showSatError(){ $('satError').classList.add('show') }
+function hideSatError(){ $('satError').classList.remove('show') }
+
+function showNoData(){ var el=$('noData'); if(el)el.classList.add('show') }
+function hideNoData(){ var el=$('noData'); if(el)el.classList.remove('show') }
+
+function probeXY(){
+  var lat=userCoords?userCoords.lat:20
+  var lon=userCoords?userCoords.lon:130
+  var z=userCoords?7:4
+  var x=Math.floor((lon+180)/360*Math.pow(2,z))
+  var la=lat*Math.PI/180
+  var y=Math.floor((1-Math.log(Math.tan(la)+1/Math.cos(la))/Math.PI)/2*Math.pow(2,z))
+  var m=Math.pow(2,z)-1
+  return{z:z,x:Math.max(0,Math.min(m,x)),y:Math.max(0,Math.min(m,y))}
+}
+
+function probeDate(key,cb){
+  var t=probeXY()
+  var img=new Image(),done=false,to=null
+  img.crossOrigin='anonymous'
+  var fin=function(v){ if(done)return; done=true; if(to)clearTimeout(to); cb(v) }
+  to=setTimeout(function(){fin(false)},5000)
+  img.onload=function(){
+    try{
+      var c=document.createElement('canvas');c.width=32;c.height=32
+      var g=c.getContext('2d');g.drawImage(img,0,0,32,32)
+      var d=g.getImageData(0,0,32,32).data,sum=0
+      for(var i=0;i<d.length;i+=4)sum+=d[i]+d[i+1]+d[i+2]
+      fin(sum/(d.length/4*3)>2)
+    }catch(e){fin(true)}
+  }
+  img.onerror=function(){fin(false)}
+  img.src=GIBS+key+'/GoogleMapsCompatible_Level9/'+t.z+'/'+t.y+'/'+t.x+'.jpeg'
+}
+
+function probeNext(cands,idx,gen){
+  if(gen!==loadGen)return
+  if(idx>=cands.length){ setFrame(frames.length-1,true); return }
+  probeDate(frames[cands[idx]].key,function(ok){
+    if(gen!==loadGen)return
+    if(ok) setFrame(cands[idx],true)
+    else probeNext(cands,idx+1,gen)
+  })
+}
+
+function scanBlack(lyr,idx){
+  var vis=0,blk=0,pending=false
+  var cont=null
+  try{cont=lyr.getContainer()}catch(e){}
+  var imgs=cont?cont.querySelectorAll('img.leaflet-tile'):[]
+  for(var q=0;q<imgs.length;q++){
+    var el=imgs[q]
+    if(!el.complete||!el.naturalWidth){pending=true;continue}
+    var avg=-1,aavg=255
+    try{
+      var c=document.createElement('canvas');c.width=16;c.height=16
+      var g=c.getContext('2d');g.drawImage(el,0,0,16,16)
+      var d=g.getImageData(0,0,16,16).data,sum=0,asum=0
+      for(var p=0;p<d.length;p+=4){sum+=d[p]+d[p+1]+d[p+2];asum+=d[p+3]}
+      avg=sum/(d.length/4*3)
+      aavg=asum/(d.length/4)
+    }catch(e){return}
+    if(aavg<10)continue
+    vis++
+    if(avg<2){blk++;el.style.opacity='0'}
+    else if(el.style.opacity==='0'){el.style.opacity=''}
+  }
+  if(pending||!imgs.length||currentIdx!==idx)return
+  if(vis===0){showSatError();setLoading(false);armWatch(true);return}
+  if(blk===vis&&satOn())showNoData()
+  else hideNoData()
+}
+
+function loadSat(){
+  var btn=$('refreshBtn');btn.classList.add('loading')
+  setLoading(true);hideSatError();hideNoData()
+  stopPlay()
+  armWatch(true)
+  if(map){ Object.keys(layerCache).forEach(function(k){ try{map.removeLayer(layerCache[k])}catch(e){} }) }
+  layerCache={};currentIdx=-1
+  frames=buildDates()
+  var sl=$('timeSlider')
+  sl.max=Math.max(0,frames.length-1)
+  sl.value=frames.length-1
+  btn.classList.remove('loading')
+  if(frames.length){
+    var gen=++loadGen
+    var cands=[]
+    for(var k=0;k<6&&k<frames.length;k++)cands.push(frames.length-1-k)
+    armWatch(false)
+    probeNext(cands,0,gen)
+  }else{
+    loadGen++
+    setLoading(false)
+    showSatError()
+  }
+}
+
+initMap()
+loadSat()
+$('satToggle').onchange=applySatVisibility
+$('opacitySlider').oninput=applySatOpacity
+$('playBtn').onclick=togglePlay
+$('timeSlider').oninput=function(){stopPlay();setFrame(parseInt(this.value),true)}
+$('prevFrame').onclick=function(){stopPlay();setFrame(currentIdx-1,true)}
+$('nextFrame').onclick=function(){stopPlay();setFrame(currentIdx+1,true)}
+$('refreshBtn').onclick=function(){loadSat()}
+$('retryBtn').onclick=function(){loadSat()}
+</script>
+</body>
+</html>

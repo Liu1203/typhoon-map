@@ -47,6 +47,7 @@ const PATHS: Record<string, string> = {
   "chevron-left": '<path d="m15 18-6-6 6-6"/>',
   list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
   scale: '<path d="M12 3v18"/><path d="M7 21h10"/><path d="M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
+  satellite: '<rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1" transform="rotate(45 12 12)"/><rect x="3.5" y="9.75" width="5" height="4.5" rx="1" transform="rotate(45 6 12)"/><rect x="15.5" y="9.75" width="5" height="4.5" rx="1" transform="rotate(45 18 12)"/><path d="M12 8.5V5"/><circle cx="12" cy="4" r="1"/>',
 }
 
 const src = computed(() => {

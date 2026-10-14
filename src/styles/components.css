@@ -12,6 +12,7 @@
 .accent-typhoon { --accent: var(--m-typhoon); --accent-soft: var(--m-typhoon-soft); }
 .accent-quake { --accent: var(--m-quake); --accent-soft: var(--m-quake-soft); }
 .accent-radar { --accent: var(--m-radar); --accent-soft: var(--m-radar-soft); }
+.accent-satellite { --accent: var(--m-satellite); --accent-soft: var(--m-satellite-soft); }
 .accent-star { --accent: var(--m-star); --accent-soft: var(--m-star-soft); }
 .accent-ocean { --accent: var(--m-ocean); --accent-soft: var(--m-ocean-soft); }
 .accent-calendar { --accent: var(--m-calendar); --accent-soft: var(--m-calendar-soft); }
