@@ -8,7 +8,7 @@
 <script src="./leaflet.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;color:#2C3E50}
+html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;color:#2C3E50;-webkit-text-size-adjust:100%}
 #app{display:flex;flex-direction:column;width:100%;height:100%}
 .top-bar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);z-index:20}
 .title{flex:1;font-size:16px;font-weight:700;color:#3D5A80}
@@ -40,7 +40,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .err-sub{font-size:11px;color:#8B9CAD}
 #retryBtn{margin-top:6px;padding:8px 28px;border:none;border-radius:999px;background:#3D5A80;color:#fff;font-size:13px;font-weight:500;cursor:pointer}
 @keyframes spin{to{transform:rotate(360deg)}}
-.city-label{padding:3px 10px;border-radius:10px;background:#3D5A80;color:#fff;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.city-label{display:inline-block;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 7px;border-radius:8px;background:#3D5A80;color:#fff;font-size:11px;line-height:1.35;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.18)}
 .gibs-attr{position:absolute;left:8px;bottom:8px;z-index:800;font-size:9px;color:#7A8A9A;background:rgba(255,255,255,.72);padding:2px 6px;border-radius:6px;pointer-events:none}
 .no-data-hint{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:900;display:none;max-width:80%;font-size:12px;color:#3A4A5A;background:rgba(255,255,255,.94);padding:6px 14px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.16);white-space:nowrap;pointer-events:none}
 .no-data-hint.show{display:block}
