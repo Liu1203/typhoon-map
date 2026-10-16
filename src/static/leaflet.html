@@ -83,6 +83,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .cmp-stat{flex:1;font-size:10px;color:#8B9CAD;text-align:right;line-height:1.5}
 .cmp-del{flex-shrink:0;width:22px;height:22px;border:none;border-radius:50%;background:#EDF2F8;color:#8B9CAD;font-size:13px;cursor:pointer}
 .cmp-empty{padding:14px 12px;font-size:12px;color:#8B9CAD;text-align:center}
+.cmp-hint{flex-shrink:0;padding:0 12px 8px;font-size:10px;color:#B0BDCC}
+#legend.cmp #legendForecastRow,#legend.cmp #legendAgencyTitle,#legend.cmp #legendAgencies{display:none}
+.leaflet-popup-content{margin:10px 12px!important;line-height:1.5}
+.cmp-pop{font-size:12px;color:#2C3E50;min-width:150px}
+.cmp-pop-title{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;margin-bottom:6px}
+.cmp-pop-year{font-size:10px;font-weight:500;color:#B0BDCC;margin-left:2px}
+.cmp-pop-row{display:flex;justify-content:space-between;gap:14px;font-size:11px;color:#5A6E80;padding:1px 0}
+.cmp-pop-row b{color:#2C3E50}
 .cmp-tip{background:rgba(255,255,255,.95)!important;border:none!important;box-shadow:0 2px 6px rgba(0,0,0,.18)!important;font-size:11px;font-weight:600;padding:2px 7px!important;border-radius:8px!important}
 .cmp-tip:before{border-right-color:rgba(255,255,255,.95)!important}
 
@@ -202,6 +210,12 @@ html.dark .cmp-title{color:#C8D0DC}
 html.dark .cmp-row{border-color:rgba(255,255,255,.07)}
 html.dark .cmp-name{color:#C8D0DC}
 html.dark .cmp-exit,html.dark .cmp-del{background:#232A36;color:#6B9FD0}
+html.dark .cmp-hint{color:#6A7A8A}
+html.dark .leaflet-popup-content-wrapper,html.dark .leaflet-popup-tip{background:#1A202A;color:#C8D0DC;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+html.dark .cmp-pop{color:#C8D0DC}
+html.dark .cmp-pop-row{color:#8B9CAD}
+html.dark .cmp-pop-row b{color:#E0E6ED}
+html.dark .cmp-pop-year{color:#6A7A8A}
 html.dark .sheet{background:#1A202A}
 html.dark .sheet-title{color:#C8D0DC}
 html.dark .sheet-close{background:#232A36;color:#8B9CAD}
@@ -283,6 +297,7 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
         <span class="cmp-title">路径对比 <span class="cmp-count" id="cmpCount">0/4</span></span>
         <button class="cmp-exit" id="cmpExit" type="button">退出对比</button>
       </div>
+      <div class="cmp-hint">线条颜色 = 强度等级 · 点击末端点查看详情</div>
       <div class="cmp-list" id="cmpList"></div>
     </div>
     <div class="toast" id="toast"></div>
@@ -300,9 +315,9 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
         <div class="legend-row"><span class="legend-dot" style="background:#E85A9B"></span>超强台风</div>
         <div class="legend-sep"></div>
         <div class="legend-row"><span class="legend-line"></span>实况</div>
-        <div class="legend-row"><span class="legend-line dash"></span>预报（NMC）</div>
+        <div class="legend-row" id="legendForecastRow"><span class="legend-line dash"></span>预报（NMC）</div>
         <div class="legend-sep"></div>
-        <div class="legend-row" style="font-weight:600;color:#2C3E50;margin:4px 0 2px">机构预报</div>
+        <div class="legend-row" id="legendAgencyTitle" style="font-weight:600;color:#2C3E50;margin:4px 0 2px">机构预报</div>
         <div id="legendAgencies"></div>
       </div>
     </div>
@@ -687,7 +702,7 @@ function toggleCompare(){
     setShow($('cmpPanel'),true)
   }else{
     setShow($('cmpPanel'),false)
-    setShow($('legend'),true)
+    $('legend').classList.remove('cmp')
     compareList=[]
   }
   renderChips();renderCollapsed();renderInfo()
@@ -765,29 +780,35 @@ function renderComparePanel(){
     list.appendChild(row)
   })
 }
+function buildComparePopup(it){
+  var d=detailsByKey[it.id],s=stormStats(d)
+  var html='<div class="cmp-pop"><div class="cmp-pop-title"><span class="cmp-dot" style="background:'+it.color+'"></span>'+it.name+(it.year?'<span class="cmp-pop-year">'+it.year+'</span>':'')+'</div>'
+  if(!s)html+='<div class="cmp-pop-row">无路径数据</div>'
+  else html+='<div class="cmp-pop-row">峰值风速 <b>'+s.peak+' m/s</b></div>'
+    +'<div class="cmp-pop-row">最低气压 <b>'+s.minP+' hPa</b></div>'
+    +'<div class="cmp-pop-row">路径里程 <b>'+Math.round(s.km)+' km</b></div>'
+    +'<div class="cmp-pop-row">持续时长 <b>'+Math.round(s.hours)+' h</b> · '+s.pts+' 点</div>'
+  return html+'</div>'
+}
 function renderCompare(fit){
   if(!map)return
   clearLayers()
-  setShow($('legend'),false)
+  try{map.closePopup()}catch(e){}
+  $('legend').classList.add('cmp')
+  $('legendAgencies').innerHTML=''
   var bounds=[]
   compareList.forEach(function(it){
     var d=detailsByKey[it.id]
     if(!d||!d.history||!d.history.length)return
     var pts=d.history.filter(validLL)
-    if(pts.length<1)return
-    if(pts.length>1){
-      var halo=L.polyline(pts.map(function(p){return[p.lat,p.lon]}),{color:it.color,weight:8,opacity:.16,interactive:false}).addTo(map)
-      layers.push(halo)
-      var line=L.polyline(pts.map(function(p){return[p.lat,p.lon]}),{color:it.color,weight:3,opacity:.95,interactive:false}).addTo(map)
-      layers.push(line)
-    }
+    if(!pts.length)return
+    drawSegs(d.history,false,false)
     pts.forEach(function(p){bounds.push([p.lat,p.lon])})
     var s=pts[0],e=pts[pts.length-1]
-    var m0=L.circleMarker([s.lat,s.lon],{radius:5,color:'#fff',weight:2,fillColor:it.color,fillOpacity:1,interactive:false}).addTo(map)
-    layers.push(m0)
-    var m1=L.circleMarker([e.lat,e.lon],{radius:6,color:'#fff',weight:2,fillColor:it.color,fillOpacity:1,interactive:false}).addTo(map)
-    m1.bindTooltip('<span style="color:'+it.color+'">'+it.name+'</span>',{permanent:true,direction:'right',offset:[7,0],className:'cmp-tip'})
-    layers.push(m1)
+    layers.push(L.circleMarker([s.lat,s.lon],{radius:4,color:'#fff',weight:1.5,fillColor:'#90A4AE',fillOpacity:1,interactive:false}).addTo(map))
+    var end=L.circleMarker([e.lat,e.lon],{radius:7,color:'#fff',weight:2.5,fillColor:it.color,fillOpacity:1}).addTo(map)
+    end.bindPopup(buildComparePopup(it),{autoPan:true,offset:[0,-2],closeButton:true})
+    layers.push(end)
   })
   if(fit&&bounds.length>1){
     try{map.fitBounds(bounds,{padding:[40,40],maxZoom:6})}catch(e){}
@@ -958,8 +979,9 @@ function sampleNodes(pts,ih){
 }
 function nodeKey(type,idx){return type+':'+idx}
 
-function drawSegs(pts,dashed){
+function drawSegs(pts,dashed,interactive){
   if(!pts||pts.length<2)return
+  var hit=interactive!==false
   // 先滤无效点，避免中间空洞造成断线
   var clean=pts.filter(validLL)
   if(clean.length<2)return
@@ -975,8 +997,8 @@ function drawSegs(pts,dashed){
       var sub=clean.slice(start,endIdx).map(function(p){return[p.lat,p.lon]})
       if(sub.length>=2){
         var c=gc(clean[start].grade)
-        add(L.polyline(sub,{color:c,weight:7,opacity:0.18,lineCap:'round',lineJoin:'round'}).addTo(map))
-        add(L.polyline(sub,{color:c,weight:3.5,opacity:0.95,lineCap:'round',lineJoin:'round',dashArray:dashed?'7,8':null}).addTo(map))
+        add(L.polyline(sub,{color:c,weight:7,opacity:0.18,lineCap:'round',lineJoin:'round',interactive:hit}).addTo(map))
+        add(L.polyline(sub,{color:c,weight:3.5,opacity:0.95,lineCap:'round',lineJoin:'round',interactive:hit,dashArray:dashed?'7,8':null}).addTo(map))
       }
       start=dateLine?i:(end?i:i)
     }
