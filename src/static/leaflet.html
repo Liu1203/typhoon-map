@@ -638,15 +638,32 @@ function clearApiCache(){
 var DT_HOST='https://agora.ex.nii.ac.jp'
 var cloudFrames=[],cloudIdx=0,cloudTimer=null,cloudPlaying=false,cloudLoadGen=0
 var cloudImgCache={}
-function dtFetch(url,timeout){
+function dtSleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
+function dtFetch(url,timeout,tries){
+  tries=tries||3
+  var attempt=0
   return new Promise(function(resolve){
-    var x=new XMLHttpRequest()
-    x.open('GET',url,true)
-    x.timeout=timeout||12000
-    x.onload=function(){resolve(x.status>=200&&x.status<300?x.responseText:null)}
-    x.onerror=function(){resolve(null)}
-    x.ontimeout=function(){resolve(null)}
-    x.send()
+    function one(){
+      attempt++
+      var x=new XMLHttpRequest()
+      x.open('GET',url,true)
+      x.timeout=timeout||8000
+      x.onload=function(){if(x.status>=200&&x.status<300)resolve(x.responseText);else retry()}
+      x.onerror=retry
+      x.ontimeout=retry
+      function retry(){if(attempt<tries)dtSleep(350*attempt).then(one);else resolve(null)}
+      try{x.send()}catch(e){resolve(null)}
+    }
+    one()
+  })
+}
+function dtProbeImage(url,timeout){
+  return new Promise(function(resolve){
+    var done=false,img=new Image()
+    var to=setTimeout(function(){if(done)return;done=true;resolve(false)},timeout||6000)
+    img.onload=function(){if(done)return;done=true;clearTimeout(to);resolve(true)}
+    img.onerror=function(){if(done)return;done=true;clearTimeout(to);resolve(false)}
+    img.src=url
   })
 }
 function dtCacheGet(k,ttl){
@@ -673,7 +690,7 @@ async function dtSeason(year){
   var key='dt_season_'+year
   var c=dtCacheGet(key,7*24*3600*1000)
   if(c)return c
-  var html=await dtFetch(DT_HOST+'/cgi-bin/dt/search_name2.pl?name='+year+'%25&lang=en&basin=wnp',12000)
+  var html=await dtFetch(DT_HOST+'/cgi-bin/dt/search_name2.pl?name='+year+'%25&lang=en&basin=wnp',8000,3)
   if(!html)return null
   var rows=dtParseSeason(html)
   if(!rows.length)return null
@@ -714,17 +731,37 @@ async function dtResolve(t,year,histTime){
   }
   return null
 }
-async function dtPrefix(id){
+function dtFrameUrl(id,prefix,tag,size){var s=size||512;return DT_HOST+'/digital-typhoon/wnp/by-name/'+id+'/1/'+s+'x'+s+'/'+prefix+tag+'.'+id+'.jpg'}
+function dtPrefixCandidates(year){
+  var y=+year||0
+  if(y>=2023)return['HMW9','HMW8']
+  if(y>=2015)return['HMW8','HMW9']
+  if(y>=2010)return['MT2','MTS2','HMW8']
+  if(y>=2005)return['MT1','MTS1','GOE9','GMS5']
+  if(y>=2003)return['GOE9','GMS5']
+  if(y>=1995)return['GMS5','GMS4']
+  if(y>=1989)return['GMS4','GMS3']
+  if(y>=1984)return['GMS3','GMS2']
+  if(y>=1981)return['GMS2','GMS1']
+  return['GMS1','GMS2']
+}
+async function dtPrefix(id,year,sampleTag){
   var key='dt_prefix_'+id
   var c=dtCacheGet(key,30*24*3600*1000)
   if(c)return c
-  var html=await dtFetch(DT_HOST+'/digital-typhoon/summary/wnp/s/'+id+'.html.en',12000)
-  if(!html)return null
-  var re=new RegExp('/wnp/by-name/'+id+'/1/[^/]+/([A-Za-z0-9]+?)\\d{8}\\.'+id+'\\.jpg')
-  var m=html.match(re)
-  if(!m)return null
-  dtCacheSet(key,m[1])
-  return m[1]
+  var html=await dtFetch(DT_HOST+'/digital-typhoon/summary/wnp/s/'+id+'.html.en',8000,3)
+  if(html){
+    var re=new RegExp('/wnp/by-name/'+id+'/1/[^/]+/([A-Za-z0-9]+?)\\d{8}\\.'+id+'\\.jpg')
+    var m=html.match(re)
+    if(m){dtCacheSet(key,m[1]);return m[1]}
+  }
+  if(sampleTag){
+    var cands=dtPrefixCandidates(year)
+    for(var i=0;i<cands.length;i++){
+      if(await dtProbeImage(dtFrameUrl(id,cands[i],sampleTag,128),6000)){dtCacheSet(key,cands[i]);return cands[i]}
+    }
+  }
+  return null
 }
 function dtFrames(id,prefix,birthMs,deathMs){
   var out=[]
@@ -737,33 +774,46 @@ function dtFrames(id,prefix,birthMs,deathMs){
   for(var ms=start;ms<=deathMs+step/2;ms+=step){
     var d=new Date(ms)
     var tag=String(d.getUTCFullYear()).slice(2)+pad2(d.getUTCMonth()+1)+pad2(d.getUTCDate())+pad2(d.getUTCHours())
-    out.push({ms:ms,tag:tag,url:DT_HOST+'/digital-typhoon/wnp/by-name/'+id+'/1/512x512/'+prefix+tag+'.'+id+'.jpg'})
+    out.push({ms:ms,tag:tag,url:dtFrameUrl(id,prefix,tag,512)})
   }
   return out
 }
-function dtPreloadFrames(frames,gen){
+function dtPreloadFrames(frames,gen,retryPasses){
+  var passes=retryPasses==null?1:retryPasses
   return new Promise(function(resolve){
     if(!frames.length){resolve([]);return}
-    var valid=[],i=0,active=0,done=false,total=frames.length
-    function finish(ok){
-      if(done)return;done=true
-      valid.sort(function(a,b){return a.ms-b.ms})
-      resolve(ok?valid:null)
+    var valid=[],total=frames.length,done=false
+    function finish(ok){if(done)return;done=true;valid.sort(function(a,b){return a.ms-b.ms});resolve(ok?valid:null)}
+    function runPass(list){
+      return new Promise(function(res2){
+        var i=0,active=0,failed=[]
+        function pump(){
+          if(gen!==cloudLoadGen){finish(false);res2([]);return}
+          while(active<5&&i<list.length){
+            (function(fr){
+              active++
+              var img=new Image()
+              img.onload=function(){cloudImgCache[fr.url]=img;valid.push(fr);active--;updateCloudProgress(valid.length,total);pump()}
+              img.onerror=function(){failed.push(fr);active--;updateCloudProgress(valid.length,total);pump()}
+              img.src=fr.url
+            })(list[i++])
+          }
+          if(i>=list.length&&active===0)res2(failed)
+        }
+        pump()
+      })
     }
-    function pump(){
-      if(gen!==cloudLoadGen){finish(false);return}
-      while(active<6&&i<total){
-        (function(fr){
-          active++
-          var img=new Image()
-          img.onload=function(){cloudImgCache[fr.url]=img;valid.push(fr);active--;updateCloudProgress(valid.length,total);pump()}
-          img.onerror=function(){active--;updateCloudProgress(valid.length,total);pump()}
-          img.src=fr.url
-        })(frames[i++])
+    (async function(){
+      var list=frames
+      for(var p=0;p<=passes;p++){
+        var failed=await runPass(list)
+        if(gen!==cloudLoadGen)return
+        if(!failed||!failed.length||p===passes)break
+        list=failed
+        await dtSleep(500)
       }
-      if(i>=total&&active===0)finish(true)
-    }
-    pump()
+      finish(true)
+    })()
   })
 }
 function updateCloudProgress(n,total){
@@ -826,22 +876,25 @@ async function openCloud(){
   setShow($('cloudModal'),true)
   setShow($('cloudLoading'),true)
   setShow($('cloudEmpty'),false)
-  $('cloudProgress').textContent='正在加载云图…'
+  $('cloudProgress').textContent='正在获取台风编号…'
   var res=await dtResolve(t,year,histTime)
   if(gen!==cloudLoadGen)return
-  if(!res||!res.id){cloudEmpty('未找到该台风的云图编号，暂无云图');return}
-  var prefix=await dtPrefix(res.id)
-  if(gen!==cloudLoadGen)return
-  if(!prefix){cloudEmpty('未获取到该台风的卫星云图');return}
+  if(!res||!res.id){cloudEmpty('未找到该台风的云图编号（'+displayName(t)+'），暂无云图');return}
   var bMs=dtTimeMs(res.birth),dMs=dtTimeMs(res.death)
   if(!isFinite(bMs))bMs=dtHistTimeMs(histTime)
   if(!isFinite(dMs))dMs=dtHistTimeMs(histEnd)
-  var frames=dtFrames(res.id,prefix,bMs,dMs)
-  if(!frames.length){cloudEmpty('该台风暂无可用云图');return}
-  $('cloudSub').textContent=res.id+' · '+prefix+' 卫星云图'
-  var valid=await dtPreloadFrames(frames,gen)
+  var sampleTag=isFinite(bMs)?(String(new Date(bMs).getUTCFullYear()).slice(2)+pad2(new Date(bMs).getUTCMonth()+1)+pad2(new Date(bMs).getUTCDate())+pad2(new Date(bMs).getUTCHours())):''
+  $('cloudProgress').textContent='正在获取卫星信息…'
+  var prefix=await dtPrefix(res.id,year,sampleTag)
   if(gen!==cloudLoadGen)return
-  if(!valid||!valid.length){cloudEmpty('云图加载失败，请检查网络后重试');return}
+  if(!prefix){cloudEmpty('未获取到该台风的卫星云图（'+res.id+'），请稍后重试');return}
+  var frames=dtFrames(res.id,prefix,bMs,dMs)
+  if(!frames.length){cloudEmpty('该台风暂无可用云图（'+res.id+'）');return}
+  $('cloudSub').textContent=res.id+' · '+prefix+' 卫星云图'
+  $('cloudProgress').textContent='正在加载云图…'
+  var valid=await dtPreloadFrames(frames,gen,1)
+  if(gen!==cloudLoadGen)return
+  if(!valid||!valid.length){cloudEmpty('云图加载失败（'+res.id+'），请检查网络后重试');return}
   setShow($('cloudLoading'),false)
   cloudFrames=valid
   $('cloudRange').max=valid.length-1
