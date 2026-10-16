@@ -271,6 +271,10 @@ html.dark .cloud-btn{background:linear-gradient(135deg,#4A7AA8,#33597E)}
 .cloud-head{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px}
 .cloud-title{font-size:16px;font-weight:700;color:#fff}
 .cloud-sub{font-size:11px;color:#9AA7B5;margin-top:3px}
+.cloud-head-main{flex:1;min-width:0}
+.cloud-src{flex-shrink:0;display:flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.1)}
+.cloud-src-btn{border:none;background:transparent;color:#9AA7B5;font-size:12px;font-weight:600;padding:5px 10px;border-radius:7px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cloud-src-btn.active{background:#5B8FC0;color:#fff}
 .cloud-close{flex-shrink:0;width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:14px;cursor:pointer}
 .cloud-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0;padding:0 8px}
 .cloud-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;display:block}
@@ -279,11 +283,20 @@ html.dark .cloud-btn{background:linear-gradient(135deg,#4A7AA8,#33597E)}
 .cloud-loading.show{display:flex}
 .cloud-empty{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#B0BDCC;font-size:13px;text-align:center;padding:0 34px;line-height:1.6}
 .cloud-empty.show{display:flex}
-.cloud-ctrl{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:14px 16px 22px}
-.cloud-play{flex-shrink:0;width:42px;height:42px;border:none;border-radius:50%;background:#5B8FC0;color:#fff;font-size:15px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.cloud-range{flex:1;-webkit-appearance:none;appearance:none;height:4px;border-radius:2px;background:rgba(255,255,255,.22);outline:none}
-.cloud-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;background:#5B8FC0;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-.cloud-idx{flex-shrink:0;font-size:11px;color:#9AA7B5;min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
+.cloud-ctrl{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:12px 16px 20px}
+.cloud-play{flex-shrink:0;width:44px;height:44px;padding:0;border:none;border-radius:50%;background:linear-gradient(135deg,#5B8FC0,#3D6A94);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(91,143,192,.4);transition:transform .12s ease,box-shadow .12s ease;-webkit-tap-highlight-color:transparent}
+.cloud-play:active{transform:scale(.9)}
+.cloud-play svg{width:20px;height:20px;fill:#fff;display:block}
+.cloud-play .ic-pause{display:none}
+.cloud-play.playing .ic-play{display:none}
+.cloud-play.playing .ic-pause{display:block}
+.cloud-track{flex:1;position:relative;height:30px;display:flex;align-items:center;cursor:pointer;touch-action:none}
+.cloud-track::before{content:'';position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:5px;border-radius:3px;background:rgba(255,255,255,.2)}
+.cloud-fill{position:absolute;left:0;top:50%;transform:translateY(-50%);height:5px;width:0;max-width:100%;border-radius:3px;background:linear-gradient(90deg,#5B8FC0,#82B4E2)}
+.cloud-thumb{position:absolute;left:0;top:50%;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(91,143,192,.4),0 2px 6px rgba(0,0,0,.5);transform:translateY(-50%);pointer-events:none}
+.cloud-bubble{position:absolute;left:0;bottom:27px;transform:translateX(-50%);background:rgba(24,32,42,.96);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;opacity:0;transition:opacity .12s ease;pointer-events:none;font-variant-numeric:tabular-nums}
+.cloud-bubble.show{opacity:1}
+.cloud-idx{flex-shrink:0;font-size:11px;color:#9AA7B5;min-width:48px;text-align:right;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -419,9 +432,13 @@ html.dark .cloud-btn{background:linear-gradient(135deg,#4A7AA8,#33597E)}
 
 <div class="cloud-modal" id="cloudModal">
   <div class="cloud-head">
-    <div>
+    <div class="cloud-head-main">
       <div class="cloud-title" id="cloudTitle">—</div>
       <div class="cloud-sub" id="cloudSub"></div>
+    </div>
+    <div class="cloud-src" id="cloudSrc">
+      <button class="cloud-src-btn active" data-src="bm" type="button">真彩</button>
+      <button class="cloud-src-btn" data-src="ir" type="button">红外</button>
     </div>
     <button class="cloud-close" id="cloudClose" type="button">&#10005;</button>
   </div>
@@ -432,8 +449,15 @@ html.dark .cloud-btn{background:linear-gradient(135deg,#4A7AA8,#33597E)}
     <div class="cloud-empty" id="cloudEmpty"></div>
   </div>
   <div class="cloud-ctrl">
-    <button class="cloud-play" id="cloudPlay" type="button">&#9654;</button>
-    <input class="cloud-range" id="cloudRange" type="range" min="0" max="0" value="0" step="1">
+    <button class="cloud-play" id="cloudPlay" type="button" aria-label="播放">
+      <svg class="ic-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="ic-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+    </button>
+    <div class="cloud-track" id="cloudTrack">
+      <div class="cloud-fill" id="cloudFill"></div>
+      <div class="cloud-thumb" id="cloudThumb"></div>
+      <div class="cloud-bubble" id="cloudBubble">—</div>
+    </div>
     <span class="cloud-idx" id="cloudIdx">—/—</span>
   </div>
 </div>
@@ -637,6 +661,7 @@ function clearApiCache(){
 /* ===== dynamic cloud animation (Digital Typhoon / NII) ===== */
 var DT_HOST='https://agora.ex.nii.ac.jp'
 var cloudFrames=[],cloudIdx=0,cloudTimer=null,cloudPlaying=false,cloudLoadGen=0
+var cloudSrc='bm',cloudArg=null,cloudScrub=false,cloudScrubResume=false
 var cloudImgCache={}
 function dtSleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function dtFetch(url,timeout,tries){
@@ -731,7 +756,11 @@ async function dtResolve(t,year,histTime){
   }
   return null
 }
-function dtFrameUrl(id,prefix,tag,size){var s=size||512;return DT_HOST+'/digital-typhoon/wnp/by-name/'+id+'/1/'+s+'x'+s+'/'+prefix+tag+'.'+id+'.jpg'}
+function dtFrameUrl(id,prefix,tag,src){
+  if(src==='ir')return DT_HOST+'/digital-typhoon/wnp/by-name/'+id+'/1/512x512/'+prefix+tag+'.'+id+'.jpg'
+  return DT_HOST+'/digital-typhoon/wnp/by-name/'+id+'/bm/640x480/'+prefix+tag+'.'+id+'.jpg'
+}
+function dtProbeUrl(id,prefix,tag){return DT_HOST+'/digital-typhoon/wnp/by-name/'+id+'/1/128x128/'+prefix+tag+'.'+id+'.jpg'}
 function dtPrefixCandidates(year){
   var y=+year||0
   if(y>=2023)return['HMW9','HMW8']
@@ -758,7 +787,7 @@ async function dtPrefix(id,year,sampleTag){
   if(sampleTag){
     var cands=dtPrefixCandidates(year)
     for(var i=0;i<cands.length;i++){
-      if(await dtProbeImage(dtFrameUrl(id,cands[i],sampleTag,128),6000)){dtCacheSet(key,cands[i]);return cands[i]}
+      if(await dtProbeImage(dtProbeUrl(id,cands[i],sampleTag),6000)){dtCacheSet(key,cands[i]);return cands[i]}
     }
   }
   return null
@@ -774,7 +803,7 @@ function dtFrames(id,prefix,birthMs,deathMs){
   for(var ms=start;ms<=deathMs+step/2;ms+=step){
     var d=new Date(ms)
     var tag=String(d.getUTCFullYear()).slice(2)+pad2(d.getUTCMonth()+1)+pad2(d.getUTCDate())+pad2(d.getUTCHours())
-    out.push({ms:ms,tag:tag,url:dtFrameUrl(id,prefix,tag,512)})
+    out.push({ms:ms,tag:tag})
   }
   return out
 }
@@ -824,6 +853,22 @@ function fmtCloudTime(ms){
   var d=new Date(ms)
   return pad2(d.getMonth()+1)+'/'+pad2(d.getDate())+' '+pad2(d.getHours())+':00'
 }
+function cloudRender(){
+  var len=cloudFrames.length
+  var pct=len>1?cloudIdx/(len-1):0
+  var p=(Math.round(pct*1000)/10)+'%'
+  var f=$('cloudFill'),t=$('cloudThumb'),b=$('cloudBubble')
+  if(f)f.style.width=p
+  if(t)t.style.left=p
+  if(b){b.style.left=p;b.textContent=cloudFrames.length?fmtCloudTime(cloudFrames[cloudIdx].ms):'—'}
+}
+function cloudResetUI(){
+  var f=$('cloudFill'),t=$('cloudThumb'),b=$('cloudBubble'),x=$('cloudIdx')
+  if(f)f.style.width='0%'
+  if(t)t.style.left='0%'
+  if(b){b.style.left='0%';b.textContent='—';b.classList.remove('show')}
+  if(x)x.textContent='—/—'
+}
 function cloudShow(i){
   if(!cloudFrames.length)return
   if(i<0)i=0
@@ -833,23 +878,74 @@ function cloudShow(i){
   var im=$('cloudImg')
   if(im.getAttribute('src')!==fr.url)im.src=fr.url
   $('cloudTime').textContent=fmtCloudTime(fr.ms)
-  $('cloudRange').value=i
   $('cloudIdx').textContent=(i+1)+'/'+cloudFrames.length
+  cloudRender()
 }
 function startCloudPlay(){
   if(cloudTimer||cloudFrames.length<2)return
   cloudPlaying=true
-  $('cloudPlay').innerHTML='&#9632;'
+  var b=$('cloudPlay');if(b)b.classList.add('playing')
   cloudTimer=setInterval(function(){cloudShow((cloudIdx+1)%cloudFrames.length)},700)
 }
 function stopCloudPlay(){
   cloudPlaying=false
   if(cloudTimer){clearInterval(cloudTimer);cloudTimer=null}
-  $('cloudPlay').innerHTML='&#9654;'
+  var b=$('cloudPlay');if(b)b.classList.remove('playing')
 }
 function toggleCloudPlay(){
   if(cloudPlaying)stopCloudPlay()
   else startCloudPlay()
+}
+function cloudIndexFromX(clientX){
+  var el=$('cloudTrack')
+  if(!el||cloudFrames.length<2)return 0
+  var r=el.getBoundingClientRect()
+  var pct=r.width>0?(clientX-r.left)/r.width:0
+  if(pct<0)pct=0
+  if(pct>1)pct=1
+  return Math.round(pct*(cloudFrames.length-1))
+}
+function cloudScrubStart(clientX,resume){
+  if(cloudFrames.length<2)return
+  cloudScrub=true
+  cloudScrubResume=resume
+  var b=$('cloudBubble');if(b)b.classList.add('show')
+  cloudShow(cloudIndexFromX(clientX))
+}
+function cloudScrubMove(clientX){if(cloudScrub)cloudShow(cloudIndexFromX(clientX))}
+function cloudScrubEnd(){
+  if(!cloudScrub)return
+  cloudScrub=false
+  var b=$('cloudBubble');if(b)b.classList.remove('show')
+  if(cloudScrubResume)startCloudPlay()
+}
+function cloudSyncSrc(){
+  var bs=document.querySelectorAll('.cloud-src-btn')
+  for(var i=0;i<bs.length;i++)bs[i].classList.toggle('active',bs[i].getAttribute('data-src')===cloudSrc)
+}
+async function cloudLoad(gen){
+  cloudFrames=[];cloudIdx=0
+  cloudResetUI()
+  $('cloudImg').removeAttribute('src')
+  $('cloudTimeWrap').style.display='none'
+  $('cloudProgress').textContent='正在加载云图…'
+  setShow($('cloudLoading'),true)
+  setShow($('cloudEmpty'),false)
+  var frames=dtFrames(cloudArg.id,cloudArg.prefix,cloudArg.bMs,cloudArg.dMs)
+  for(var i=0;i<frames.length;i++)frames[i].url=dtFrameUrl(cloudArg.id,cloudArg.prefix,frames[i].tag,cloudSrc)
+  if(!frames.length){cloudEmpty('该台风暂无可用云图（'+cloudArg.id+'）');return}
+  var valid=await dtPreloadFrames(frames,gen,1)
+  if(gen!==cloudLoadGen)return
+  if((!valid||!valid.length)&&cloudSrc!=='ir'){
+    cloudSrc='ir';cloudSyncSrc()
+    return cloudLoad(gen)
+  }
+  if(!valid||!valid.length){cloudEmpty('云图加载失败（'+cloudArg.id+'），请检查网络后重试');return}
+  setShow($('cloudLoading'),false)
+  cloudFrames=valid
+  $('cloudTimeWrap').style.display=''
+  cloudShow(Math.floor(valid.length/2))
+  startCloudPlay()
 }
 function cloudEmpty(msg){
   setShow($('cloudLoading'),false)
@@ -866,11 +962,12 @@ async function openCloud(){
   stopCloudPlay()
   cloudLoadGen++
   var gen=cloudLoadGen
+  cloudArg=null
   cloudFrames=[];cloudIdx=0
+  cloudResetUI()
   $('cloudTitle').textContent=displayName(t)
   $('cloudSub').textContent='正在识别台风云图…'
   $('cloudImg').removeAttribute('src')
-  $('cloudRange').max=0;$('cloudRange').value=0;$('cloudIdx').textContent='—/—'
   $('cloudTimeWrap').style.display='none'
   $('cloudEmpty').textContent=''
   setShow($('cloudModal'),true)
@@ -888,19 +985,9 @@ async function openCloud(){
   var prefix=await dtPrefix(res.id,year,sampleTag)
   if(gen!==cloudLoadGen)return
   if(!prefix){cloudEmpty('未获取到该台风的卫星云图（'+res.id+'），请稍后重试');return}
-  var frames=dtFrames(res.id,prefix,bMs,dMs)
-  if(!frames.length){cloudEmpty('该台风暂无可用云图（'+res.id+'）');return}
+  cloudArg={id:res.id,prefix:prefix,bMs:bMs,dMs:dMs}
   $('cloudSub').textContent=res.id+' · '+prefix+' 卫星云图'
-  $('cloudProgress').textContent='正在加载云图…'
-  var valid=await dtPreloadFrames(frames,gen,1)
-  if(gen!==cloudLoadGen)return
-  if(!valid||!valid.length){cloudEmpty('云图加载失败（'+res.id+'），请检查网络后重试');return}
-  setShow($('cloudLoading'),false)
-  cloudFrames=valid
-  $('cloudRange').max=valid.length-1
-  $('cloudTimeWrap').style.display=''
-  cloudShow(Math.floor(valid.length/2))
-  startCloudPlay()
+  await cloudLoad(gen)
 }
 function closeCloud(){
   stopCloudPlay()
@@ -1778,7 +1865,31 @@ function bindUI(){
   $('cloudBtn').onclick=openCloud
   $('cloudClose').onclick=closeCloud
   $('cloudPlay').onclick=toggleCloudPlay
-  $('cloudRange').oninput=function(){stopCloudPlay();cloudShow(+this.value)}
+  var cloudTr=$('cloudTrack')
+  if(cloudTr){
+    cloudTr.addEventListener('pointerdown',function(e){
+      if(cloudFrames.length<2)return
+      var was=cloudPlaying
+      stopCloudPlay()
+      cloudScrubStart(e.clientX,was)
+      try{cloudTr.setPointerCapture(e.pointerId)}catch(err){}
+      if(e.preventDefault)e.preventDefault()
+    })
+    cloudTr.addEventListener('pointermove',function(e){cloudScrubMove(e.clientX)})
+    cloudTr.addEventListener('pointerup',function(){cloudScrubEnd()})
+    cloudTr.addEventListener('pointercancel',function(){cloudScrubEnd()})
+  }
+  var cloudSrcBtns=document.querySelectorAll('.cloud-src-btn')
+  for(var csbi=0;csbi<cloudSrcBtns.length;csbi++){
+    cloudSrcBtns[csbi].onclick=function(){
+      var s=this.getAttribute('data-src')
+      if(s===cloudSrc||!cloudArg)return
+      cloudSrc=s;cloudSyncSrc()
+      stopCloudPlay()
+      cloudLoadGen++
+      cloudLoad(cloudLoadGen)
+    }
+  }
   $('cloudModal').onclick=function(e){if(e.target&&e.target.id==='cloudModal')closeCloud()}
   $('refreshBtn').onclick=function(){
     clearApiCache()
