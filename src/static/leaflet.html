@@ -449,6 +449,15 @@ function req(url){
     x.send()
   })
 }
+function zjDecode(buf){
+  var u8=new Uint8Array(buf)
+  try{return new TextDecoder('utf-8',{fatal:true}).decode(u8)}catch(e){}
+  try{return new TextDecoder('gb18030').decode(u8)}catch(e){}
+  try{return new TextDecoder('gbk').decode(u8)}catch(e){}
+  var s=''
+  for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i])
+  try{return decodeURIComponent(escape(s))}catch(e){return s}
+}
 function zjReq(url){
   var cacheKey='zj_api_'+url
   try{
@@ -461,9 +470,18 @@ function zjReq(url){
   return new Promise(function(resolve){
     var x=new XMLHttpRequest()
     x.open('GET',url,true)
-    x.timeout=8000
+    x.timeout=12000
+    x.responseType='arraybuffer'
     x.onload=function(){
-      if(x.status>=200&&x.status<300){resolve(x.responseText)}else resolve(null)
+      if(x.status>=200&&x.status<300&&x.response){
+        var text=zjDecode(x.response)
+        try{
+          localStorage.setItem(cacheKey,JSON.stringify({ts:Date.now(),text:text}))
+          var ks=Object.keys(localStorage).filter(function(k){return k.indexOf('zj_api_')===0})
+          if(ks.length>8){ks.sort();localStorage.removeItem(ks[0])}
+        }catch(e){}
+        resolve(text)
+      }else resolve(null)
     }
     x.onerror=function(){resolve(null)}
     x.ontimeout=function(){resolve(null)}
@@ -519,6 +537,51 @@ async function loadZjDetail(t){
     var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyphoonInfo/'+tfid)
     return text?JSON.parse(text):null
   }catch(e){return null}
+}
+function zjTfid(t,year){
+  var tEn=((t&&t.nameEn)||'').toLowerCase()
+  if(tEn&&zjByEn[tEn])return zjByEn[tEn]
+  if(t&&t.nameCn&&zjByCn[t.nameCn])return zjByCn[t.nameCn]
+  var num=String((t&&t.tcNum)||'').replace(/\D/g,'')
+  var n=num.length>=2?parseInt(num.slice(-2),10):NaN
+  var y=Number(year)||0
+  if(!isFinite(n)||n<1||n>45)return null
+  if(y<1999||y>new Date().getFullYear())return null
+  return String(y)+(n<10?'0'+n:''+n)
+}
+function zjHistoryPoints(zj){
+  if(!zj||!Array.isArray(zj.points))return[]
+  var out=[]
+  zj.points.forEach(function(v){
+    var lon=Number(v&&v.lng),lat=Number(v&&v.lat)
+    var tm=zjTime(v&&v.time)
+    if(!isFinite(lon)||!isFinite(lat)||(lon===0&&lat===0)||tm.length!==12)return
+    var g=zjGrade(v&&v.strong)
+    out.push({time:tm,lon:lon,lat:lat,pressure:v.pressure?Number(v.pressure)||0:0,windSpeed:v.speed?Number(v.speed)||0:0,grade:g,gradeText:gt(g)})
+  })
+  return out
+}
+async function zjFetchInfo(t,year){
+  var tfid=zjTfid(t,year)
+  if(!tfid)return null
+  try{
+    var text=await zjReq('https://typhoon.slt.zj.gov.cn/Api/TyphoonInfo/'+tfid)
+    return text?JSON.parse(text):null
+  }catch(e){return null}
+}
+function zjBuildDetail(t,zj){
+  if(!zj)return null
+  var hist=zjHistoryPoints(zj)
+  if(hist.length<2)return null
+  return{
+    id:t&&t.id,
+    nameCn:(t&&t.nameCn)||zj.name||'',
+    nameEn:(t&&t.nameEn)||zj.enname||'',
+    tcNum:(t&&t.tcNum)||'',
+    history:hist,
+    forecast:[],
+    forecasts:{}
+  }
 }
 function clearApiCache(){
   try{
@@ -722,6 +785,8 @@ function toggleCompareItem(t){
     compareList.push({
       id:t.id,
       name:displayName(t),
+      nameCn:t.nameCn||'',
+      nameEn:t.nameEn||'',
       tcNum:t.tcNum||'',
       year:tabMode==='history'?selectedYear:new Date().getFullYear(),
       color:COMPARE_COLORS[compareList.length]
@@ -734,9 +799,14 @@ function toggleCompareItem(t){
 function loadCompareDetails(){
   var tasks=compareList.map(function(it){
     if(detailsByKey.hasOwnProperty(it.id))return null
-    return req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_'+it.id+'?t='+Date.now()).then(function(text){
+    return req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_'+it.id+'?t='+Date.now()).then(async function(text){
       var data=text?parseJsonp(text):null
-      detailsByKey[it.id]=data&&data.typhoon?parseDetail(data.typhoon):null
+      var d=data&&data.typhoon?parseDetail(data.typhoon):null
+      if(!d||!d.history||d.history.length<2){
+        var zd=zjBuildDetail(it,await zjFetchInfo(it,it.year))
+        if(zd)d=zd
+      }
+      detailsByKey[it.id]=d
     })
   }).filter(Boolean)
   if(!tasks.length)return Promise.resolve()
@@ -1244,15 +1314,20 @@ async function selectTyphoon(t){
   renderChips();renderCollapsed();renderInfo()
   setFetching(true)
   var text=await req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_'+t.id+'?t='+Date.now())
-  setFetching(false)
   var data=text?parseJsonp(text):null
   detail=data&&data.typhoon?parseDetail(data.typhoon):null
-  if(compareMode)return
-  if(detail){
+  if(compareMode){setFetching(false);return}
+  if(detail&&detail.history&&detail.history.length>=2){
     var zj=await loadZjDetail(t)
-    if(compareMode)return
+    if(compareMode){setFetching(false);return}
     if(zj)mergeZjForecasts(zj,detail)
+  }else{
+    var year=tabMode==='history'?selectedYear:new Date().getFullYear()
+    var zjd=zjBuildDetail(t,await zjFetchInfo(t,year))
+    if(compareMode){setFetching(false);return}
+    if(zjd)detail=zjd
   }
+  setFetching(false)
   if(!detail||!detail.history||!detail.history.length)toast('该台风无路径数据')
   renderCollapsed();renderInfo();renderMap(true)
 }
