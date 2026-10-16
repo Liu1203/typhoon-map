@@ -13,13 +13,14 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 
 /* top */
 .top-bar{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:8px 10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);z-index:20}
-.tab-row{flex:1;display:flex;background:#EDF2F8;border-radius:8px;padding:3px}
+.tab-row{flex:1;min-width:0;display:flex;background:#EDF2F8;border-radius:8px;padding:3px}
 .tab{flex:1;text-align:center;padding:8px 0;font-size:13px;color:#8B9CAD;border-radius:6px;border:none;background:transparent;cursor:pointer}
 .tab.active{background:#fff;color:#5B8FC0;font-weight:600;box-shadow:0 1px 4px rgba(91,143,192,.18)}
-.year-wrap{flex-shrink:0;position:relative;display:none;align-items:center;gap:4px;padding:7px 10px;border-radius:8px;background:#EDF2F8;font-size:13px;color:#5B8FC0;font-weight:500;cursor:pointer;overflow:hidden;user-select:none}
-.year-wrap.show{display:flex}
-.year-select{position:absolute;inset:0;opacity:0;cursor:pointer;z-index:2;width:100%;height:100%}
+.year-pill{flex-shrink:0;display:none;align-items:center;gap:4px;padding:7px 10px;border-radius:8px;background:#EDF2F8;font-size:13px;color:#5B8FC0;font-weight:500;cursor:pointer;border:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.year-pill.show{display:flex}
 .year-arrow{font-size:10px;margin-left:2px}
+.cmp-btn{flex-shrink:0;padding:7px 11px;border-radius:8px;background:#EDF2F8;font-size:12px;color:#5B8FC0;font-weight:600;border:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cmp-btn.on{background:linear-gradient(135deg,#5B8FC0,#3D6A94);color:#fff;box-shadow:0 2px 8px rgba(91,143,192,.3)}
 .refresh-btn{flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:none;background:#EDF2F8;border-radius:50%;font-size:17px;color:#5B8FC0;cursor:pointer}
 .refresh-btn.loading{animation:spin .6s linear infinite;pointer-events:none;opacity:.5}
 .update-time{flex-shrink:0;font-size:10px;color:#B0BDCC;white-space:nowrap;padding-right:4px}
@@ -68,6 +69,41 @@ html,body{width:100%;height:100%;overflow:hidden;background:#F0F5FA;font-family:
 .legend-line{width:16px;height:3px;border-radius:2px;background:#8B9CAD}
 .legend-line.dash{background:repeating-linear-gradient(90deg,#8B9CAD 0 3px,transparent 3px 6px)}
 .legend-line.ac{height:3px;border-radius:2px;background:#8B9CAD;flex-shrink:0}
+
+.cmp-panel{position:absolute;z-index:1100;left:10px;right:10px;top:10px;display:none;flex-direction:column;max-height:48%;background:rgba(255,255,255,.97);border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.12);border:1px solid #DDE4ED;overflow:hidden}
+.cmp-panel.show{display:flex}
+.cmp-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;flex-shrink:0}
+.cmp-title{font-size:13px;font-weight:700;color:#2C3E50}
+.cmp-count{font-size:11px;color:#B0BDCC;font-weight:500;margin-left:2px}
+.cmp-exit{border:none;background:#EDF2F8;color:#5B8FC0;font-size:11px;font-weight:600;padding:5px 10px;border-radius:999px;cursor:pointer}
+.cmp-list{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.cmp-row{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid #EEF2F7}
+.cmp-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.cmp-name{font-size:13px;font-weight:600;color:#2C3E50;white-space:nowrap;max-width:96px;overflow:hidden;text-overflow:ellipsis}
+.cmp-stat{flex:1;font-size:10px;color:#8B9CAD;text-align:right;line-height:1.5}
+.cmp-del{flex-shrink:0;width:22px;height:22px;border:none;border-radius:50%;background:#EDF2F8;color:#8B9CAD;font-size:13px;cursor:pointer}
+.cmp-empty{padding:14px 12px;font-size:12px;color:#8B9CAD;text-align:center}
+.cmp-tip{background:rgba(255,255,255,.95)!important;border:none!important;box-shadow:0 2px 6px rgba(0,0,0,.18)!important;font-size:11px;font-weight:600;padding:2px 7px!important;border-radius:8px!important}
+.cmp-tip:before{border-right-color:rgba(255,255,255,.95)!important}
+
+.toast{position:absolute;z-index:1300;left:50%;top:14px;transform:translateX(-50%);background:rgba(30,38,50,.9);color:#fff;font-size:12px;padding:7px 14px;border-radius:999px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap;max-width:88%;overflow:hidden;text-overflow:ellipsis}
+.toast.show{opacity:1}
+
+.sheet-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .22s;z-index:2200}
+.sheet-mask.show{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:2201;display:flex;flex-direction:column;max-height:62%;background:#fff;border-radius:16px 16px 0 0;box-shadow:0 -8px 28px rgba(0,0,0,.18);transform:translateY(102%);transition:transform .26s cubic-bezier(.32,.72,.35,1)}
+.sheet.show{transform:translateY(0)}
+.sheet-head{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:14px 16px 6px}
+.sheet-title{font-size:15px;font-weight:700;color:#2C3E50}
+.sheet-close{width:28px;height:28px;border:none;border-radius:50%;background:#EDF2F8;color:#5A6E80;font-size:13px;cursor:pointer}
+.sheet-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px 16px 22px}
+.yr-group-title{font-size:11px;font-weight:600;color:#B0BDCC;margin:12px 0 6px}
+.yr-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.yr-cell{padding:10px 0;text-align:center;border-radius:10px;background:#EDF2F8;color:#2C3E50;font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.yr-cell.sel{background:linear-gradient(135deg,#5B8FC0,#3D6A94);color:#fff;font-weight:600;box-shadow:0 3px 10px rgba(91,143,192,.3)}
+.yr-cell.today{font-weight:700}
+.chip.cmp{position:relative}
+.chip.cmp-hit{border-color:#5B8FC0}
 
 .empty{
   position:absolute;inset:0;z-index:900;display:none;align-items:center;justify-content:center;
@@ -158,7 +194,19 @@ html.dark .top-bar{background:#1A202A;box-shadow:none}
 html.dark .tab-row{background:#232A36}
 html.dark .tab{color:#8B9CAD}
 html.dark .tab.active{background:#1E2430;color:#6B9FD0;box-shadow:0 1px 4px rgba(0,0,0,.3)}
-html.dark .year-wrap,html.dark .refresh-btn{background:#232A36;color:#6B9FD0}
+html.dark .year-pill,html.dark .refresh-btn{background:#232A36;color:#6B9FD0}
+html.dark .cmp-btn{background:#232A36;color:#6B9FD0}
+html.dark .cmp-btn.on{background:linear-gradient(135deg,#4A7AA8,#33597E);color:#fff}
+html.dark .cmp-panel{background:rgba(26,32,42,.97);border-color:rgba(255,255,255,.08)}
+html.dark .cmp-title{color:#C8D0DC}
+html.dark .cmp-row{border-color:rgba(255,255,255,.07)}
+html.dark .cmp-name{color:#C8D0DC}
+html.dark .cmp-exit,html.dark .cmp-del{background:#232A36;color:#6B9FD0}
+html.dark .sheet{background:#1A202A}
+html.dark .sheet-title{color:#C8D0DC}
+html.dark .sheet-close{background:#232A36;color:#8B9CAD}
+html.dark .yr-cell{background:#232A36;color:#C8D0DC}
+html.dark .yr-cell.sel{background:linear-gradient(135deg,#4A7AA8,#33597E);color:#fff}
 html.dark .update-time{color:#6A7A8A}
 html.dark .chip-bar,html.dark .collapsed,html.dark .loading-hint,html.dark .bottom{background:#1A202A;border-color:rgba(255,255,255,.08)}
 html.dark .chip{background:#232A36;border-color:transparent}
@@ -208,12 +256,9 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
       <button class="tab active" id="tabActive" type="button">活跃台风</button>
       <button class="tab" id="tabHistory" type="button">历史台风</button>
     </div>
-    <div class="year-wrap" id="yearWrap">
-      <span id="yearText"></span>
-      <span class="year-arrow">&#9662;</span>
-      <select class="year-select" id="yearSelect"></select>
-    </div>
+    <button class="year-pill" id="yearPill" type="button"><span id="yearText"></span><span class="year-arrow">&#9662;</span></button>
     <span class="update-time" id="updateTime"></span>
+    <button class="cmp-btn" id="cmpBtn" type="button">对比</button>
     <button class="refresh-btn" id="refreshBtn" type="button">&#x21bb;</button>
   </div>
 
@@ -233,6 +278,14 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
 
   <div class="map-wrap">
     <div id="map"></div>
+    <div class="cmp-panel" id="cmpPanel">
+      <div class="cmp-head">
+        <span class="cmp-title">路径对比 <span class="cmp-count" id="cmpCount">0/4</span></span>
+        <button class="cmp-exit" id="cmpExit" type="button">退出对比</button>
+      </div>
+      <div class="cmp-list" id="cmpList"></div>
+    </div>
+    <div class="toast" id="toast"></div>
     <div class="legend" id="legend">
       <div class="legend-head" id="legendHead">
         <span class="legend-title">等级</span>
@@ -314,6 +367,15 @@ html.dark .leaflet-control-layers-base label:hover,.dark .leaflet-control-layers
       <span class="rp-lb" id="rpLb">—</span>
     </div>
   </div>
+</div>
+
+<div class="sheet-mask" id="sheetMask"></div>
+<div class="sheet" id="yearSheet">
+  <div class="sheet-head">
+    <span class="sheet-title">选择年份</span>
+    <button class="sheet-close" id="sheetClose" type="button">&#10005;</button>
+  </div>
+  <div class="sheet-body" id="yearGrid"></div>
 </div>
 
 <script>
@@ -449,9 +511,10 @@ function clearApiCache(){
   }catch(e){}
 }
 
+var HISTORY_START_YEAR=1980
 function getYearList(){
   var y=new Date().getFullYear(),arr=[]
-  for(;y>=2015;y--)arr.push(y)
+  for(;y>=HISTORY_START_YEAR;y--)arr.push(y)
   return arr
 }
 
@@ -532,7 +595,14 @@ function fmtTime(t){
   if(s.length===8)return s.slice(0,4)+'/'+s.slice(4,6)+'/'+s.slice(6,8)
   return s
 }
-function displayName(t){return(t&&(t.nameCn||t.nameEn||t.tcNum))||'未知'}
+function displayName(t){
+  if(!t)return '未知'
+  var cn=String(t.nameCn||'').trim(),en=String(t.nameEn||'').trim()
+  if(/[\u4e00-\u9fa5]/.test(cn))return cn
+  if(en&&!/^\(?\s*nameless\s*\)?$/i.test(en))return en
+  if(cn&&!/^\d+$/.test(cn))return cn
+  return '未命名'
+}
 function timeDiffHours(a,b){
   if(typeof a==='string'&&a.length===12&&typeof b==='string'&&b.length===12){
     var ad=Date.UTC(+a.slice(0,4),+a.slice(4,6)-1,+a.slice(6,8),+a.slice(8,10),+a.slice(10,12))
@@ -569,6 +639,12 @@ var selectedPoint=null
 var map=null,layers=[],mapData=null,selectedKey=null
 var refreshTimer=null,lastUpdateTime=null
 var replayTimer=null,replayIdx=0
+var COMPARE_MAX=4
+var COMPARE_COLORS=['#D95B4F','#5B8FC0','#6DAF98','#E08A3C']
+var compareMode=false
+var compareList=[]
+var detailsByKey={}
+var compareBusy=false
 var ERR='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
 var userCoords=(function(){
   var m=location.search.match(/lat=([\d.\-]+)/)
@@ -591,22 +667,159 @@ function invalidateMap(){
   setTimeout(function(){try{map.invalidateSize(false)}catch(e){}},60)
 }
 
+function toast(msg){
+  var el=$('toast');if(!el)return
+  el.textContent=msg;el.classList.add('show')
+  clearTimeout(toast._t)
+  toast._t=setTimeout(function(){el.classList.remove('show')},1800)
+}
+function compareIndex(id){
+  for(var i=0;i<compareList.length;i++)if(compareList[i].id===id)return i
+  return -1
+}
+function toggleCompare(){
+  compareMode=!compareMode
+  $('cmpBtn').classList.toggle('on',compareMode)
+  selectedPoint=null
+  if(compareMode){
+    if(replayTimer)stopReplay()
+    listExpanded=true
+    setShow($('cmpPanel'),true)
+  }else{
+    setShow($('cmpPanel'),false)
+    setShow($('legend'),true)
+    compareList=[]
+  }
+  renderChips();renderCollapsed();renderInfo()
+  if(compareMode){
+    loadCompareDetails().then(function(){renderCompare(true);renderComparePanel()})
+    renderComparePanel();renderCompare(true)
+  }else if(typhoons.length){
+    selectTyphoon(typhoons[0])
+  }
+}
+function toggleCompareItem(t){
+  var i=compareIndex(t.id)
+  if(i>=0){
+    compareList.splice(i,1)
+  }else{
+    if(compareList.length>=COMPARE_MAX){toast('最多对比 '+COMPARE_MAX+' 个台风');return}
+    compareList.push({
+      id:t.id,
+      name:displayName(t),
+      tcNum:t.tcNum||'',
+      year:tabMode==='history'?selectedYear:new Date().getFullYear(),
+      color:COMPARE_COLORS[compareList.length]
+    })
+  }
+  selectedPoint=null
+  renderChips();renderComparePanel()
+  loadCompareDetails().then(function(){renderCompare(true);renderComparePanel()})
+}
+function loadCompareDetails(){
+  var tasks=compareList.map(function(it){
+    if(detailsByKey.hasOwnProperty(it.id))return null
+    return req('https://typhoon.nmc.cn/weatherservice/typhoon/jsons/view_'+it.id+'?t='+Date.now()).then(function(text){
+      var data=text?parseJsonp(text):null
+      detailsByKey[it.id]=data&&data.typhoon?parseDetail(data.typhoon):null
+    })
+  }).filter(Boolean)
+  if(!tasks.length)return Promise.resolve()
+  compareBusy=true;renderComparePanel()
+  return Promise.all(tasks).then(function(){compareBusy=false})
+}
+function stormStats(d){
+  if(!d||!d.history||!d.history.length)return null
+  var h=d.history,peak=0,minP=0,km=0
+  for(var i=0;i<h.length;i++){
+    if(h[i].windSpeed>peak)peak=h[i].windSpeed
+    if(h[i].pressure>0&&(!minP||h[i].pressure<minP))minP=h[i].pressure
+    if(i>0&&validLL(h[i])&&validLL(h[i-1])&&Math.abs(h[i].lon-h[i-1].lon)<180){
+      km+=haversine(h[i-1].lat,h[i-1].lon,h[i].lat,h[i].lon)
+    }
+  }
+  return{peak:peak,minP:minP,km:km,hours:timeDiffHours(h[h.length-1].time,h[0].time),pts:h.length}
+}
+function renderComparePanel(){
+  var list=$('cmpList'),cnt=$('cmpCount')
+  cnt.textContent=compareList.length+'/'+COMPARE_MAX
+  if(!compareList.length){
+    list.innerHTML='<div class="cmp-empty">'+(compareBusy?'加载中…':'点击列表台风加入对比，可跨年份，最多 4 个')+'</div>'
+    return
+  }
+  list.innerHTML=''
+  compareList.forEach(function(it){
+    var d=detailsByKey[it.id],s=(d===undefined)?null:stormStats(d),stat
+    if(d===undefined)stat='加载中…'
+    else if(!s)stat='无路径数据'
+    else stat='峰值 '+s.peak+' m/s · 最低 '+s.minP+' hPa<br>'+Math.round(s.km)+' km · '+Math.round(s.hours)+' h · '+s.pts+' 点'
+    var row=document.createElement('div')
+    row.className='cmp-row'
+    row.innerHTML='<span class="cmp-dot" style="background:'+it.color+'"></span><span class="cmp-name">'+it.name+'</span><span class="cmp-stat">'+stat+'</span><button class="cmp-del" type="button">&#10005;</button>'
+    row.querySelector('.cmp-del').onclick=function(){
+      var i=compareIndex(it.id)
+      if(i>=0)compareList.splice(i,1)
+      selectedPoint=null
+      renderChips();renderComparePanel();renderCompare(true)
+    }
+    list.appendChild(row)
+  })
+}
+function renderCompare(fit){
+  if(!map)return
+  clearLayers()
+  setShow($('legend'),false)
+  var bounds=[]
+  compareList.forEach(function(it){
+    var d=detailsByKey[it.id]
+    if(!d||!d.history||!d.history.length)return
+    var pts=d.history.filter(validLL)
+    if(pts.length<1)return
+    if(pts.length>1){
+      var halo=L.polyline(pts.map(function(p){return[p.lat,p.lon]}),{color:it.color,weight:8,opacity:.16,interactive:false}).addTo(map)
+      layers.push(halo)
+      var line=L.polyline(pts.map(function(p){return[p.lat,p.lon]}),{color:it.color,weight:3,opacity:.95,interactive:false}).addTo(map)
+      layers.push(line)
+    }
+    pts.forEach(function(p){bounds.push([p.lat,p.lon])})
+    var s=pts[0],e=pts[pts.length-1]
+    var m0=L.circleMarker([s.lat,s.lon],{radius:5,color:'#fff',weight:2,fillColor:it.color,fillOpacity:1,interactive:false}).addTo(map)
+    layers.push(m0)
+    var m1=L.circleMarker([e.lat,e.lon],{radius:6,color:'#fff',weight:2,fillColor:it.color,fillOpacity:1,interactive:false}).addTo(map)
+    m1.bindTooltip('<span style="color:'+it.color+'">'+it.name+'</span>',{permanent:true,direction:'right',offset:[7,0],className:'cmp-tip'})
+    layers.push(m1)
+  })
+  if(fit&&bounds.length>1){
+    try{map.fitBounds(bounds,{padding:[40,40],maxZoom:6})}catch(e){}
+  }
+  invalidateMap()
+}
+
 function renderChips(){
   var bar=$('chipBar'),scroll=$('chipScroll')
-  if(!typhoons.length||!listExpanded){setShow(bar,false);bar.classList.add('hide');return}
+  if(!typhoons.length||(!listExpanded&&!compareMode)){setShow(bar,false);bar.classList.add('hide');return}
   bar.classList.remove('hide');setShow(bar,true)
   scroll.innerHTML=''
   typhoons.forEach(function(t){
     var el=document.createElement('div')
-    el.className='chip'+(selected&&selected.id===t.id?' active':'')
-    el.innerHTML='<span class="chip-name">'+displayName(t)+'</span><span class="chip-num">'+(t.tcNum||'')+'</span>'
-    el.onclick=function(){selectTyphoon(t)}
+    if(compareMode){
+      var ci=compareIndex(t.id)
+      el.className='chip cmp'+(ci>=0?' active':'')
+      if(ci>=0)el.style.background=compareList[ci].color
+      el.innerHTML='<span class="chip-name">'+displayName(t)+'</span><span class="chip-num">'+(t.tcNum||'')+'</span>'
+      el.onclick=function(){toggleCompareItem(t)}
+    }else{
+      el.className='chip'+(selected&&selected.id===t.id?' active':'')
+      el.innerHTML='<span class="chip-name">'+displayName(t)+'</span><span class="chip-num">'+(t.tcNum||'')+'</span>'
+      el.onclick=function(){selectTyphoon(t)}
+    }
     scroll.appendChild(el)
   })
 }
 
 function renderCollapsed(){
   var bar=$('collapsedBar')
+  if(compareMode){setShow(bar,false);return}
   var cp=detail&&detail.history.length?detail.history[detail.history.length-1]:null
   if(selected&&!listExpanded&&cp){
     setShow(bar,true)
@@ -621,6 +834,7 @@ function renderCollapsed(){
 
 function renderInfo(){
   var info=$('infoBar'),point=$('pointCard')
+  if(compareMode){setShow(info,false);setShow(point,false);setShow($('replayWrap'),false);invalidateMap();return}
   if(selectedPoint){
     setShow(info,false);setShow(point,true)
     var p=selectedPoint.point,type=selectedPoint.type
@@ -780,6 +994,7 @@ function drawAgencyForecast(pts,ac){
 
 function renderMap(fit){
   if(!map)return
+  if(compareMode){renderCompare(fit);return}
   clearLayers()
   renderAgencyLegend()
   if(!detail){map.setView([20,130],4);return}
@@ -903,11 +1118,13 @@ function initMap(){
   layers['高德地图'].addTo(map)
   L.control.layers(layers,null,{position:'bottomright',collapsed:true}).addTo(map)
   map.on('zoomend',function(){
+    if(compareMode)return
     if(!detail)return
     var ni=autoIntervalByScale(map.getZoom())
     if(!mapData||ni!==mapData.nodeInterval)renderMap(false)
   })
   map.on('click',function(e){
+    if(compareMode)return
     if(!detail)return
     var hist=detail.history||[],fc=detail.forecast||[]
     var lat=e.latlng.lat,lng=e.latlng.lng
@@ -937,7 +1154,8 @@ async function loadActive(){
   tabMode='active'
   $('tabActive').classList.add('active')
   $('tabHistory').classList.remove('active')
-  $('yearWrap').classList.remove('show')
+  $('yearPill').classList.remove('show')
+  $('updateTime').style.display=''
   setLoading(true,'正在获取活跃台风...')
   setEmpty(false)
   selectedPoint=null
@@ -951,7 +1169,8 @@ async function loadActive(){
   listExpanded=true
   if(typhoons.length){
     setEmpty(false)
-    await selectTyphoon(typhoons[0])
+    if(compareMode){renderChips();renderCompare(true)}
+    else await selectTyphoon(typhoons[0])
   }else{
     selected=null;detail=null
     renderChips();renderCollapsed();renderInfo();renderMap(true)
@@ -966,9 +1185,10 @@ async function loadHistory(year){
   selectedYear=year
   $('tabHistory').classList.add('active')
   $('tabActive').classList.remove('active')
-  $('yearWrap').classList.add('show')
-  $('yearSelect').value=String(year)
+  $('yearPill').classList.add('show')
+  $('updateTime').style.display='none'
   $('yearText').textContent=year+' 年'
+  syncYearSheet()
   if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null}
   setLoading(true,'正在获取 '+year+' 年台风...')
   setEmpty(false)
@@ -983,7 +1203,8 @@ async function loadHistory(year){
   listExpanded=true
   if(typhoons.length){
     setEmpty(false)
-    await selectTyphoon(typhoons[0])
+    if(compareMode){renderChips();renderCompare(true)}
+    else await selectTyphoon(typhoons[0])
   }else{
     renderChips();renderCollapsed();renderInfo();renderMap(true)
     setEmpty(true,year+' 年暂无台风记录','返回活跃台风')
@@ -992,6 +1213,7 @@ async function loadHistory(year){
 }
 
 async function selectTyphoon(t){
+  if(compareMode)return
   if(replayTimer)stopReplay()
   selected=t
   selectedPoint=null
@@ -1003,10 +1225,13 @@ async function selectTyphoon(t){
   setFetching(false)
   var data=text?parseJsonp(text):null
   detail=data&&data.typhoon?parseDetail(data.typhoon):null
+  if(compareMode)return
   if(detail){
     var zj=await loadZjDetail(t)
+    if(compareMode)return
     if(zj)mergeZjForecasts(zj,detail)
   }
+  if(!detail||!detail.history||!detail.history.length)toast('该台风无路径数据')
   renderCollapsed();renderInfo();renderMap(true)
 }
 
@@ -1068,17 +1293,49 @@ function renderAgencyLegend(){
   }
   el.innerHTML=html
 }
+function buildYearSheet(){
+  var grid=$('yearGrid'),html='',curGroup=null,open=false
+  yearList.forEach(function(y){
+    var g=Math.floor(y/10)*10
+    if(g!==curGroup){
+      if(open)html+='</div>'
+      html+='<div class="yr-group-title">'+g+' 年代</div><div class="yr-grid">'
+      curGroup=g;open=true
+    }
+    html+='<div class="yr-cell'+(y===selectedYear?' sel':'')+'" data-y="'+y+'">'+y+'</div>'
+  })
+  if(open)html+='</div>'
+  grid.innerHTML=html
+  grid.querySelectorAll('.yr-cell').forEach(function(c){
+    c.onclick=function(){closeYearSheet();loadHistory(+c.getAttribute('data-y'))}
+  })
+}
+function syncYearSheet(){
+  var grid=$('yearGrid');if(!grid)return
+  grid.querySelectorAll('.yr-cell').forEach(function(c){
+    c.classList.toggle('sel',+c.getAttribute('data-y')===selectedYear)
+  })
+}
+function openYearSheet(){
+  syncYearSheet()
+  $('sheetMask').classList.add('show')
+  $('yearSheet').classList.add('show')
+  var sel=$('yearGrid').querySelector('.yr-cell.sel')
+  if(sel)setTimeout(function(){try{sel.scrollIntoView({block:'center'})}catch(e){}},280)
+}
+function closeYearSheet(){
+  $('sheetMask').classList.remove('show')
+  $('yearSheet').classList.remove('show')
+}
 function bindUI(){
   $('tabActive').onclick=function(){if(tabMode!=='active')loadActive()}
   $('tabHistory').onclick=function(){if(tabMode!=='history')loadHistory(selectedYear)}
-  var ys=$('yearSelect')
-  yearList.forEach(function(y){
-    var o=document.createElement('option')
-    o.value=String(y);o.textContent=String(y)
-    if(y===selectedYear)o.selected=true
-    ys.appendChild(o)
-  })
-  ys.onchange=function(){$('yearText').textContent=ys.value+' 年';loadHistory(+ys.value)}
+  $('yearPill').onclick=openYearSheet
+  $('sheetMask').onclick=closeYearSheet
+  $('sheetClose').onclick=closeYearSheet
+  $('cmpBtn').onclick=toggleCompare
+  $('cmpExit').onclick=function(){if(compareMode)toggleCompare()}
+  buildYearSheet()
   $('collapsedBar').onclick=function(){
     listExpanded=true
     renderChips();renderCollapsed();invalidateMap()
