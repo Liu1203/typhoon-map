@@ -3,6 +3,8 @@ export const API = {
   AQI: "https://air-quality-api.open-meteo.com/v1/air-quality",
   MARINE: "https://marine-api.open-meteo.com/v1/marine",
   GEOCODING: "https://geocoding-api.open-meteo.com/v1/search",
+  // 反向地理编码（无 Key，按坐标取城市名）；失败时回退到本地城市表
+  REVERSE_GEO: "https://api.bigdatacloud.net/data/reverse-geocode-client",
   NMC_TYPHOON: "https://typhoon.nmc.cn/weatherservice/typhoon/jsons/",
   USGS: "https://earthquake.usgs.gov/fdsnws/event/1/query",
   GFZ: "https://geofon.gfz-potsdam.de/fdsnws/event/1/query",
@@ -17,6 +19,7 @@ export const TIMEOUT = {
   GFZ: 5000,
   EMSC: 5000,
   LOCATION: 15000,
+  REVERSE_GEO: 5000,
 } as const
 
 export const RETRY = {
@@ -27,6 +30,8 @@ export const RETRY = {
 export const CACHE = {
   WEATHER_KEY: "weather_cache",
   CITY_KEY: "selected_city",
+  /** 记住当前城市是定位来的（gps）还是手动选的（manual），定位来源的城市名每次启动可以自动修正 */
+  CITY_SRC_KEY: "selected_city_src",
   FAV_KEY: "fav_cities",
   ALERTS_KEY: "current_alerts",
   RECENT_KEY: "recent_searches",
@@ -50,15 +55,7 @@ export const UI = {
   RAIN_ALERT_PCT: 30,
   RAIN_CHANCE_SHOW: 0,
   WIND_DIR_DEG: { "北风": 0, "东北风": 45, "东风": 90, "东南风": 135, "南风": 180, "西南风": 225, "西风": 270, "西北风": 315 },
-  AQI_LEVELS: [
-    { max: 20, label: "优" },
-    { max: 40, label: "良" },
-    { max: 60, label: "轻度" },
-    { max: 80, label: "中度" },
-    { max: 100, label: "重度" },
-    { max: Infinity, label: "严重" },
-  ],
-} as const
+}
 
 export const QUAKE = {
   MIN_MAG_GLOBAL: 2.5,

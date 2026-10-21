@@ -112,6 +112,7 @@ function selectCity(name: string) {
   const geo = geoResults.value.find(g => g.name === name)
   if (geo) setDynamicCity(geo.name, geo.lat, geo.lon)
   uni.setStorageSync(CACHE.CITY_KEY, name)
+  uni.setStorageSync(CACHE.CITY_SRC_KEY, "manual")
   addRecent(name)
   uni.hideKeyboard()
   uni.navigateBack()
@@ -120,6 +121,7 @@ function selectCity(name: string) {
 function selectGeoCity(city: GeoCity) {
   setDynamicCity(city.name, city.lat, city.lon)
   uni.setStorageSync(CACHE.CITY_KEY, city.name)
+  uni.setStorageSync(CACHE.CITY_SRC_KEY, "manual")
   addRecent(city.name)
   uni.hideKeyboard()
   uni.navigateBack()

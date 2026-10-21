@@ -150,7 +150,7 @@ function waveLevel(v: number): string {
 
 .wave-chart { display: flex; align-items: flex-end; justify-content: space-between; gap: 2px; height: 96px; }
 .wave-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 2px; }
-.wave-bar { width: 100%; max-width: 12px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #4FB6C9, #2E9BAE); transition: height 0.3s ease; }
+.wave-bar { width: 100%; max-width: 12px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, #4FB6C9, #3E9BC0); transition: height 0.3s ease; }
 .wave-time { font-size: 9px; color: var(--color-ash); height: 11px; line-height: 11px; white-space: nowrap; }
 
 .foot-hint { text-align: center; font-size: 10px; color: var(--color-ash); margin-top: var(--spacing-lg); }

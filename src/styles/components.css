@@ -25,6 +25,23 @@
   box-shadow: var(--card-shadow);
 }
 
+/* 紧凑层：导航型条目（入口行），比标准卡轻一档——无阴影、更小圆角 */
+.card--flat {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+/* 数字统一等宽：温度/AQI 刷新时宽度不抖 */
+.container,
+.num-tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
 /* 强调卡：淡模块色渐变底 + 左侧本色描边 */
 .card--emphasis {
   background: linear-gradient(155deg, var(--accent-soft, rgba(91,143,192,0.1)) 0%, var(--card-bg) 52%);

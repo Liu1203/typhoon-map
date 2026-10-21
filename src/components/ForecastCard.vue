@@ -65,15 +65,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.card {
-  background: var(--card-bg);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  box-shadow: var(--card-shadow);
-  margin-bottom: var(--spacing-md);
-  border: 1px solid var(--card-border);
-  transform: translateZ(0);
-}
+/* .card 形态由页面级样式统一提供，这里不再重复定义 */
 .section-header {
   display: flex;
   align-items: center;

@@ -77,14 +77,11 @@ const score = computed(() => {
 </template>
 
 <style scoped>
-.stargazing-card {
-  background: linear-gradient(155deg, var(--accent-soft, rgba(130,104,176,0.1)) 0%, var(--card-bg) 52%);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
-  border: 1px solid var(--card-border);
+/* 和 AqiCard 同理：页面级 .card 后加载，必须提高优先级，否则渐变底和左侧强调条会被冲掉 */
+.stargazing-card.card {
+  background: linear-gradient(155deg, var(--accent-soft, rgba(124,111,174,0.1)) 0%, var(--card-bg) 52%);
   border-left: 3px solid var(--accent, var(--color-primary));
-  box-shadow: var(--card-shadow);
+  margin-bottom: var(--spacing-md);
 }
 .card-arrow {
   margin-left: auto;

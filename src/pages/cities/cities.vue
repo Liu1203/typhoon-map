@@ -52,6 +52,7 @@ function removeCity(idx: number) {
 function selectCity(name: string) {
   if (editMode.value) return
   uni.setStorageSync(CACHE.CITY_KEY, name)
+  uni.setStorageSync(CACHE.CITY_SRC_KEY, "manual")
   uni.navigateBack()
 }
 

@@ -41,19 +41,22 @@ export async function fetchActiveTyphoons(): Promise<TyphoonBrief[]> {
     const text = await req(API.NMC_TYPHOON + "list_default?t=" + Date.now())
     const data = text ? parseJsonp(text) : null
     const list = (data?.typhoonList || []).filter((v: any[]) => v[7] === "start")
-    const result: TyphoonBrief[] = []
     const MAX = 5
-    for (const v of list.slice(0, MAX)) {
-      const id = v[0]
-      const detailText = await req(API.NMC_TYPHOON + "view_" + id + "?t=" + Date.now())
-      const detail = detailText ? parseJsonp(detailText) : null
-      const typhoon = detail?.typhoon
-      const points = typhoon?.[8] || []
-      const last = points[points.length - 1]
-      const lon = Number(last?.[4]), lat = Number(last?.[5])
-      const timeStr = last?.[1] ? String(last[1]) : ""
-      const stale = timeStr.length === 12 && Date.now() - Date.UTC(+timeStr.slice(0,4), +timeStr.slice(4,6) - 1, +timeStr.slice(6,8), +timeStr.slice(8,10), +timeStr.slice(10,12)) > 48 * 3600000
-      if (last && isFinite(lon) && isFinite(lat) && !(lon === 0 && lat === 0) && !stale) {
+    // 各台风详情并发拉取：原来是 for + await 串行，弱网下 5 个请求要排 5 次往返
+    const briefs = await Promise.all(
+      list.slice(0, MAX).map(async (v: any[]): Promise<TyphoonBrief | null> => {
+        const id = v[0]
+        const detailText = await req(API.NMC_TYPHOON + "view_" + id + "?t=" + Date.now())
+        const detail = detailText ? parseJsonp(detailText) : null
+        const typhoon = detail?.typhoon
+        const points = typhoon?.[8] || []
+        const last = points[points.length - 1]
+        const lon = Number(last?.[4]), lat = Number(last?.[5])
+        const timeStr = last?.[1] ? String(last[1]) : ""
+        const stale = timeStr.length === 12 && Date.now() - Date.UTC(+timeStr.slice(0,4), +timeStr.slice(4,6) - 1, +timeStr.slice(6,8), +timeStr.slice(8,10), +timeStr.slice(10,12)) > 48 * 3600000
+        if (!last || !isFinite(lon) || !isFinite(lat) || (lon === 0 && lat === 0) || stale) {
+          return null
+        }
         const path: { lat: number; lon: number; hours: number }[] = []
         path.push({ lat, lon, hours: 0 })
         const babj = last?.[11]?.BABJ
@@ -65,7 +68,7 @@ export async function fetchActiveTyphoons(): Promise<TyphoonBrief[]> {
             }
           }
         }
-        result.push({
+        return {
           id,
           nameCn: v[2] || "",
           nameEn: v[1] || "",
@@ -75,10 +78,10 @@ export async function fetchActiveTyphoons(): Promise<TyphoonBrief[]> {
           windSpeed: last[7] || 0,
           grade: last[3] || "TD",
           path: path.length ? path : undefined,
-        })
-      }
-    }
-    return result
+        }
+      })
+    )
+    return briefs.filter((b): b is TyphoonBrief => b !== null)
   } catch (e) {
     console.error("typhoon fetch error:", e)
     return []

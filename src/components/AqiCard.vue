@@ -2,6 +2,7 @@
 import { computed } from "vue"
 import Icon from "./Icon.vue"
 import type { CurrentWeather } from "@/api/weather"
+import { aqiLevel, AQI_BAR_MAX } from "@/utils/aqi"
 
 const props = defineProps<{ weather: CurrentWeather }>()
 
@@ -9,32 +10,27 @@ const info = computed(() => {
   const a = props.weather.aqiDetail
   if (!a) return null
   const v = a.aqi
-  const conf = v <= 20
-    ? { color: "#5BAA6A", bg: "rgba(91,170,106,0.15)", advice: "空气清新，适合户外活动" }
-    : v <= 40
-    ? { color: "#8FC77B", bg: "rgba(143,199,123,0.15)", advice: "空气可接受，极少数敏感人群需注意" }
-    : v <= 60
-    ? { color: "#E8B84A", bg: "rgba(232,184,74,0.15)", advice: "敏感人群应减少长时间户外活动" }
-    : v <= 80
-    ? { color: "#F09050", bg: "rgba(240,144,80,0.15)", advice: "建议减少户外活动，必要时佩戴口罩" }
-    : v <= 100
-    ? { color: "#E5606E", bg: "rgba(229,96,110,0.15)", advice: "避免户外活动，关好门窗" }
-    : { color: "#A565B8", bg: "rgba(165,101,184,0.15)", advice: "避免外出，建议开启空气净化器" }
+  const level = aqiLevel(v)
   return {
-    v, label: a.label, ...conf,
+    v,
+    label: a.label || level.label,
+    color: level.color,
+    advice: a.advice || level.advice,
+    primary: a.primary,
     pollutants: [
       { name: "PM2.5", val: a.pm25 },
       { name: "PM10", val: a.pm10 },
       { name: "NO₂", val: a.no2 },
       { name: "O₃", val: a.o3 },
       { name: "SO₂", val: a.so2 },
+      { name: "CO", val: a.co },
     ].filter(p => p.val != null),
     hourly: (a.hourly || []).slice(-24),
     pollen: a.pollen
       ? { level: a.pollen.level, top: a.pollen.top, real: true }
-      : a.aqi >= 80
+      : a.aqi >= 150
         ? { level: "较高", real: false }
-        : a.aqi >= 60
+        : a.aqi >= 100
           ? { level: "中等", real: false }
           : { level: "较低", real: false },
     forecast: a.forecast || [],
@@ -59,20 +55,15 @@ const dayName = computed(() => ["今天", "明天", "后天"])
 
 const barPct = computed(() => {
   if (!info.value) return 0
-  return Math.min(100, (info.value.v / 100) * 100)
+  return Math.min(100, (info.value.v / AQI_BAR_MAX) * 100)
 })
 
 function aqiColor(v: number): string {
-  if (v <= 20) return "#5BAA6A"
-  if (v <= 40) return "#8FC77B"
-  if (v <= 60) return "#E8B84A"
-  if (v <= 80) return "#F09050"
-  if (v <= 100) return "#E5606E"
-  return "#A565B8"
+  return aqiLevel(v).color
 }
 
 function barHeight(v: number): number {
-  return Math.max(3, Math.min(64, (v / 120) * 64))
+  return Math.max(3, Math.min(64, (v / AQI_BAR_MAX) * 64))
 }
 
 const trendTimes = computed(() => {
@@ -84,11 +75,9 @@ const trendTimes = computed(() => {
 
 <template>
   <view v-if="info" class="aqi-card card anim-fade-in-up" style="animation-delay: 0.2s">
-    <view class="aqi-head">
-      <view class="section-header" style="margin-bottom: 0">
-        <view class="section-decor" />
-        <text class="section-title">空气质量</text>
-      </view>
+    <view class="section-header">
+      <view class="section-decor" />
+      <text class="section-title">空气质量</text>
       <view class="aqi-badge" :style="{ background: info.color, color: '#fff' }">{{ info.label }}</view>
     </view>
 
@@ -99,6 +88,7 @@ const trendTimes = computed(() => {
         <view class="aqi-bar" :style="{ width: barPct + '%', background: info.color }" />
       </view>
       <text class="aqi-advice">{{ info.advice }}</text>
+      <text v-if="info.primary" class="aqi-primary">首要污染物 {{ info.primary }}</text>
     </view>
 
     <view class="aqi-pois" v-if="info.pollutants.length">
@@ -126,7 +116,7 @@ const trendTimes = computed(() => {
 
     <view class="aqi-trend" v-if="info.hourly.length">
       <view class="trend-label-row">
-        <text class="trend-label">今日 24h 空气质量</text>
+        <text class="trend-label">未来 24 小时空气质量</text>
       </view>
       <view class="aqi-bars">
         <view v-for="(p, i) in info.hourly" :key="i" class="aqi-bar-col" :style="{ height: barHeight(p.aqi) + 'px' }">
@@ -141,22 +131,14 @@ const trendTimes = computed(() => {
 </template>
 
 <style scoped>
-.aqi-card {
+/* 用 .aqi-card.card 提高优先级：页面级的 .card 后加载，否则渐变底和左侧强调条会被冲掉 */
+.aqi-card.card {
   background: linear-gradient(155deg, var(--accent-soft, rgba(91,143,192,0.1)) 0%, var(--card-bg) 52%);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  margin-bottom: var(--spacing-md);
-  border: 1px solid var(--card-border);
   border-left: 3px solid var(--accent, var(--color-primary));
-  box-shadow: var(--card-shadow);
-}
-.aqi-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   margin-bottom: var(--spacing-md);
 }
 .aqi-badge {
+  margin-left: auto;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   padding: 3px 12px;
@@ -194,6 +176,10 @@ const trendTimes = computed(() => {
 .aqi-advice {
   font-size: var(--font-size-xs);
   color: var(--color-ink-light);
+}
+.aqi-primary {
+  font-size: 10px;
+  color: var(--color-ash);
 }
 .aqi-pois {
   display: flex;

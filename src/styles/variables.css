@@ -129,37 +129,44 @@
 
 /* ===== 模块语义色 & 玻璃/卡片令牌 ===== */
 :root {
+  /* 语义色板：15 个模块收敛成 6 组，避免一堆肉眼分不出的近似色 */
+  /* 蓝 · 天气实况与预报 */
   --m-weather: #5B8FC0;
-  --m-air: #4FA98C;
-  --m-forecast: #5C7CC0;
+  --m-forecast: #5B8FC0;
   --m-hourly: #5B8FC0;
+  --m-satellite: #5B8FC0;
+  /* 青 · 降水与水体 */
   --m-nowcast: #3E9BC0;
-  --m-life: #C99A3E;
-  --m-temp: #E0703F;
   --m-precip: #3E9BC0;
+  --m-radar: #3E9BC0;
+  --m-ocean: #3E9BC0;
+  /* 绿 · 空气生态 */
+  --m-air: #4FA98C;
+  /* 红橙 · 灾害与预警 */
   --m-typhoon: #C9503F;
-  --m-quake: #D9843C;
-  --m-radar: #4FA98C;
-  --m-satellite: #3D5A80;
-  --m-star: #8268B0;
-  --m-ocean: #2E9BAE;
-  --m-calendar: #6673B8;
+  --m-quake: #D07A42;
+  --m-temp: #E0703F;
+  /* 金 · 生活指数 */
+  --m-life: #C99A3E;
+  /* 紫 · 天文与日历 */
+  --m-star: #7C6FAE;
+  --m-calendar: #7C6FAE;
 
   --m-weather-soft: rgba(91,143,192,0.12);
-  --m-air-soft: rgba(79,169,140,0.12);
-  --m-forecast-soft: rgba(92,124,192,0.12);
+  --m-forecast-soft: rgba(91,143,192,0.12);
   --m-hourly-soft: rgba(91,143,192,0.12);
+  --m-satellite-soft: rgba(91,143,192,0.12);
   --m-nowcast-soft: rgba(62,155,192,0.12);
-  --m-life-soft: rgba(201,154,62,0.14);
-  --m-temp-soft: rgba(224,112,63,0.12);
   --m-precip-soft: rgba(62,155,192,0.12);
+  --m-radar-soft: rgba(62,155,192,0.12);
+  --m-ocean-soft: rgba(62,155,192,0.12);
+  --m-air-soft: rgba(79,169,140,0.12);
   --m-typhoon-soft: rgba(201,80,63,0.12);
-  --m-quake-soft: rgba(217,132,60,0.12);
-  --m-radar-soft: rgba(79,169,140,0.12);
-  --m-satellite-soft: rgba(61,90,128,0.12);
-  --m-star-soft: rgba(130,104,176,0.12);
-  --m-ocean-soft: rgba(46,155,174,0.12);
-  --m-calendar-soft: rgba(102,115,184,0.12);
+  --m-quake-soft: rgba(208,122,66,0.12);
+  --m-temp-soft: rgba(224,112,63,0.12);
+  --m-life-soft: rgba(201,154,62,0.14);
+  --m-star-soft: rgba(124,111,174,0.12);
+  --m-calendar-soft: rgba(124,111,174,0.12);
 
   --card-bg: rgba(255,255,255,0.9);
   --card-border: rgba(255,255,255,0.7);

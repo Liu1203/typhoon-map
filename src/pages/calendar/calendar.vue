@@ -171,11 +171,11 @@ function goBack() { uni.navigateBack() }
       <view class="card cal-card accent-calendar">
         <view class="cal-nav">
           <view :class="['nav-btn', !canPrev && 'disabled']" @tap="prevMonth">
-            <Icon name="chevron-left" :size="18" :color="canPrev ? '#6673B8' : '#B0BDCC'" />
+            <Icon name="chevron-left" :size="18" :color="canPrev ? '#7C6FAE' : '#B0BDCC'" />
           </view>
           <text class="cal-month">{{ monthLabel }}</text>
           <view :class="['nav-btn', !canNext && 'disabled']" @tap="nextMonth">
-            <Icon name="chevron-right" :size="18" :color="canNext ? '#6673B8' : '#B0BDCC'" />
+            <Icon name="chevron-right" :size="18" :color="canNext ? '#7C6FAE' : '#B0BDCC'" />
           </view>
         </view>
 
@@ -266,7 +266,7 @@ function goBack() { uni.navigateBack() }
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--accent-soft, rgba(102,115,184,0.12));
+  background: var(--accent-soft, rgba(124,111,174,0.12));
 }
 .nav-btn.disabled { background: transparent; }
 
@@ -291,11 +291,11 @@ function goBack() { uni.navigateBack() }
 }
 .cell.blank { visibility: hidden; }
 .cell.past, .cell.nodata { background: rgba(44,62,80,0.03); }
-.cell.today { border-color: var(--accent, #6673B8); }
-.cell.selected { background: var(--accent-soft, rgba(102,115,184,0.12)); border-color: var(--accent, #6673B8); }
+.cell.today { border-color: var(--accent, #7C6FAE); }
+.cell.selected { background: var(--accent-soft, rgba(124,111,174,0.12)); border-color: var(--accent, #7C6FAE); }
 .cell-day { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-ink); }
 .cell.past .cell-day, .cell.nodata .cell-day { color: var(--color-ash); font-weight: var(--font-weight-normal); }
-.cell.today .cell-day { color: var(--accent, #6673B8); }
+.cell.today .cell-day { color: var(--accent, #7C6FAE); }
 .cell-lunar { font-size: 9px; color: var(--color-ash); line-height: 1.1; max-width: 100%; overflow: hidden; white-space: nowrap; }
 .cell-temp { font-size: 9px; color: var(--color-ink); font-weight: var(--font-weight-medium); max-width: 100%; overflow: hidden; white-space: nowrap; }
 .cell-low { color: var(--color-ash); }

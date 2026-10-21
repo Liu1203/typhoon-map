@@ -45,7 +45,7 @@ function retry() {
       <text class="loading-text">加载台风数据...</text>
     </view>
     <view class="error-overlay" v-if="failed">
-      <view class="error-icon"><Icon name="typhoon" :size="46" color="#C9D3DE" /></view>
+      <view class="error-icon"><Icon name="typhoon" :size="46" color="#C9D3DE" filled /></view>
       <text class="error-text">加载失败</text>
       <view class="retry-btn" @tap="retry">
         <text>重新加载</text>

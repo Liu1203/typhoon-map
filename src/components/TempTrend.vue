@@ -46,13 +46,9 @@ const data = computed(() => {
 </template>
 
 <style scoped>
+/* 卡片形态由页面级 .card 统一提供，这里只管模块自己的间距 */
 .trend-card {
-  background: var(--card-bg);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-xl) var(--spacing-lg);
   margin-bottom: var(--spacing-md);
-  border: 1px solid var(--card-border);
-  box-shadow: var(--card-shadow);
 }
 .section-header {
   display: flex;

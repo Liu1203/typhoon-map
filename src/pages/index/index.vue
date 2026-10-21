@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
 import { ref, computed, onUnmounted } from "vue"
 import { onShow, onHide, onPullDownRefresh } from "@dcloudio/uni-app"
-import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, nearestCity, type CurrentWeather } from "@/api/weather"
+import { getWeather, getCityCoords, getHourlyForecast, getWeatherByCoords, resolvePlaceName, reverseGeocode, setDynamicCity, type CurrentWeather } from "@/api/weather"
 import { fetchActiveTyphoons, typhoonDistanceKm, pointDistanceKm, type TyphoonBrief } from "@/api/typhoon"
 import { TIMEOUT, CACHE, DEFAULT_CITY } from "@/config"
 import { gradientFor, accentFor, lightFor, getUnitSettings, formatTemp, formatWind, formatPressure, formatVisibility, uvLabel } from "@/utils/weather"
@@ -40,10 +40,10 @@ function showBrandOff() {
   }
 }
 
-async function detectCity(): Promise<string | null> {
+async function detectCity(): Promise<{ lat: number; lon: number } | null> {
   return new Promise((resolve) => {
     let settled = false
-    const done = (result: string | null) => {
+    const done = (result: { lat: number; lon: number } | null) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
@@ -57,7 +57,7 @@ async function detectCity(): Promise<string | null> {
     uni.getLocation({
       type: "wgs84",
       success(res: { latitude: number; longitude: number }) {
-        done(nearestCity(res.latitude, res.longitude))
+        done({ lat: res.latitude, lon: res.longitude })
       },
       fail(err: { errMsg?: string; message?: string }) {
         const msg = (err?.errMsg || err?.message || "未知")
@@ -78,10 +78,17 @@ async function detectCity(): Promise<string | null> {
   })
 }
 
-async function detectCoords(): Promise<{ lat: number; lon: number } | null> {
+interface CoordsWithName {
+  lat: number
+  lon: number
+  /** App 端原生解析出的城市名（不一定有） */
+  name?: string
+}
+
+async function detectCoords(): Promise<CoordsWithName | null> {
   return new Promise((resolve) => {
     let settled = false
-    const done = (r: { lat: number; lon: number } | null) => {
+    const done = (r: CoordsWithName | null) => {
       if (settled) return
       settled = true
       clearTimeout(timer)
@@ -90,7 +97,18 @@ async function detectCoords(): Promise<{ lat: number; lon: number } | null> {
     const timer = setTimeout(() => { done(null) }, TIMEOUT.LOCATION)
     uni.getLocation({
       type: "wgs84",
-      success(res: { latitude: number; longitude: number }) { done({ lat: res.latitude, lon: res.longitude }) },
+      // App 端支持原生反解地址，能省掉一次反查请求；其它平台忽略该参数
+      geocode: true,
+      success(res: any) {
+        const addr = res?.address
+        // 原生反解给的 address 里 city 是"深圳市"、district 才是"龙华区"，区优先
+        const raw = addr?.district || addr?.city || addr?.locality || ""
+        done({
+          lat: res.latitude,
+          lon: res.longitude,
+          name: typeof raw === "string" && raw.trim() ? raw.trim() : undefined,
+        })
+      },
       fail() { done(null) },
     })
   })
@@ -234,7 +252,34 @@ async function fetchAndUpdate(city: string) {
 
 let firstLoad = true
 let fetchSeq = 0
+let locateNameSeq = 0
+
+/**
+ * 启动时把"定位来源"的城市名重新反查一遍，修掉旧版本只到市级的缓存名（深圳市 → 龙华区）。
+ * 这里不能走 resolvePlaceName：它的兜底是"最近的内置城市"，接口一挂就会把昆山改成苏州。
+ */
+async function refreshLocatedName(city: string) {
+  const coords = getCityCoords(city)
+  if (!coords) return
+  const seq = ++locateNameSeq
+  const name = await reverseGeocode(coords.lat, coords.lon)
+  if (seq !== locateNameSeq) return
+  if (!name || name === city) return
+  // 等待期间用户手动换了城市，就不要再覆盖
+  if (currentCity.value !== city) return
+  setDynamicCity(name, coords.lat, coords.lon)
+  currentCity.value = name
+  uni.setStorageSync(CACHE.CITY_KEY, name)
+  weatherCity.value = name
+  fetchAndUpdate(name)
+}
+
 let refreshTimer: ReturnType<typeof setInterval> | null = null
+/** 从后台切回前台时，缓存新鲜度在 5 分钟内就不再请求，避免每次切应用都打一遍接口 */
+const FOREGROUND_FRESH_MS = 5 * 60 * 1000
+/** 台风列表/明细的检查间隔，避免频繁切前台反复拉 6 个请求 */
+const TYPHOON_FRESH_MS = 10 * 60 * 1000
+let lastTyphoonTs = 0
 
 function startAutoRefresh() {
   stopAutoRefresh()
@@ -260,14 +305,22 @@ onShow(async () => {
   const saved = uni.getStorageSync(CACHE.CITY_KEY) as string
   if (saved) {
     currentCity.value = saved
+    // 上次城市是定位得到的：启动时在后台重新反查一次地名。
+    // 旧版本反查只到"市"（深圳市），光修解析逻辑救不了已存本地的旧名字，靠这一步兜住。
+    if (uni.getStorageSync(CACHE.CITY_SRC_KEY) === "gps") refreshLocatedName(saved)
   } else {
     currentCity.value = DEFAULT_CITY
     uni.setStorageSync(CACHE.CITY_KEY, DEFAULT_CITY)
-    detectCity().then((detected) => {
-      if (detected && detected !== currentCity.value) {
-        currentCity.value = detected
-        uni.setStorageSync(CACHE.CITY_KEY, detected)
-        fetchAndUpdate(currentCity.value)
+    uni.setStorageSync(CACHE.CITY_SRC_KEY, "manual")
+    detectCity().then(async (detected) => {
+      if (!detected) return
+      const name = await resolvePlaceName(detected.lat, detected.lon)
+      setDynamicCity(name, detected.lat, detected.lon)
+      if (name !== currentCity.value) {
+        currentCity.value = name
+        uni.setStorageSync(CACHE.CITY_KEY, name)
+        uni.setStorageSync(CACHE.CITY_SRC_KEY, "gps")
+        fetchAndUpdate(name)
       }
     })
   }
@@ -288,10 +341,16 @@ onShow(async () => {
     loading.value = false
   }
 
-  await fetchAndUpdate(currentCity.value)
+  const cacheAge = cacheHit ? Date.now() - cache.ts : Infinity
+  if (firstLoad || !cacheHit || cacheAge > FOREGROUND_FRESH_MS) {
+    await fetchAndUpdate(currentCity.value)
+  }
   loading.value = false
   startAutoRefresh()
-  if (!isOffline.value) checkTyphoon()
+  if (!isOffline.value && Date.now() - lastTyphoonTs > TYPHOON_FRESH_MS) {
+    lastTyphoonTs = Date.now()
+    checkTyphoon()
+  }
   sendDailyDigest(currentCity.value, weather.value)
 })
 
@@ -324,13 +383,18 @@ async function locateMe() {
   errorType.value = null
   forecastHourlys.value = {}
   expandedIndex.value = -1
-  const result = await getWeatherByCoords(coords.lat, coords.lon)
+  // 原生没给地址就反查真实城市名，失败才退回最近的已知城市
+  const placeName = coords.name || await resolvePlaceName(coords.lat, coords.lon)
+  // 登记坐标，后续自动刷新才能通过 getCityCoords(placeName) 命中
+  setDynamicCity(placeName, coords.lat, coords.lon)
+  const result = await getWeatherByCoords(coords.lat, coords.lon, placeName)
   if (result) {
-    currentCity.value = result.placeName
-    uni.setStorageSync(CACHE.CITY_KEY, result.placeName)
-    weatherCity.value = result.placeName
+    currentCity.value = placeName
+    uni.setStorageSync(CACHE.CITY_KEY, placeName)
+    uni.setStorageSync(CACHE.CITY_SRC_KEY, "gps")
+    weatherCity.value = placeName
     applyWeatherData(result.weather)
-    setCache(result.weather, result.placeName)
+    setCache(result.weather, placeName)
   } else {
     errorType.value = isOffline.value ? "network" : "server"
     uni.showToast({ title: "获取天气失败", icon: "none", duration: 2000 })
@@ -391,6 +455,7 @@ function switchCity(name: string) {
   if (name === currentCity.value) return
   currentCity.value = name
   uni.setStorageSync(CACHE.CITY_KEY, name)
+  uni.setStorageSync(CACHE.CITY_SRC_KEY, "manual")
   forecastHourlys.value = {}
   expandedIndex.value = -1
   fetchAndUpdate(name)
@@ -654,8 +719,7 @@ const weatherScene = computed(() => {
           </view>
           <view class="header-actions">
             <view :class="['locate-btn', locating && 'is-locating']" @tap.stop="locateMe">
-              <view class="locate-icon"><Icon name="navigation" :size="12" color="#ffffff" /></view>
-              <text class="locate-text">{{ locating ? '定位中' : '定位' }}</text>
+              <view class="locate-icon"><Icon name="locate" :size="16" color="#ffffff" /></view>
             </view>
             <view class="locate-btn more-btn" @tap.stop="openMoreMenu">
               <view class="locate-icon"><Icon name="more" :size="18" color="#ffffff" :stroke="2.5" /></view>
@@ -680,7 +744,7 @@ const weatherScene = computed(() => {
         <text class="temp-drop-text">明天较今天降温 {{ tempDropAlarm.drop }}°，注意添衣保暖</text>
       </view>
       <view v-if="typhoonAlert" class="typhoon-alert-banner anim-fade-in-down" style="animation-delay: 0.1s" @tap="goTyphoon">
-        <view class="typhoon-alert-icon"><Icon name="typhoon" :size="16" color="#ffffff" /></view>
+        <view class="typhoon-alert-icon"><Icon name="typhoon" :size="16" color="#ffffff" filled /></view>
         <text class="typhoon-alert-text">台风「{{ typhoonAlert.name }}」距 {{ currentCity }} 约 {{ typhoonAlert.distance }}km{{ typhoonAlert.minPath < typhoonAlert.distance ? '，路径最近约 ' + typhoonAlert.minPath + 'km' + (typhoonAlert.minPathHours > 0 ? '（约 ' + typhoonAlert.minPathHours + ' 小时后）' : '') : '' }}，点击查看路径</text>
         <text class="typhoon-alert-arrow">›</text>
       </view>
@@ -717,7 +781,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'typhoon' && homeModules.modules.typhoon" class="entry-module accent-typhoon">
           <view class="entry-card typhoon-entry" @tap="goTyphoon">
             <view class="entry-icon-wrap">
-              <Icon name="typhoon" :size="22" color="#C9503F" />
+              <Icon name="typhoon" :size="22" color="#C9503F" filled />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">台风路径</text>
@@ -730,7 +794,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'quake' && homeModules.modules.quake" class="entry-module accent-quake">
           <view class="entry-card quake-entry" @tap="goQuake">
             <view class="entry-icon-wrap">
-              <Icon name="activity" :size="22" color="#D9843C" />
+              <Icon name="seismic" :size="22" color="#D07A42" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">地震信息</text>
@@ -743,7 +807,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'radar' && homeModules.modules.radar" class="entry-module accent-radar">
           <view class="entry-card radar-entry" @tap="goRadar">
             <view class="entry-icon-wrap">
-              <Icon name="cloud-rain" :size="22" color="#4FA98C" />
+              <Icon name="cloud-rain" :size="22" color="#3E9BC0" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">雷达降水</text>
@@ -756,7 +820,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'satellite' && homeModules.modules.satellite" class="entry-module accent-satellite">
           <view class="entry-card satellite-entry" @tap="goSatellite">
             <view class="entry-icon-wrap">
-              <Icon name="satellite" :size="22" color="#3D5A80" />
+              <Icon name="satellite" :size="22" color="#5B8FC0" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">卫星云图</text>
@@ -773,7 +837,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'ocean' && homeModules.modules.ocean" class="entry-module accent-ocean">
           <view class="entry-card ocean-entry" @tap="goOcean">
             <view class="entry-icon-wrap">
-              <Icon name="waves" :size="22" color="#2E9BAE" />
+              <Icon name="waves" :size="22" color="#3E9BC0" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">海洋预报</text>
@@ -786,7 +850,7 @@ const weatherScene = computed(() => {
         <view v-if="key === 'calendar' && homeModules.modules.calendar" class="entry-module accent-calendar">
           <view class="entry-card calendar-entry" @tap="goCalendar">
             <view class="entry-icon-wrap">
-              <Icon name="calendar" :size="22" color="#6673B8" />
+              <Icon name="calendar" :size="22" color="#7C6FAE" />
             </view>
             <view class="entry-text-wrap">
               <text class="entry-title">天气日历</text>
@@ -1030,8 +1094,11 @@ const weatherScene = computed(() => {
 .locate-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--spacing-xs);
-  padding: 7px 14px;
+  /* 只留图标，做成方形圆形按钮 */
+  padding: 8px 10px;
+  min-width: 0;
   border-radius: var(--radius-full);
   background: var(--glass-bg);
   -webkit-backdrop-filter: var(--glass-blur);
@@ -1040,15 +1107,20 @@ const weatherScene = computed(() => {
   transition: transform var(--transition-fast), background var(--transition-fast);
 }
 
+/* 定位中：按钮整体做呼吸光环，图标保持静止（原来的做法是让箭头自转，像图标坏了） */
 .locate-btn.is-locating {
   background: var(--glass-bg-strong);
   border-color: var(--glass-border);
+  animation: locate-glow 1.4s ease-in-out infinite;
 }
 
 .more-btn {
   padding: 7px 12px;
+  min-width: 0;
 }
 .more-btn .locate-icon {
+  width: 18px;
+  height: 18px;
   font-size: 18px;
   line-height: 1;
   font-weight: var(--font-weight-bold);
@@ -1060,22 +1132,21 @@ const weatherScene = computed(() => {
 }
 
 .locate-icon {
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
   line-height: 1;
 }
 
-.locate-btn.is-locating .locate-icon {
-  animation: spin 1s linear infinite;
-}
-
-.locate-text {
-  font-size: var(--font-size-xs);
-  color: #fff;
-  font-weight: var(--font-weight-medium);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes locate-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.45);
+  }
+  60% {
+    box-shadow: 0 0 0 7px rgba(255, 255, 255, 0);
+  }
 }
 
 .update-time {
@@ -1208,11 +1279,12 @@ const weatherScene = computed(() => {
   flex-shrink: 0;
 }
 
+/* 标准卡（第二层）：信息内容卡，横向内边距略收紧，阴影压淡，让 Hero 更突出 */
 .card {
   background: var(--card-bg);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-xl) var(--spacing-lg);
-  box-shadow: var(--card-shadow);
+  border-radius: 18px;
+  padding: var(--spacing-lg);
+  box-shadow: 0 2px 14px rgba(44,62,80,0.06);
   margin-bottom: var(--spacing-md);
   border: 1px solid var(--card-border);
   transform: translateZ(0);
@@ -1248,30 +1320,30 @@ const weatherScene = computed(() => {
   margin-bottom: var(--spacing-md);
 }
 
+/* 入口行（第三层）：紧凑导航条，无阴影、低高度，和标准卡拉开层级 */
 .entry-card {
   display: flex;
   align-items: center;
   gap: var(--spacing-md);
-  padding: var(--spacing-lg) var(--spacing-xl);
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--card-shadow);
-  border: 1px solid var(--glass-border);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  padding: 10px var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: transform var(--transition-fast), background var(--transition-fast);
   transform: translateZ(0);
 }
 
 .entry-card:active {
   transform: scale(0.985);
-  box-shadow: 0 1px 8px rgba(0,0,0,0.04);
+  background: rgba(255, 255, 255, 0.62);
 }
 
 .entry-icon-wrap {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-md);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1300,14 +1372,20 @@ const weatherScene = computed(() => {
 }
 
 .entry-title {
-  font-size: var(--font-size-md);
+  font-size: 14px;
   font-weight: var(--font-weight-semibold);
   color: var(--color-ink);
+  line-height: 1.3;
 }
 
 .entry-subtitle {
-  font-size: var(--font-size-xs);
+  font-size: 10px;
+  line-height: 1.4;
   color: var(--color-ink-light);
+  /* 单行省略：入口行保持统一高度，不再让长副标题把卡片撑开 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entry-arrow {
@@ -1374,7 +1452,8 @@ const weatherScene = computed(() => {
 
 .dark-mode .detail-item { background: rgba(30,36,48,0.6); border-color: rgba(255,255,255,0.06); }
 .dark-mode .card { background: rgba(30,36,48,0.85); border-color: rgba(255,255,255,0.08); box-shadow: 0 2px 16px rgba(0,0,0,0.2); }
-.dark-mode .entry-card { background: var(--glass-bg); }
+.dark-mode .entry-card { background: var(--glass-bg); border-color: rgba(255,255,255,0.08); }
+.dark-mode .entry-card:active { background: var(--glass-bg-strong); }
 
 .city-picker-overlay {
   position: fixed;

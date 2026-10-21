@@ -82,11 +82,11 @@ const tips = computed((): Tip[] => {
     r.push({ icon: "sun", label: "晾晒", level: "适宜", tip: "适合户外晾晒" })
   }
 
-  if (aqiVal > 80) {
-    r.push({ icon: "leaf", label: "空气", level: "污染", tip: "建议佩戴口罩" })
-  } else if (aqiVal > 60) {
-    r.push({ icon: "leaf", label: "空气", level: "一般", tip: "敏感人群注意减少外出" })
-  } else if (aqiVal > 20) {
+  if (aqiVal > 150) {
+    r.push({ icon: "leaf", label: "空气", level: "污染", tip: "建议佩戴口罩，减少外出" })
+  } else if (aqiVal > 100) {
+    r.push({ icon: "leaf", label: "空气", level: "一般", tip: "轻度污染，敏感人群减少外出" })
+  } else if (aqiVal > 50) {
     r.push({ icon: "leaf", label: "空气", level: "良好", tip: "空气状况较好" })
   } else {
     r.push({ icon: "leaf", label: "空气", level: "优", tip: "空气清新" })
@@ -121,20 +121,46 @@ const tips = computed((): Tip[] => {
 
   return r
 })
+
+/**
+ * 等级配色：好的绿、需要留意的高亮、其余中性。
+ * 三列宫格里靠颜色扫，比每条都塞一行 10px 建议文案更好读。
+ */
+const GOOD_LEVELS = ["低", "舒适", "适宜", "优", "良好", "少发"]
+const BAD_LEVELS = ["高", "极寒", "寒冷", "炎热", "不宜", "污染", "易发"]
+
+function tone(level: string): { fg: string; bg: string } {
+  if (BAD_LEVELS.includes(level)) return { fg: "#C85846", bg: "rgba(200,88,70,0.14)" }
+  if (GOOD_LEVELS.includes(level)) return { fg: "#4F9D69", bg: "rgba(79,157,105,0.14)" }
+  return { fg: "#C08A2E", bg: "rgba(192,138,46,0.14)" }
+}
+
+function showTip(t: Tip) {
+  uni.showModal({
+    title: `${t.label} · ${t.level}`,
+    content: t.tip,
+    showCancel: false,
+    confirmText: "知道了",
+    confirmColor: "#5B8FC0",
+  })
+}
 </script>
 
 <template>
   <view class="card life-card anim-fade-in-up" style="animation-delay: 0.2s">
-    <view class="section-header">
+    <view class="section-header life-head">
       <view class="section-decor" />
       <text class="section-title">生活指数</text>
+      <text class="life-hint">轻触查看建议</text>
     </view>
     <view class="life-grid">
-      <view class="life-item" v-for="t in tips" :key="t.label">
-        <view class="life-icon"><Icon :name="t.icon" :size="24" color="#C99A3E" /></view>
+      <view class="life-item" v-for="t in tips" :key="t.label" @tap="showTip(t)">
+        <view class="life-icon"><Icon :name="t.icon" :size="22" color="#C99A3E" /></view>
         <text class="life-label">{{ t.label }}</text>
-        <text class="life-level">{{ t.level }}</text>
-        <text class="life-tip">{{ t.tip }}</text>
+        <text
+          class="life-level"
+          :style="{ color: tone(t.level).fg, background: tone(t.level).bg }"
+        >{{ t.level }}</text>
       </view>
     </view>
   </view>
@@ -143,6 +169,16 @@ const tips = computed((): Tip[] => {
 <style scoped>
 .life-card {
   margin-bottom: var(--spacing-md);
+}
+
+.life-head {
+  justify-content: flex-start;
+}
+
+.life-hint {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--color-ash);
 }
 
 .life-grid {
@@ -154,26 +190,29 @@ const tips = computed((): Tip[] => {
 .life-item {
   background: rgba(255,255,255,0.6);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-md) var(--spacing-xs);
+  padding: 12px var(--spacing-xs);
   text-align: center;
   border: 1px solid rgba(255,255,255,0.8);
-  min-height: 100px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  gap: 2px;
+  justify-content: center;
+  gap: 4px;
+  transition: transform var(--transition-fast);
+}
+
+.life-item:active {
+  transform: scale(0.96);
 }
 
 .life-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   background: var(--accent-soft, rgba(201,154,62,0.14));
-  margin-bottom: 4px;
 }
 
 .life-label {
@@ -183,20 +222,12 @@ const tips = computed((): Tip[] => {
 }
 
 .life-level {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: var(--font-weight-semibold);
-  color: var(--accent, var(--color-primary));
-  background: var(--accent-soft, rgba(201,154,62,0.14));
   padding: 0 8px;
   border-radius: 10px;
-  line-height: 1.6;
-}
-
-.life-tip {
-  font-size: 10px;
-  color: var(--color-ink-light);
-  margin-top: 2px;
-  line-height: 1.3;
+  line-height: 1.7;
+  min-width: 20px;
 }
 
 </style>

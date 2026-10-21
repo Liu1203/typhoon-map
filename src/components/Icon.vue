@@ -6,10 +6,13 @@ const props = withDefaults(defineProps<{
   size?: number
   color?: string
   stroke?: number
+  /** 填充型图标（如 Remix 的 typhoon）：整体填色，不描边 */
+  filled?: boolean
 }>(), {
   size: 24,
   color: "#5B8FC0",
   stroke: 2,
+  filled: false,
 })
 
 const PATHS: Record<string, string> = {
@@ -39,9 +42,17 @@ const PATHS: Record<string, string> = {
   more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
   "chevron-right": '<path d="m9 18 6-6-6-6"/>',
   navigation: '<polygon points="3 11 22 2 13 21 11 13 3 11"/>',
+  /** 定位准星：外圈 + 中心点 + 四个方向的刻度，比指北箭头更贴合"定位"语义 */
+  locate: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.4"/><path d="M12 1.6v3.4"/><path d="M12 19v3.4"/><path d="M1.6 12H5"/><path d="M19 12h3.4"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
   broom: '<path d="m13 11 5.5 5.5a2.5 2.5 0 0 1-3.5 3.5L9.5 14.5"/><path d="M13 11 5 3"/><path d="M6 14l-2 6 6-2"/>',
-  typhoon: '<circle cx="12" cy="12" r="1.6"/><path d="M13.6 10.4c2.5-1.5 5 0 5 2.6 0 3-3 5.2-6.6 5.2"/><path d="M10.4 13.6c-2.5 1.5-5 0-5-2.6 0-3 3-5.2 6.6-5.2"/>',
+  /**
+   * 台风：Remix Icon 的 weather/typhoon-line 原路径（Apache-2.0）。
+   * 螺旋风带 + 台风眼同心环，是天气类 App 通用的台风符号；填充渲染，需配 filled。
+   */
+  typhoon: '<path d="M17.6544 1.70001L14.8716 4.23315C16.147 4.62331 17.3453 5.28102 18.3612 6.20626C21.8744 9.40606 21.8744 14.594 18.3612 17.7938C15.7696 20.1542 11.7644 21.6563 6.3456 22.3L9.12838 19.7669C7.85304 19.3767 6.65466 18.719 5.6388 17.7938C2.1256 14.594 2.1048 9.42501 5.6388 6.20626C8.2304 3.84585 12.2356 2.34376 17.6544 1.70001ZM12 6.00001C8.13401 6.00001 5 8.6863 5 12C5 15.3137 8.13401 18 12 18C15.866 18 19 15.3137 19 12C19 8.6863 15.866 6.00001 12 6.00001ZM12 8.30001C14.2091 8.30001 16 9.95656 16 12C16 14.0435 14.2091 15.7 12 15.7C9.79086 15.7 8 14.0435 8 12C8 9.95656 9.79086 8.30001 12 8.30001ZM12 10.3C10.8621 10.3 10 11.0975 10 12C10 12.9026 10.8621 13.7 12 13.7C13.1379 13.7 14 12.9026 14 12C14 11.0975 13.1379 10.3 12 10.3Z"/>',
+  /** 地震波形：多峰折线，跟心率脉冲区分开 */
+  seismic: '<path d="M1.5 12.5h4l2-5.5 3.5 11 3-8 2 4h6.5"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
   "chevron-left": '<path d="m15 18-6-6 6-6"/>',
@@ -52,7 +63,9 @@ const PATHS: Record<string, string> = {
 
 const src = computed(() => {
   const p = PATHS[props.name] || ""
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${props.color}" stroke-width="${props.stroke}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`
+  const strokeAttr = props.filled ? 'stroke="none"' : `stroke="${props.color}" stroke-width="${props.stroke}" stroke-linecap="round" stroke-linejoin="round"`
+  const fillAttr = props.filled ? props.color : "none"
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${fillAttr}" ${strokeAttr}>${p}</svg>`
   return "data:image/svg+xml," + encodeURIComponent(svg)
 })
 </script>
