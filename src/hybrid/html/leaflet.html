@@ -1042,6 +1042,37 @@ function mapList(data){
     .map(function(v){return{id:v[0],nameCn:v[2],nameEn:v[1],tcNum:v[4]}})
 }
 
+/* ---- 从助手回答里的链接跳进来：?ty=2411 ---- */
+function tyYearOf(code){
+  var s=String(code||'').replace(/\D/g,'')
+  if(s.length>=6)return +s.slice(0,4)
+  if(s.length===4){var n=+s.slice(0,2);return n>30?1900+n:2000+n}
+  return 0
+}
+function findWantTy(){
+  if(!wantTy)return null
+  var s=String(wantTy)
+  for(var i=0;i<typhoons.length;i++){
+    var t=typhoons[i]
+    if(String(t.id)===s||String(t.tcNum)===s)return t
+    if(s.length>4&&String(t.tcNum).slice(-4)===s.slice(-4))return t
+  }
+  return null
+}
+async function pickWantTy(){
+  var t=findWantTy()
+  if(!t)return false
+  wantTy=''
+  await selectTyphoon(t)
+  return true
+}
+async function jumpWantTy(){
+  if(!wantTy)return
+  var y=tyYearOf(wantTy)
+  if(y)await loadHistory(y)
+  if(wantTy){wantTy='';toast('页面里没有这只台风的路径数据')}
+}
+
 function parseDetail(raw){
   if(!raw)return null
   var points=raw[8]||[]
@@ -1174,6 +1205,7 @@ var userCoords=(function(){
   return null
 })()
 var isDark=location.search.indexOf('dark=1')>=0
+var wantTy=(location.search.match(/[?&]ty=([0-9]{3,8})/)||[])[1]||''
 if(isDark)document.documentElement.className='dark'
 
 /* ===== DOM ===== */
@@ -1768,7 +1800,7 @@ async function loadActive(){
   if(typhoons.length){
     setEmpty(false)
     if(compareMode){renderChips();renderCompare(true)}
-    else await selectTyphoon(typhoons[0])
+    else if(!(await pickWantTy())) await selectTyphoon(typhoons[0])
   }else{
     selected=null;detail=null
     renderChips();renderCollapsed();renderInfo();renderMap(true)
@@ -1802,7 +1834,7 @@ async function loadHistory(year){
   if(typhoons.length){
     setEmpty(false)
     if(compareMode){renderChips();renderCompare(true)}
-    else await selectTyphoon(typhoons[0])
+    else if(!(await pickWantTy())) await selectTyphoon(typhoons[0])
   }else{
     renderChips();renderCollapsed();renderInfo();renderMap(true)
     setEmpty(true,year+' 年暂无台风记录','返回活跃台风')
@@ -2002,7 +2034,7 @@ function bindUI(){
 document.addEventListener('DOMContentLoaded',function(){
   bindUI()
   initMap()
-  loadActive()
+  loadActive().then(jumpWantTy)
   window.addEventListener('resize',invalidateMap)
 })
 </script>

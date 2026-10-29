@@ -21,6 +21,7 @@ import AqiCard from "@/components/AqiCard.vue"
 import StargazingCard from "@/components/StargazingCard.vue"
 import NowcastCard from "@/components/NowcastCard.vue"
 import Icon from "@/components/Icon.vue"
+import Robot from "@/components/Robot.vue"
 
 const locateError = ref("")
 const isOffline = ref(false)
@@ -528,6 +529,14 @@ function onMoreAction(idx: number) {
   else if (idx === 1) shareWeather()
   else if (idx === 2) copyTextSummary()
   else if (idx === 3) goSettings()
+  else if (idx === 4) goAssistant()
+}
+
+function goAssistant() {
+  uni.navigateTo({
+    url: "/pages/assistant/assistant",
+    fail: () => uni.showToast({ title: "页面打开失败", icon: "none" }),
+  })
 }
 
 function copyTextSummary() {
@@ -919,11 +928,22 @@ const weatherScene = computed(() => {
           <text class="more-text">复制天气摘要</text>
         </view>
         <view class="more-divider" />
+        <view class="more-item" @tap.stop="onMoreAction(4)">
+          <view class="more-icon"><Icon name="activity" :size="18" color="#5B8FC0" /></view>
+          <text class="more-text">天气助手</text>
+        </view>
+        <view class="more-divider" />
         <view class="more-item" @tap.stop="onMoreAction(3)">
           <view class="more-icon"><Icon name="settings" :size="18" color="#5B8FC0" /></view>
           <text class="more-text">设置</text>
         </view>
       </view>
+    </view>
+
+    <!-- AI 助手入口：只留机器人本体，不做底板，让它直接浮在页面上 -->
+    <!-- 浮动动效已经内置在 Robot 组件里，这里不能再套一层，否则位移会叠加成 7px -->
+    <view v-if="!showBrand" class="assistant-fab" @tap="goAssistant">
+      <Robot :size="60" :weather="displayWeather?.weather || ''" />
     </view>
   </view>
 </template>
@@ -1617,6 +1637,22 @@ const weatherScene = computed(() => {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .dark-mode .more-menu { background: var(--glass-bg-strong); border-color: var(--glass-border); box-shadow: 0 10px 32px rgba(0,0,0,0.4); }
+
+/* 天气助手悬浮入口 */
+/* ---------- AI 助手入口（天气机器人，无底板） ---------- */
+.assistant-fab {
+  position: fixed;
+  right: 10px;
+  bottom: 84px;
+  z-index: 95;
+  /* 落地投影交给 Robot 组件里的光晕了，这里再加一层 filter 会让每帧都要重新合成 */
+}
+.assistant-fab:active {
+  transform: scale(0.92);
+  transition: transform 0.12s ease;
+}
+
+/* 上下浮动已经被 Robot 组件接管了，这里不再重复做 */
 .dark-mode .more-text { color: #C8D0DC; }
 .dark-mode .more-item:active { background: rgba(255,255,255,0.06); }
 .dark-mode .more-divider { background: rgba(255,255,255,0.08); }

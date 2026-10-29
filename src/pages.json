@@ -103,6 +103,14 @@
         "animationType": "slide-in-right",
         "animationDuration": 300
       }
+    },
+    {
+      "path": "pages/assistant/assistant",
+      "style": {
+        "navigationBarTitleText": "天气助手",
+        "animationType": "slide-in-right",
+        "animationDuration": 300
+      }
     }
   ],
   "globalStyle": {

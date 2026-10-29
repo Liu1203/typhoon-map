@@ -59,6 +59,10 @@ const PATHS: Record<string, string> = {
   list: '<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>',
   scale: '<path d="M12 3v18"/><path d="M7 21h10"/><path d="M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
   satellite: '<rect x="9.75" y="9.75" width="4.5" height="4.5" rx="1" transform="rotate(45 12 12)"/><rect x="3.5" y="9.75" width="5" height="4.5" rx="1" transform="rotate(45 6 12)"/><rect x="15.5" y="9.75" width="5" height="4.5" rx="1" transform="rotate(45 18 12)"/><path d="M12 8.5V5"/><circle cx="12" cy="4" r="1"/>',
+  /** 机器人：Lucide 的 bot 原路径，用于「AI 助手」入口，比 activity（折线）更像智能助手 */
+  robot: '<path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>',
+  /** 用户头像 */
+  user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
 }
 
 const src = computed(() => {

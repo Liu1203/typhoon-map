@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 import { ref, onMounted } from "vue"
+import { onLoad } from "@dcloudio/uni-app"
 import { getCityCoords } from "@/api/weather"
 import { loadDarkMode } from "@/utils/theme"
 import { CACHE, DEFAULT_CITY } from "@/config"
@@ -8,6 +9,17 @@ import Icon from "@/components/Icon.vue"
 const mapSrc = ref("/hybrid/html/leaflet.html")
 const loaded = ref(false)
 const failed = ref(false)
+
+/**
+ * 从助手回答里的链接跳过来时会带 ?ty=2411。
+ * 只收数字，最多 8 位 —— 这个值最终要拼进 web-view 的 URL，
+ * 不做白名单过滤等于把参数拼接的口子直接开给模型输出。
+ */
+let typhoonCode = ""
+onLoad((q) => {
+  const raw = String((q && (q as Record<string, string>).ty) || "").replace(/\D/g, "").slice(0, 8)
+  if (raw) typhoonCode = raw
+})
 
 onMounted(() => {
   // #ifdef H5
@@ -20,6 +32,7 @@ onMounted(() => {
   const city = (uni.getStorageSync(CACHE.CITY_KEY) as string) || DEFAULT_CITY
   const coords = getCityCoords(city)
   if (coords) params.push("lat=" + coords.lat.toFixed(4), "lon=" + coords.lon.toFixed(4))
+  if (typhoonCode) params.push("ty=" + typhoonCode)
   params.push("dark=" + (loadDarkMode() ? "1" : "0"))
   mapSrc.value += "?" + params.join("&")
 })

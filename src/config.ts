@@ -45,6 +45,24 @@ export const CACHE = {
 
 export const DEFAULT_CITY = "北京"
 
+/**
+ * 天气助手（agent）服务地址。
+ *
+ * ⚠️ 必须是你自己的后端，不能在前端直连大模型 —— key 会被反编译拿走。
+ *
+ * 各端调试填法不同：
+ *   H5 / 浏览器      http://localhost:8787
+ *   微信/支付宝小程序  微信开发者工具勾选「不校验合法域名」后用局域网 IP，如 http://192.168.1.10:8787
+ *   App 真机         同上，必须是局域网 IP，localhost 指向手机自己
+ *   正式发布          必须 HTTPS + 已备案域名，且在小程序后台配置「服务器域名」白名单
+ */
+export const AGENT = {
+  // 手机/真机必须用电脑的局域网 IP，localhost 指向手机自己
+  // 换了网络或 IP 变了，改这里重新打包（或在设置页改本地存储的 agent_base）
+  BASE: "http://192.168.1.166:8787",
+  TIMEOUT: 60000,
+} as const
+
 export const WEATHER = {
   FORECAST_DAYS_SHOWN: 7,
   HOURLY_DIVISOR: 1.852,
