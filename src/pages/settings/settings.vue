@@ -4,11 +4,14 @@ import { UNITS_DEFAULT, MODULE_ORDER_DEFAULT, getUnitSettings, type UnitSettings
 import { loadDarkMode, getDarkModeState, setDarkMode, type DarkModeState } from "@/utils/theme"
 import { CACHE } from "@/config"
 import { APP_VERSION } from "@/version"
+import { getAgentBase, setAgentBase, clearSession } from "@/api/agent"
 
 const darkMode = ref(false)
 const darkState = ref<DarkModeState>("auto")
 const units = ref<UnitSettings>(JSON.parse(JSON.stringify(UNITS_DEFAULT)))
 const favCities = ref<string[]>([])
+/** 天气助手的服务地址。换网络 / 换电脑后会变，用户不该为此重新装 APK */
+const agentBase = ref("")
 const refreshOptions = [
   { label: "15 分钟", value: 15 },
   { label: "30 分钟", value: 30 },
@@ -123,6 +126,7 @@ onMounted(() => {
   darkMode.value = loadDarkMode()
   darkState.value = getDarkModeState()
   units.value = getUnitSettings()
+  agentBase.value = getAgentBase()
   try {
     const raw = uni.getStorageSync(CACHE.FAV_KEY) as string
     if (raw) favCities.value = JSON.parse(raw)
@@ -200,6 +204,45 @@ function saveUnits() {
 function removeFav(city: string) {
   favCities.value = favCities.value.filter(c => c !== city)
   uni.setStorageSync(CACHE.FAV_KEY, JSON.stringify(favCities.value))
+}
+
+/**
+ * 改助手服务地址。
+ *
+ * 只拦"明显写错"的情况：不写协议的话 uni.request 会当成相对路径去拼，
+ * 报出来的错是 request:fail，用户根本猜不到是自己少打了 http://。
+ */
+function editAgentBase() {
+  uni.showModal({
+    title: "助手服务地址",
+    editable: true,
+    placeholderText: "https://weather.example.com",
+    content: agentBase.value,
+    success(r: { confirm: boolean; content?: string }) {
+      if (!r.confirm) return
+      const v = (r.content || "").trim()
+      if (v && !/^https?:\/\//i.test(v)) {
+        uni.showToast({ title: "要以 http:// 或 https:// 开头", icon: "none", duration: 2500 })
+        return
+      }
+      setAgentBase(v) // 传空 = 恢复默认
+      agentBase.value = getAgentBase()
+      uni.showToast({ title: v ? "已保存" : "已恢复默认地址", icon: "none" })
+    },
+  })
+}
+
+function clearAgentHistory() {
+  uni.showModal({
+    title: "清空对话记录",
+    content: "会同时清掉助手的上下文记忆，确定吗？",
+    success(r: { confirm: boolean }) {
+      if (!r.confirm) return
+      try { uni.removeStorageSync("agent_chat_history") } catch {}
+      clearSession()
+      uni.showToast({ title: "已清空", icon: "none" })
+    },
+  })
 }
 
 function clearCache() {
@@ -374,6 +417,19 @@ function checkUpdate() {
     </view>
 
     <view class="section">
+      <text class="section-title">天气助手</text>
+      <view class="setting-row" @tap="editAgentBase">
+        <text class="setting-label">服务地址</text>
+        <text class="setting-value ellipsis">{{ agentBase }}</text>
+      </view>
+      <view class="setting-row" @tap="clearAgentHistory">
+        <text class="setting-label">清空对话记录</text>
+        <text class="setting-value">›</text>
+      </view>
+      <view class="section-note">换了网络或换了电脑后，把地址改成新的助手服务地址即可，不用重装</view>
+    </view>
+
+    <view class="section">
       <text class="section-title">其他</text>
       <view class="setting-row" @tap="clearCache">
         <text class="setting-label">清除缓存</text>
@@ -456,6 +512,14 @@ function checkUpdate() {
 .setting-value {
   font-size: var(--font-size-sm);
   color: var(--color-ink-light);
+}
+/* 服务地址可能很长，宁可在尾部省略，也别把左边的标签挤变形 */
+.setting-value.ellipsis {
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
 }
 .toggle {
   width: 48px;

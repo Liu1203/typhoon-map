@@ -17,6 +17,7 @@ import { CACHE } from "@/config"
 import Icon from "@/components/Icon.vue"
 import Robot from "@/components/Robot.vue"
 import { parseMarkdown, type MdBlock } from "@/utils/markdown"
+import { answerOffline } from "@/utils/offlineAnswer"
 
 interface MsgAction {
   /** typhoon：查台风路径；page：跳 App 内某个页面；retry：把上一个问题重发一次 */
@@ -372,12 +373,12 @@ const locLabel = computed(() => {
   return locFailed.value ? "未取得定位 · 点此重试" : "等待定位"
 })
 
-/** 换网络后 IP 会变，允许在 App 里直接改，不用重新打包 */
+/** 换了电脑或换了 Tailscale 节点名时才需要改，地址本身是固定的 */
 function editServer() {
   uni.showModal({
     title: "助手服务地址",
     editable: true,
-    placeholderText: "http://192.168.1.166:8787",
+    placeholderText: "https://14.tail21dada.ts.net",
     content: serverBase.value,
     success(r: { confirm: boolean; content?: string }) {
       if (!r.confirm) return
@@ -641,19 +642,35 @@ async function run(content: string) {
     // 用户看到的是"机器人卡住了"，不是"连不上 http://192.168.x.x:8787"
     console.warn("[agent] 请求失败：", err)
     const kind: AgentErrorKind = err instanceof AgentError ? err.kind : "server"
-    target.soft = true
     // 先解锁输入，让用户不用等这句话打完就能重新问
     if (current()) loading.value = false
-    // 软失败也走打字机：突然"啪"地蹦出一整句，会比慢慢说更像报错
-    await reveal(target, pickOops(kind), mine)
-    if (kind === "stopped") {
-      // 停止不是失败，别计入连败，也别提示"检查后台"
-      target.hint = "已停止"
+
+    // 断网 / 超时：本地缓存算得出来的，就别只说"我断线了"。
+    // 这一刻首页的天气卡片还挂着缓存好好显示着，助手却答不上来，用户会觉得一半功能是坏的。
+    const offline = kind === "offline" || kind === "timeout" ? answerOffline(content) : null
+
+    if (offline) {
+      // 离线答案也是正经答案，不标成软失败（气泡样式和正常回答一致）
+      target.soft = false
+      await reveal(target, offline.text, mine)
+      target.hint = offline.hint
+      target.blocks = parseMarkdown(target.text)
+      target.action = { type: "retry", text: content }
+      // 答上来了就不算连败，别让下一句正常回答还顶着"后台没开"的提示
+      failStreak = 0
     } else {
-      failStreak++
-      if (failStreak >= 2) target.hint = "一直不通的话，可能是我的后台没开，检查一下再叫我。"
+      target.soft = true
+      // 软失败也走打字机：突然"啪"地蹦出一整句，会比慢慢说更像报错
+      await reveal(target, pickOops(kind), mine)
+      if (kind === "stopped") {
+        // 停止不是失败，别计入连败，也别提示"检查后台"
+        target.hint = "已停止"
+      } else {
+        failStreak++
+        if (failStreak >= 2) target.hint = "一直不通的话，可能是我的后台没开，检查一下再叫我。"
+      }
+      target.action = { type: "retry", text: content }
     }
-    target.action = { type: "retry", text: content }
   } finally {
     if (current()) {
       loading.value = false

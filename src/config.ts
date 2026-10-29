@@ -56,10 +56,21 @@ export const DEFAULT_CITY = "北京"
  *   App 真机         同上，必须是局域网 IP，localhost 指向手机自己
  *   正式发布          必须 HTTPS + 已备案域名，且在小程序后台配置「服务器域名」白名单
  */
+/**
+ * 构建时注入的正式地址。
+ *
+ * 打包正式版时在 `.env.production` 里写一行 `VITE_AGENT_BASE=https://你的域名`，
+ * 打出来的包就直接指向它，不用再回来改源码。没配则留空，走下面的局域网兜底。
+ */
+const AGENT_BASE_INJECTED: string = import.meta.env.VITE_AGENT_BASE || ""
+
 export const AGENT = {
-  // 手机/真机必须用电脑的局域网 IP，localhost 指向手机自己
-  // 换了网络或 IP 变了，改这里重新打包（或在设置页改本地存储的 agent_base）
-  BASE: "http://192.168.1.166:8787",
+  // 优先级：用户在设置页改的地址（存本地存储）> VITE_AGENT_BASE > 下面这个兜底
+  //
+  // 兜底用 Tailscale Funnel 的固定地址，不再写局域网 IP：
+  // 局域网 IP 会随 DHCP 变（已经变过两次），而且只在家里能用。
+  // 这个地址在家在外都一样，只要电脑开着、Tailscale 在跑就行。
+  BASE: AGENT_BASE_INJECTED || "https://14.tail21dada.ts.net",
   TIMEOUT: 60000,
 } as const
 
