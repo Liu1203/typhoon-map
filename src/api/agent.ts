@@ -7,7 +7,7 @@ import { AGENT } from "@/config"
  * 而不是 `连不上天气助手（request:fail timeout），当前地址 http://192.168...:8787` ——
  * 那句话对用户没有任何用处，只会让他觉得"这 App 坏了"。
  */
-export type AgentErrorKind = "offline" | "timeout" | "server" | "busy" | "stopped"
+export type AgentErrorKind = "offline" | "timeout" | "server" | "busy" | "stopped" | "auth"
 
 export class AgentError extends Error {
   kind: AgentErrorKind
@@ -46,6 +46,7 @@ export interface AgentLocation {
 
 const SESSION_KEY = "agent_session_id"
 const BASE_KEY = "agent_base"
+const KEY_KEY = "agent_key"
 const LOCATION_KEY = "agent_location"
 
 /** 定位缓存 5 分钟：同一次对话里没必要每句都重新定位，那要等 1-3 秒 */
@@ -73,6 +74,33 @@ export function setAgentBase(url: string) {
 }
 
 /**
+ * 访问密钥：优先读本地存储（换钥时不用重新打包），回退到构建时注入的值。
+ * 后端没开 AGENT_TOKEN 时这里是空串，请求头也就不会带，行为跟以前一致。
+ */
+export function getAgentKey(): string {
+  try {
+    const saved = uni.getStorageSync(KEY_KEY) as string
+    return saved || AGENT.KEY
+  } catch {
+    return AGENT.KEY
+  }
+}
+
+export function setAgentKey(key: string) {
+  const cleaned = key.trim()
+  try {
+    if (cleaned) uni.setStorageSync(KEY_KEY, cleaned)
+    else uni.removeStorageSync(KEY_KEY)
+  } catch {}
+}
+
+/** 所有请求都要带这个头，否则服务端开着校验时一律 401 */
+function authHeader(): Record<string, string> {
+  const key = getAgentKey()
+  return key ? { "X-Agent-Key": key } : {}
+}
+
+/**
  * 当前在飞的请求。
  *
  * 用一个 state 对象而不是模块级布尔量：用户"停止 → 立刻换个问题问"的时候，
@@ -96,7 +124,7 @@ function post<T>(path: string, data: Record<string, unknown>): Promise<T> {
       method: "POST",
       data,
       timeout: AGENT.TIMEOUT,
-      header: { "Content-Type": "application/json" },
+      header: { "Content-Type": "application/json", ...authHeader() },
       success(res: { statusCode: number; data: any }) {
         finish()
         // 被 abort 的请求在某些平台会以 statusCode 0 走 success，别当成服务端错误
@@ -106,6 +134,8 @@ function post<T>(path: string, data: Record<string, unknown>): Promise<T> {
         }
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(res.data as T)
+        } else if (res.statusCode === 401) {
+          reject(new AgentError("auth", "unauthorized"))
         } else if (res.statusCode === 429) {
           reject(new AgentError("busy", "rate limited"))
         } else {
@@ -315,10 +345,12 @@ function getJson<T>(path: string): Promise<T> {
       url: `${getAgentBase()}${path}`,
       method: "GET",
       timeout: 15000,
+      header: authHeader(),
       success(res: { statusCode: number; data: any }) {
         finish()
         if (state.aborted) return reject(new AgentError("stopped", "aborted"))
         if (res.statusCode >= 200 && res.statusCode < 300) resolve(res.data as T)
+        else if (res.statusCode === 401) reject(new AgentError("auth", "unauthorized"))
         else reject(new AgentError("server", `HTTP ${res.statusCode}`))
       },
       fail(err: { errMsg?: string }) {

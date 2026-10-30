@@ -69,6 +69,28 @@ function stashAside(dir, tag) {
   }
 }
 
+/**
+ * 从后端 `.env` 里取访问密钥，构建时注入成 `VITE_AGENT_KEY`。
+ *
+ * 密钥不进仓库（`agent-demo/.env` 在 .gitignore 里），只在打包那一刻拼进包。
+ * 取不到不算错——本地调试时后端可能没开校验，此时前端也就不带这个头。
+ * 多钥并存时取第一个（后端的 AGENT_TOKENS 支持逗号分隔，新包用新钥即可）。
+ */
+function readAgentToken() {
+  const envPath = path.join(PARENT, "agent-demo/.env");
+  if (!fs.existsSync(envPath)) return "";
+  const line = fs
+    .readFileSync(envPath, "utf8")
+    .split(/\r?\n/)
+    .find((l) => /^\s*AGENT_TOKEN\s*=/.test(l));
+  if (!line) return "";
+  return line
+    .slice(line.indexOf("=") + 1)
+    .split(",")[0]
+    .trim()
+    .replace(/^["']|["']$/g, "");
+}
+
 // ---------- 1. 前置检查 ----------
 for (const p of [SHELL, path.dirname(WWW), GRADLE, JAVA_HOME, ANDROID_HOME]) {
   if (!fs.existsSync(p)) {
@@ -110,12 +132,19 @@ fs.writeFileSync(GRADLE, gradleNext);
 log(`[1/5] 版本 ${oldName}/${oldCode} → ${version}/${versionCode}`);
 
 // ---------- 3. 构建 App 资源 ----------
+const agentToken = readAgentToken();
 stashAside(path.join(ROOT, "dist/build/app"), "dist-app");
 log("[2/5] 构建 App 资源 ...");
-run("npm", ["run", "build:app"], ROOT);
+run("npm", ["run", "build:app"], ROOT, agentToken ? { VITE_AGENT_KEY: agentToken } : {});
+log(agentToken ? "      已注入访问密钥" : "      [提示] 后端没配 AGENT_TOKEN，包内不带密钥");
 
 const built = path.join(ROOT, "dist/build/app");
 if (!fs.existsSync(path.join(built, "app-service.js"))) die("构建产物里没有 app-service.js");
+
+// 注入了却查不到，说明 Vite 没把环境变量带进来，装上去必定全部 401——宁可现在失败
+if (agentToken && !fs.readFileSync(path.join(built, "app-service.js"), "utf8").includes(agentToken)) {
+  die("密钥没进包（VITE_AGENT_KEY 未生效），装上去会全部 401");
+}
 
 // ---------- 4. 塞进壳工程并编译 ----------
 stashAside(WWW, "shell-www");

@@ -4,7 +4,7 @@ import { UNITS_DEFAULT, MODULE_ORDER_DEFAULT, getUnitSettings, type UnitSettings
 import { loadDarkMode, getDarkModeState, setDarkMode, type DarkModeState } from "@/utils/theme"
 import { CACHE } from "@/config"
 import { APP_VERSION } from "@/version"
-import { getAgentBase, setAgentBase, clearSession } from "@/api/agent"
+import { getAgentBase, setAgentBase, getAgentKey, setAgentKey, clearSession } from "@/api/agent"
 
 const darkMode = ref(false)
 const darkState = ref<DarkModeState>("auto")
@@ -12,6 +12,13 @@ const units = ref<UnitSettings>(JSON.parse(JSON.stringify(UNITS_DEFAULT)))
 const favCities = ref<string[]>([])
 /** 天气助手的服务地址。换网络 / 换电脑后会变，用户不该为此重新装 APK */
 const agentBase = ref("")
+/** 访问密钥。只显示首尾几位，避免截图或旁人一眼看全 */
+const agentKey = ref("")
+const agentKeyMasked = computed(() => {
+  const k = agentKey.value
+  if (!k) return "未设置"
+  return k.length <= 10 ? "已设置" : `${k.slice(0, 4)}…${k.slice(-4)}`
+})
 const refreshOptions = [
   { label: "15 分钟", value: 15 },
   { label: "30 分钟", value: 30 },
@@ -127,6 +134,7 @@ onMounted(() => {
   darkState.value = getDarkModeState()
   units.value = getUnitSettings()
   agentBase.value = getAgentBase()
+  agentKey.value = getAgentKey()
   try {
     const raw = uni.getStorageSync(CACHE.FAV_KEY) as string
     if (raw) favCities.value = JSON.parse(raw)
@@ -232,8 +240,28 @@ function editAgentBase() {
   })
 }
 
-function clearAgentHistory() {
+/**
+ * 改访问密钥。
+ *
+ * 服务端哪天换了钥，旧包就会一直 401。这行入口的存在就是为了那时候不用重装 APK，
+ * 直接在这儿把新钥粘进来。
+ */
+function editAgentKey() {
   uni.showModal({
+    title: "访问密钥",
+    editable: true,
+    placeholderText: "留空表示不带密钥",
+    content: agentKey.value,
+    success(r: { confirm: boolean; content?: string }) {
+      if (!r.confirm) return
+      setAgentKey((r.content || "").trim())
+      agentKey.value = getAgentKey()
+      uni.showToast({ title: agentKey.value ? "已保存" : "已清空", icon: "none" })
+    },
+  })
+}
+
+function clearAgentHistory() {  uni.showModal({
     title: "清空对话记录",
     content: "会同时清掉助手的上下文记忆，确定吗？",
     success(r: { confirm: boolean }) {
@@ -422,11 +450,15 @@ function checkUpdate() {
         <text class="setting-label">服务地址</text>
         <text class="setting-value ellipsis">{{ agentBase }}</text>
       </view>
+      <view class="setting-row" @tap="editAgentKey">
+        <text class="setting-label">访问密钥</text>
+        <text class="setting-value ellipsis">{{ agentKeyMasked }}</text>
+      </view>
       <view class="setting-row" @tap="clearAgentHistory">
         <text class="setting-label">清空对话记录</text>
         <text class="setting-value">›</text>
       </view>
-      <view class="section-note">换了网络或换了电脑后，把地址改成新的助手服务地址即可，不用重装</view>
+      <view class="section-note">换了网络或换了电脑后改服务地址；服务端换了密钥后改访问密钥。都不用重装</view>
     </view>
 
     <view class="section">

@@ -64,6 +64,19 @@ export const DEFAULT_CITY = "北京"
  */
 const AGENT_BASE_INJECTED: string = import.meta.env.VITE_AGENT_BASE || ""
 
+/**
+ * 构建时注入的访问密钥。
+ *
+ * 后端开了 AGENT_TOKEN 之后，所有请求都必须带 `X-Agent-Key`，否则 401。
+ * 密钥不打进源码仓库，由 `npm run build:apk` 从后端 `.env` 读出来注入。
+ *
+ * 说清楚它的边界：这是"共享口令"，不是一个真正的身份认证。
+ * 密钥以明文形式存在 APK 的 app-service.js 里，把 APK 解开就能看到，
+ * 所以它能挡住"拿到地址的陌生人、扫描器、随手写脚本刷余额"，
+ * 挡不住铁了心逆向你 APK 的人。要更强的隔离，得换成一机一密 + 服务端下发。
+ */
+const AGENT_KEY_INJECTED: string = import.meta.env.VITE_AGENT_KEY || ""
+
 export const AGENT = {
   // 优先级：用户在设置页改的地址（存本地存储）> VITE_AGENT_BASE > 下面这个兜底
   //
@@ -71,6 +84,8 @@ export const AGENT = {
   // 局域网 IP 会随 DHCP 变（已经变过两次），而且只在家里能用。
   // 这个地址在家在外都一样，只要电脑开着、Tailscale 在跑就行。
   BASE: AGENT_BASE_INJECTED || "https://14.tail21dada.ts.net",
+  // 同上，设置页里也能覆盖（存本地存储），方便换钥时不用重新打包
+  KEY: AGENT_KEY_INJECTED,
   TIMEOUT: 60000,
 } as const
 
