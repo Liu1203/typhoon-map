@@ -84,11 +84,17 @@ function stashAside(dir, tag) {
  * 取不到不算错——本地调试时后端可能没开校验，此时前端也就不带这个头。
  * 多钥并存时取第一个（后端的 AGENT_TOKENS 支持逗号分隔，新包用新钥即可）。
  */
+/** 这次打包到底读了哪个 .env —— 报告时要说清楚，否则"没密钥"和"路径错了"分不出来 */
+let agentEnvPath = "";
+
 function readAgentToken() {
-  const envPath = path.join(PARENT, "agent-demo/.env");
-  if (!fs.existsSync(envPath)) return "";
+  // 后端目录不一定和 App 同级：这台机器上 backend 在 WorkBuddy 里，App 在 F 盘。
+  // 读不到就等于"包内不带密钥"，装上会被 401 —— 而这种失败原来只会显示
+  // "后端没配 AGENT_TOKEN"，把人往错误的方向引。
+  agentEnvPath = process.env.AGENT_ENV || path.join(PARENT, "agent-demo/.env");
+  if (!fs.existsSync(agentEnvPath)) return "";
   const line = fs
-    .readFileSync(envPath, "utf8")
+    .readFileSync(agentEnvPath, "utf8")
     .split(/\r?\n/)
     .find((l) => /^\s*AGENT_TOKEN\s*=/.test(l));
   if (!line) return "";
@@ -144,7 +150,11 @@ const agentToken = readAgentToken();
 stashAside(path.join(ROOT, "dist/build/app"), "dist-app");
 log("[2/5] 构建 App 资源 ...");
 run("npm", ["run", "build:app"], ROOT, agentToken ? { VITE_AGENT_KEY: agentToken } : {});
-log(agentToken ? "      已注入访问密钥" : "      [提示] 后端没配 AGENT_TOKEN，包内不带密钥");
+log(
+  agentToken
+    ? "      已注入访问密钥"
+    : `      [提示] 没读到 ${agentEnvPath} 里的 AGENT_TOKEN，包内不带密钥（后端若开了校验会 401）`,
+);
 
 const built = path.join(ROOT, "dist/build/app");
 if (!fs.existsSync(path.join(built, "app-service.js"))) die("构建产物里没有 app-service.js");
