@@ -89,7 +89,16 @@ function proposalExpired(p: AlertProposal) {
 }
 
 function uiOf(p: AlertProposal) {
-  return alertUi[p.id] ?? (alertUi[p.id] = { state: "idle" })
+  if (!alertUi[p.id]) alertUi[p.id] = { state: "idle" }
+  /**
+   * ★ 必须**重新读一遍**取到 reactive 的 proxy。
+   *
+   * 写成 `return alertUi[p.id] ?? (alertUi[p.id] = {...})` 是错的：
+   * 赋值表达式的值是那个原始对象，拿到它再去改 state 只会改到 target 上，
+   * 绕过了 proxy 的 setter —— 值变了但不安排重绘。
+   * 表现就是按钮永远停在"提交中…"，而请求其实早就成功了。
+   */
+  return alertUi[p.id]
 }
 
 async function confirmProposal(p: AlertProposal) {
