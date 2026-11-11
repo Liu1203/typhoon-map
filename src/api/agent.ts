@@ -21,19 +21,44 @@ export class AgentError extends Error {
   }
 }
 
+/**
+ * 一份待确认的写操作草案。
+ *
+ * 注意它**不是**"已经设好了"：服务端只生成了草案，必须由用户点确认才真正落库。
+ * 字段跟后端 src/alerts.ts 的 AlertProposal 一一对应。
+ */
+export interface AlertProposal {
+  id: string
+  sessionId: string
+  city: string
+  condition: string
+  threshold: number | null
+  leadHours: number
+  /** 给人看的一句话，确认卡片直接显示，不要自己拼 */
+  summary: string
+  createdAt: number
+  /** 过期时刻。过期后确认会被拒（404），界面要提示重新生成 */
+  expiresAt: number
+}
+
 /** agent 循环里抛出的过程事件 */
 export interface AgentEvent {
-  type: "step" | "tool_call" | "observation" | "final"
+  // proposal 是新加的：旧服务端不会发，所以下面所有字段都用 optional，
+  // 老客户端/新客户端连老服务端都不会因为多一种 type 而崩
+  type: "step" | "tool_call" | "observation" | "final" | "proposal"
   name?: string
   args?: string
   content?: string
   index?: number
+  proposal?: AlertProposal
 }
 
 export interface AgentReply {
   sessionId: string
   reply: string
   events: AgentEvent[]
+  /** 本轮产生的写操作草案。没有就是没触发，不是错误 */
+  proposals?: AlertProposal[]
 }
 
 /** 手机定位，随每次提问送给服务端，避免用户被反复问"你在哪个城市" */
@@ -297,6 +322,13 @@ export interface StreamHooks {
   onText?: (full: string) => void
   /** 目前已经发起过的工具调用，用来展示"思考过程" */
   onSteps?: (steps: StreamStep[]) => void
+  /**
+   * 出现了待确认的草案。
+   *
+   * 为什么单独一个回调、而不是塞进 onSteps：它需要**用户操作**，
+   * 是这一轮里唯一"还没结束"的东西 —— 混进步骤列表会被当成过程信息划过去。
+   */
+  onProposals?: (list: AlertProposal[]) => void
 }
 
 interface TaskStart {
@@ -311,6 +343,7 @@ interface TaskPoll {
   done: boolean
   error: string | null
   reply: string
+  proposals?: AlertProposal[]
 }
 
 /**
@@ -388,6 +421,7 @@ export async function askAgentStream(
   const deadline = Date.now() + POLL_TIMEOUT_MS
   let lastText = ""
   let lastSteps = ""
+  let lastProposals = ""
   let fails = 0
 
   for (;;) {
@@ -417,6 +451,15 @@ export async function askAgentStream(
       hooks.onSteps?.(steps)
     }
 
+    // 草案可能在中途就出现（工具刚返回、模型还在组织措辞），所以每轮都检查一次，
+    // 用序列化做去重 —— 否则每 200ms 都会重绘一次卡片
+    const props = Array.isArray(s.proposals) ? s.proposals : []
+    const pSig = JSON.stringify(props)
+    if (pSig !== lastProposals) {
+      lastProposals = pSig
+      hooks.onProposals?.(props)
+    }
+
     if (s.error) throw new AgentError("server", s.error)
 
     if (s.done) {
@@ -425,6 +468,7 @@ export async function askAgentStream(
         sessionId: s.sessionId || started.sessionId,
         reply: s.reply || lastText,
         events: [],
+        proposals: Array.isArray(s.proposals) ? s.proposals : [],
       }
     }
 
@@ -454,4 +498,37 @@ export function abortAsk() {
     } catch {}
   }
   active = null
+}
+
+// ---------------------------------------------------------------------------
+// 写操作：确认一份草案
+// ---------------------------------------------------------------------------
+
+export interface ConfirmedAlert {
+  id: string
+  summary: string
+  status: "active" | "cancelled"
+  createdAt: number
+}
+
+/**
+ * 确认一份草案 —— 整个 App 里唯一会改变服务端真实状态的调用。
+ *
+ * sessionId 用 **草案自己带的**，不用本地存储里的那个：
+ * 草案归属于生成它的会话，用错 id 会被服务端 403 拒掉，
+ * 而那时候用户看到的是"确认失败"，根本不知道为什么。
+ *
+ * idempotencyKey 由调用方生成，并且重试时必须复用同一个 —— 它代表
+ * "用户这一次点击"，不是"这一次 HTTP 请求"。点一次、超时、重发，
+ * 只要 key 没变，服务端只会创建一条。
+ */
+export function confirmAlert(proposal: AlertProposal, idempotencyKey: string): Promise<{
+  alert: ConfirmedAlert
+  replayed: boolean
+}> {
+  return post<{ alert: ConfirmedAlert; replayed: boolean }>("/api/alerts/confirm", {
+    proposalId: proposal.id,
+    sessionId: proposal.sessionId,
+    idempotencyKey,
+  })
 }

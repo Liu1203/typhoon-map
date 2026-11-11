@@ -5,12 +5,14 @@ import {
   abortAsk,
   askAgentStream,
   clearSession,
+  confirmAlert,
   detectLocation,
   getAgentBase,
   getCachedLocation,
   setAgentBase,
   type AgentErrorKind,
   type AgentEvent,
+  type AlertProposal,
   type AgentLocation,
 } from "@/api/agent"
 import { CACHE } from "@/config"
@@ -49,6 +51,87 @@ interface Msg {
   action?: MsgAction | null
   /** 打字结束后才填：把 text 解析成的渲染块。为空就按纯文本显示 */
   blocks?: MdBlock[] | null
+  /**
+   * 本轮产生的写操作草案（比如"下雨提醒我"）。
+   *
+   * 它和 text/steps 的性质不同：那两样是"已经发生的事"，
+   * 这个是"等你决定的事" —— 所以不进历史、不参与打字动画，单独渲染成卡片。
+   * 不存历史还有个实际原因：草案 15 分钟就过期，重启后那个按钮点了一定失败。
+   */
+  proposals?: AlertProposal[]
+}
+
+/**
+ * 草案的界面状态，按 proposalId 存。
+ *
+ * 放全局而不是塞回 Msg：同一条草案可能被重绘（轮询每 200ms 触发一次），
+ * 状态放在消息对象里容易被整段替换时丢掉。
+ */
+const alertUi = reactive<Record<string, { state: "idle" | "busy" | "done" | "error"; note?: string }>>({})
+
+/**
+ * 幂等键，按 proposalId 存，**点一次只生成一次**。
+ *
+ * 这一行是整个流程里最容易做错的地方：如果每次重试都新生成 key，
+ * 那么"超时后重试"就变成了一次全新的点击 —— 服务端会老老实实再建一条提醒。
+ * 键代表的是"用户这一次意愿"，不是"这一次 HTTP 请求"。
+ */
+const alertKeys = reactive<Record<string, string>>({})
+
+function newKey() {
+  // 小程序端没有 crypto.randomUUID，用时间 + 随机数够用（只要不重复即可）
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+/** 草案过期了没有。过期后服务端会拒（404），界面先自己说清楚 */
+function proposalExpired(p: AlertProposal) {
+  return Date.now() > p.expiresAt
+}
+
+function uiOf(p: AlertProposal) {
+  return alertUi[p.id] ?? (alertUi[p.id] = { state: "idle" })
+}
+
+async function confirmProposal(p: AlertProposal) {
+  const ui = uiOf(p)
+  if (ui.state === "busy" || ui.state === "done") return
+  if (proposalExpired(p)) {
+    ui.state = "error"
+    ui.note = "这条已经过期了，让助手重新生成一份"
+    return
+  }
+
+  ui.state = "busy"
+  ui.note = ""
+  alertKeys[p.id] ??= newKey()
+
+  try {
+    const r = await confirmAlert(p, alertKeys[p.id])
+    ui.state = "done"
+    // replayed=true 说明这次请求是重复到达的，服务端认出来了 ——
+    // 必须说清楚，否则用户会以为"又设了一条"
+    ui.note = r.replayed ? "刚才已经设过了，这次重复提交已忽略" : "已生效，到点会提醒你"
+  } catch (err) {
+    ui.state = "error"
+    const kind = err instanceof AgentError ? err.kind : "server"
+    const detail = err instanceof AgentError ? err.detail : String(err)
+    // 过期被拒和"网断了"要分开说：前者要重新生成，后者重试就行
+    if (/过期|不存在/.test(detail)) {
+      ui.note = "这条已经过期了，让助手重新生成一份"
+    } else if (kind === "offline" || kind === "timeout") {
+      ui.note = "网络不太好，再点一次就行（不会重复创建）"
+    } else if (kind === "auth") {
+      ui.note = "密钥不对，去设置里检查一下服务地址和密钥"
+    } else {
+      ui.note = "没设上，稍后再试"
+    }
+    console.warn("[alert] 确认失败：", err)
+  }
+}
+
+/** 用户不想要了。只是把卡片划掉，服务端什么都不改 —— 草案本来就没落库 */
+function ignoreProposal(p: AlertProposal) {
+  alertUi[p.id] = { state: "done", note: "已忽略，没有创建任何提醒" }
 }
 
 const messages = ref<Msg[]>([])
@@ -408,6 +491,10 @@ const TOOL_LABEL: Record<string, string> = {
   get_air_quality: "查空气质量",
   get_typhoon_history: "查台风历史",
   calculate: "计算",
+  // 写操作在步骤里也要说人话：显示"调用工具"会让用户以为它在查东西，
+  // 而这一条其实是"准备改你的设置" —— 性质完全不同
+  set_alert: "准备提醒",
+  list_alerts: "查已有提醒",
 }
 
 /** 需要地点才能查的工具；没传城市时说明用的是手机定位 */
@@ -575,7 +662,7 @@ async function run(content: string) {
 
   // 必须是 reactive：逐字改 text 时要能触发重绘，
   // 普通对象只有当 loading 变化时才会顺带刷新一次，做不了打字机
-  const target = reactive<Msg>({ role: "assistant", text: "", steps: [] })
+  const target = reactive<Msg>({ role: "assistant", text: "", steps: [] , proposals: [] })
   messages.value.push(target)
   saveHistory() // 先把提问存下：台风查询要十几秒，中途切走也别丢
   if (current()) loading.value = true
@@ -603,6 +690,11 @@ async function run(content: string) {
         target.text = stripLive(full)
         scrollToBottom(false)
       },
+      onProposals(list) {
+        // 整段替换而不是 push：同一条草案可能在多轮轮询里反复出现
+        target.proposals = list
+        if (list.length) scrollToBottom(false)
+      },
       onSteps(steps) {
         const labels = steps
           .map((s) => describeEvent({ type: "tool_call", name: s.name, args: s.args }))
@@ -619,6 +711,8 @@ async function run(content: string) {
       const step = describeEvent(e)
       if (step) target.steps.push(step)
     }
+    // 非流式路径下草案只在最终结果里出现，这里兜一下
+    if (res.proposals?.length) target.proposals = res.proposals
 
     // 先解锁输入再去播放动画，用户不用干等打字播完
     if (current()) loading.value = false
@@ -775,6 +869,44 @@ function onClear() {
               <view class="tdot" />
               <view class="tdot" />
             </view>
+            <!--
+              写操作草案。
+              必须长得和"回答"不一样：回答是已经发生的事，这个是等你决定的事。
+              所以用独立卡片 + "待确认"，而不是把 summary 拼进正文。
+            -->
+            <view
+              v-for="p in m.proposals || []"
+              :key="p.id"
+              class="alert-card"
+              :class="alertUi[p.id]?.state || 'idle'"
+            >
+              <view class="alert-head">
+                <text class="alert-badge">{{
+                  alertUi[p.id]?.state === "done" ? "已处理" : "待确认"
+                }}</text>
+                <text class="alert-summary">{{ p.summary }}</text>
+              </view>
+              <text v-if="alertUi[p.id]?.note" class="alert-note">{{ alertUi[p.id]?.note }}</text>
+              <view v-if="(alertUi[p.id]?.state || 'idle') !== 'done'" class="alert-actions">
+                <view
+                  class="alert-btn primary"
+                  :class="{ busy: alertUi[p.id]?.state === 'busy', disabled: proposalExpired(p) }"
+                  @tap="confirmProposal(p)"
+                >
+                  <text class="alert-btn-text">{{
+                    alertUi[p.id]?.state === "busy"
+                      ? "提交中…"
+                      : proposalExpired(p)
+                        ? "已过期"
+                        : "确认创建"
+                  }}</text>
+                </view>
+                <view class="alert-btn" @tap="ignoreProposal(p)">
+                  <text class="alert-btn-text">忽略</text>
+                </view>
+              </view>
+            </view>
+
             <!-- 回答底部的跳转链接：文案由模型给的名字拼，点了才跳，不打断阅读 -->
             <view v-if="m.action" class="action-link" @tap="openAction(m.action)">
               <text class="action-text">{{ actionLabel(m.action) }}</text>
@@ -1288,5 +1420,80 @@ function onClear() {
 }
 .dark-mode .stop-sq {
   background: #b8c6d4;
+}
+/* ---------- 写操作草案卡片 ---------- */
+.alert-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed #2563eb;
+  border-radius: 10px;
+  background: #f5f8fe;
+}
+/* 处理完就降级成普通卡片：状态变了，视觉也该跟着变，否则用户分不清哪张还要点 */
+.alert-card.done {
+  border-style: solid;
+  border-color: var(--color-paper-border);
+  background: #fff;
+  opacity: 0.75;
+}
+.alert-card.error {
+  border-color: #e5534b;
+  background: #fef6f5;
+}
+.alert-head {
+  display: flex;
+  align-items: flex-start;
+}
+.alert-badge {
+  flex: none;
+  font-size: 11px;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 4px;
+  color: #2563eb;
+  border: 1px solid currentColor;
+  margin-right: 8px;
+  margin-top: 1px;
+}
+.alert-summary {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+.alert-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-ink-light);
+}
+.alert-actions {
+  margin-top: 10px;
+  display: flex;
+}
+.alert-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-paper-border);
+  background: #fff;
+  margin-right: 8px;
+}
+.alert-btn.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+.alert-btn.primary .alert-btn-text {
+  color: #fff;
+}
+.alert-btn.disabled {
+  opacity: 0.5;
+}
+.alert-btn.busy {
+  opacity: 0.7;
+}
+.alert-btn-text {
+  font-size: 13px;
+  color: var(--color-ink-light);
 }
 </style>
