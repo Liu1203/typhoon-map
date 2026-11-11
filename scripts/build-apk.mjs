@@ -22,15 +22,23 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PARENT = path.dirname(ROOT);
-const SHELL = path.join(PARENT, "android-build-v2");
+/**
+ * 壳工程与工具链的定位。
+ *
+ * 原来硬编码成"项目同级的 myProject/"，换机器时很容易只拷了项目本体 ——
+ * 然后就卡在「缺少 F://douple//android-build-v2」这种一眼看不出怎么修的错误上。
+ * 所以改成三道优先级：环境变量 > 同级目录 > 系统已装的 JDK/SDK。
+ * 只要机器上有 JDK 17+ 和 Android SDK，不拷 .toolchain 也能打。
+ */
+const SHELL = path.resolve(process.env.ANDROID_SHELL || path.join(PARENT, "android-build-v2"));
 const TOOLCHAIN = path.join(PARENT, ".toolchain");
 const APPID = "__UNI__E35C807";
 const WWW = path.join(SHELL, "simpleDemo/src/main/assets/apps", APPID, "www");
 const GRADLE = path.join(SHELL, "simpleDemo/build.gradle");
 const APK_OUT = path.join(SHELL, "simpleDemo/build/outputs/apk/release/simpleDemo-release.apk");
 
-const JAVA_HOME = path.join(TOOLCHAIN, "jdk17");
-const ANDROID_HOME = path.join(TOOLCHAIN, "android-sdk");
+const JAVA_HOME = process.env.JAVA_HOME || path.join(TOOLCHAIN, "jdk17");
+const ANDROID_HOME = process.env.ANDROID_HOME || path.join(TOOLCHAIN, "android-sdk");
 const AAPT2 = path.join(ANDROID_HOME, "build-tools/35.0.0/aapt2.exe");
 
 const log = (msg) => console.log(msg);
@@ -96,8 +104,8 @@ for (const p of [SHELL, path.dirname(WWW), GRADLE, JAVA_HOME, ANDROID_HOME]) {
   if (!fs.existsSync(p)) {
     die(
       `缺少 ${p}\n` +
-        `  android-build-v2 和 .toolchain 都在项目同级的 myProject/ 下，` +
-        `换机器时要一起拷过来。`
+        `  默认布局：android-build-v2 和 .toolchain 都在项目同级目录下。\n` +
+        `  也可以用环境变量指定：ANDROID_SHELL=<壳工程> JAVA_HOME=<jdk> ANDROID_HOME=<sdk>`
     );
   }
 }
