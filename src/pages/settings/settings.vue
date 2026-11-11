@@ -56,6 +56,11 @@ const orderedModules = computed(() => {
   return sorted
 })
 
+/** 提醒页：列表 + 免打扰。放这里而不是助手页，因为它是"长期存在的东西" */
+function openReminders() {
+  uni.navigateTo({ url: "/pages/reminders/reminders" })
+}
+
 /* 拖拽排序：长按整行任意位置 380ms 进入拖动 */
 const dragKey = ref<string | null>(null)
 const dragDy = ref(0)
@@ -453,6 +458,10 @@ function checkUpdate() {
       <view class="setting-row" @tap="editAgentKey">
         <text class="setting-label">访问密钥</text>
         <text class="setting-value ellipsis">{{ agentKeyMasked }}</text>
+      </view>
+      <view class="setting-row" @tap="openReminders">
+        <text class="setting-label">我的提醒</text>
+        <text class="setting-value">›</text>
       </view>
       <view class="setting-row" @tap="clearAgentHistory">
         <text class="setting-label">清空对话记录</text>

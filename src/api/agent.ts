@@ -134,7 +134,7 @@ function authHeader(): Record<string, string> {
  */
 let active: { task: any; aborted: boolean } | null = null
 
-function post<T>(path: string, data: Record<string, unknown>): Promise<T> {
+function send<T>(method: "POST" | "PUT", path: string, data: Record<string, unknown>): Promise<T> {
   const state = { task: null as any, aborted: false }
   active = state
 
@@ -146,7 +146,7 @@ function post<T>(path: string, data: Record<string, unknown>): Promise<T> {
 
     state.task = uni.request({
       url: `${getAgentBase()}${path}`,
-      method: "POST",
+      method,
       data,
       timeout: AGENT.TIMEOUT,
       header: { "Content-Type": "application/json", ...authHeader() },
@@ -181,6 +181,11 @@ function post<T>(path: string, data: Record<string, unknown>): Promise<T> {
       },
     })
   })
+}
+
+/** 普通写请求。所有调用点都不用改 */
+function post<T>(path: string, data: Record<string, unknown>): Promise<T> {
+  return send<T>("POST", path, data)
 }
 
 export function getSessionId(): string {
@@ -530,5 +535,78 @@ export function confirmAlert(proposal: AlertProposal, idempotencyKey: string): P
     proposalId: proposal.id,
     sessionId: proposal.sessionId,
     idempotencyKey,
+  })
+}
+
+// ---------------------------------------------------------------------------
+// 提醒：列表 / 取消 / 免打扰偏好
+// ---------------------------------------------------------------------------
+
+/** 一条已生效的提醒。字段跟后端 AlertRecord 对齐，只取页面用得到的 */
+export interface AlertRecord {
+  id: string
+  summary: string
+  status: "active" | "cancelled"
+  createdAt: number
+  city: string
+  condition: string
+  threshold: number | null
+  leadHours: number
+}
+
+/** 夜间可以突破免打扰的档位。界面上不显示这些词，只显示"什么事能叫醒我" */
+export type NightLevel = "never" | "critical" | "high"
+
+export interface AlertSettings {
+  sessionId: string
+  quietEnabled: boolean
+  /** 0-23，可跨零点：22 → 8 */
+  quietStart: number
+  quietEnd: number
+  nightLevel: NightLevel
+  /** 24 小时内的打扰上限 */
+  maxIntrusions: number
+  updatedAt: number
+}
+
+/** 配额用量。界面上要显示"今晚还能打扰你几次"，否则用户以为推送坏了 */
+export interface IntrusionUsage {
+  used: number
+  limit: number
+  nextResetAt: number
+}
+
+/** 已生效的提醒。canWrite=false 时（只读身份）页面不该给取消按钮 */
+export function getAlerts(sessionId?: string): Promise<{ alerts: AlertRecord[]; canWrite: boolean }> {
+  const q = sessionId ? `?sessionId=${encodeURIComponent(sessionId)}` : ""
+  return getJson<{ alerts: AlertRecord[]; canWrite: boolean }>(`/api/alerts${q}`)
+}
+
+/** 取消一条提醒。取消是幂等的：重复点不会报错 */
+export function cancelAlert(alertId: string): Promise<{ alert: AlertRecord }> {
+  return post<{ alert: AlertRecord }>("/api/alerts/cancel", { alertId })
+}
+
+export function getAlertSettings(
+  sessionId: string,
+): Promise<{ settings: AlertSettings; intrusion: IntrusionUsage }> {
+  return getJson<{ settings: AlertSettings; intrusion: IntrusionUsage }>(
+    `/api/settings?sessionId=${encodeURIComponent(sessionId)}`,
+  )
+}
+
+/**
+ * 改偏好。
+ *
+ * 用 PUT 而不是 POST：这是"把我这份设置替换成新值"，天然幂等 ——
+ * 网络超时重发一次，结果和发一次完全相同。POST 语义上会让人以为"加一条"。
+ */
+export function saveAlertSettings(
+  sessionId: string,
+  patch: Partial<Pick<AlertSettings, "quietEnabled" | "quietStart" | "quietEnd" | "nightLevel" | "maxIntrusions">>,
+): Promise<{ settings: AlertSettings; intrusion: IntrusionUsage }> {
+  return send<{ settings: AlertSettings; intrusion: IntrusionUsage }>("PUT", "/api/settings", {
+    sessionId,
+    ...patch,
   })
 }

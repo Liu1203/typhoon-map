@@ -1,6 +1,6 @@
 {
   "name": "weather-app",
-  "version": "1.4.46",
+  "version": "1.4.48",
   "private": true,
   "type": "module",
   "scripts": {
